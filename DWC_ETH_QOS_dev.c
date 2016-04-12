@@ -827,7 +827,7 @@ static INT config_mac_pkt_filter_reg(UCHAR pr_mode,
   /* promiscuous, hash unicast, hash multicast, */
   /* all multicast and perfect/hash filtering mode. */
   MAC_MPFR_RgRd(varMAC_MPFR);
-  varMAC_MPFR = varMAC_MPFR & (ULONG)(0x803003e8);
+  varMAC_MPFR = varMAC_MPFR & (ULONG)(0x003003e8);
   varMAC_MPFR = varMAC_MPFR | ((pr_mode) << 0) | ((huc_mode) << 1) | ((hmc_mode) << 2) |
                 ((pm_mode) << 4) | ((hpf_mode) << 10);
   MAC_MPFR_RgWr(varMAC_MPFR);
@@ -2697,6 +2697,7 @@ static INT set_promiscuous_mode(void)
 
 static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data)
 {
+#if 0
 	ULONG retryCount = 1000;
 	ULONG vy_count;
 	volatile ULONG varMAC_GMIIAR;
@@ -2706,7 +2707,7 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data)
 		printk(KERN_ALERT"PHY reset and power down not supported = %lx\n", (ULONG)phy_reg_data);
 		phy_reg_data &= 0x77FF;
 	}
-	
+
 	/* wait for any previous MII read/write operation to complete */
 
 	/*Poll Until Poll Condition */
@@ -2756,6 +2757,7 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data)
 			break;
 		}
 	}
+#endif
 
 	return Y_SUCCESS;
 }

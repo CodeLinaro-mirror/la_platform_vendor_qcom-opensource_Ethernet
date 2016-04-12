@@ -316,6 +316,7 @@ static const struct ethtool_ops DWC_ETH_QOS_ethtool_ops = {
 	.get_strings = DWC_ETH_QOS_get_strings,
 	.get_sset_count = DWC_ETH_QOS_get_sset_count,
     .get_ts_info = DWC_ETH_QOS_get_ts_info,
+    .get_link = ethtool_op_get_link
 };
 
 struct ethtool_ops *DWC_ETH_QOS_get_ethtool_ops(void)

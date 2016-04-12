@@ -275,8 +275,8 @@ static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata)
 		(sizeof(struct s_RX_NORMAL_DESC) * RX_DESC_CNT));
 #else
 	NDBGPR_L1( "DWC_ETH_QOS : TX size is %u  RX size is %u\n",
-		(sizeof(struct s_TX_NORMAL_DESC) * TX_DESC_CNT),
-		(sizeof(struct s_RX_NORMAL_DESC) * RX_DESC_CNT));
+		(unsigned int)(sizeof(struct s_TX_NORMAL_DESC) * TX_DESC_CNT),
+		(unsigned int)(sizeof(struct s_RX_NORMAL_DESC) * RX_DESC_CNT));
 #endif
 	/* Allocate descriptors and buffers memory for all TX queues */
 	for (chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++) {

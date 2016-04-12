@@ -550,7 +550,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	NMSGPR_ALERT( "%s:Enable MSI error\n", DEV_NAME);
 	goto err_out_msi_failed;
     }
-    pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
 #else
     pdata->max_irq = NTN_MAX_MSI;
         ret = pci_enable_msi_range(pdev, pdata->max_irq, pdata->max_irq);
@@ -564,6 +563,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
         }
     NMSGPR_ALERT( "Allocated MSI = %d\n", pdata->max_irq); 
 #endif
+
+    pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
+
     //  Only one MSI supported for now.   
 	dev->irq = pdev->irq;
         NDBGPR_L1( "Allocated IRQ Number = %d\n", dev->irq); 
@@ -608,7 +610,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 				(64 * NTN_RX_DMA_CH_CNT));
 	}
 
-	SET_ETHTOOL_OPS(dev, DWC_ETH_QOS_get_ethtool_ops());
+	dev->ethtool_ops = DWC_ETH_QOS_get_ethtool_ops();
 	if (pdata->hw_feat.tso_en) {
 		dev->hw_features = NETIF_F_TSO;
 		dev->hw_features |= NETIF_F_SG;
@@ -973,11 +975,12 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 * \return void.
 */
 
-static int __init DWC_ETH_QOS_init_module(void)
+int DWC_ETH_QOS_init_module(void)
+/*static int __init DWC_ETH_QOS_init_module(void)*/
 {
 	INT ret = 0;
 
-	DBGPR("-->DWC_ETH_QOS_init_module\n");
+	NMSGPR_ALERT( "-->DWC_ETH_QOS_init_module\n");
 
 	ret = pci_register_driver(&DWC_ETH_QOS_pci_driver);
 	if (ret < 0) {
@@ -985,7 +988,7 @@ static int __init DWC_ETH_QOS_init_module(void)
 		return ret;
 	}
 
-	DBGPR("<--DWC_ETH_QOS_init_module\n");
+	NMSGPR_ALERT( "<--DWC_ETH_QOS_init_module\n");
 
 	return ret;
 }
@@ -999,13 +1002,14 @@ static int __init DWC_ETH_QOS_init_module(void)
 * \return void.
 */
 
-static void __exit DWC_ETH_QOS_exit_module(void)
+void DWC_ETH_QOS_exit_module(void)
+/*static void __exit DWC_ETH_QOS_exit_module(void)*/
 {
-	DBGPR("-->DWC_ETH_QOS_exit_module\n");
+	NMSGPR_ALERT("-->DWC_ETH_QOS_exit_module\n");
 
 	pci_unregister_driver(&DWC_ETH_QOS_pci_driver);
 
-	DBGPR("<--DWC_ETH_QOS_exit_module\n");
+	NMSGPR_ALERT( "<--DWC_ETH_QOS_exit_module\n");
 }
 
 /*!
@@ -1018,7 +1022,7 @@ static void __exit DWC_ETH_QOS_exit_module(void)
 * entry function returns and the module does nothing until the kernel wants
 * to do something with the code that the module provides.
 */
-module_init(DWC_ETH_QOS_init_module);
+/*module_init(DWC_ETH_QOS_init_module);*/
 
 /*!
 * \brief Macro to register the driver un-registration function.
@@ -1028,7 +1032,7 @@ module_init(DWC_ETH_QOS_init_module);
 * it undoes whatever entry function did. It unregisters the functionality
 * that the entry function registered.
 */
-module_exit(DWC_ETH_QOS_exit_module);
+/*module_exit(DWC_ETH_QOS_exit_module);*/
 
 /*!
 * \brief Macro to declare the module author.
