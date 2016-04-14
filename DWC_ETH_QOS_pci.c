@@ -79,6 +79,7 @@
 /*!@file: DWC_ETH_QOS_pci.c
  * @brief: Driver functions.
  */
+#include <linux/firmware.h>
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_pci.h"
 
@@ -110,7 +111,16 @@ ULONG dwc_eth_ntn_SRAM_len;
 ULONG dwc_eth_ntn_FLASH_len;    
 
 dma_addr_t dwc_eth_ntn_hostmem_pci_base_addr_phy;    
-ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;    
+ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
+
+CHARP fw_filename = "";
+BOOL disable_platform_init = 0;
+
+module_param(disable_platform_init, ushort, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+MODULE_PARM_DESC(disable_platform_init, "Disable device tree initialization");
+
+module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+MODULE_PARM_DESC(fw_filename, "Firmware filename");
 
 void DWC_ETH_QOS_init_all_fptrs(struct DWC_ETH_QOS_prv_data *pdata)
 {
@@ -289,6 +299,62 @@ static void parse_config_file(void)
 	return;
 }
 
+/*!
+* \brief Load the firmware to the SRAM for the Neutrino.
+*
+* \details This function reads the firmware from a binary file and writes
+* the contents of the file to the SRAM for the Neutrino. It then resets the
+* Neutrino.
+*
+* \param[in] pdev - pointer to pci_dev structure.
+* \param[in] dwc_eth_ntn_reg_pci_base_addr - PCI register base address
+* \param[in] dwc_eth_ntn_SRAM_pci_base_addr_virt - Neutrino SRAM base address
+*
+* \return integer
+*
+* \retval 0 on success & -ve number on failure.
+*/
+static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
+{
+	const struct firmware *fw_entry = NULL;
+	unsigned int reg_val;
+
+        if (fw_filename[0] == '\0') {
+                NMSGPR_INFO("Firmware filename not given. Skipping firmware loading.\n");
+                return -EINVAL;
+        }
+
+	if (request_firmware(&fw_entry, fw_filename, &pdev->dev) != 0 ||
+	    fw_entry == NULL)
+	{
+		NMSGPR_ALERT("Failed to get %s. The firmware is loaded from flash.\n", 
+			fw_filename);
+		return -EINVAL;
+	}
+
+	/* Set the reset bit */
+	reg_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008);
+	*(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008) =
+		(reg_val | 1);
+	msleep(1);
+	/* Write the FW to SRAM */
+	memcpy((char*)dwc_eth_ntn_SRAM_pci_base_addr_virt, fw_entry->data,
+	       fw_entry->size);
+	msleep(1);
+	/* Clear the reset bit to restart the Neutrino */
+	*(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008) =
+		(reg_val & ~0x3);
+	reg_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008);
+
+	release_firmware(fw_entry);
+
+	/* Wait a moment for the Neutrino to boot */
+	msleep(200);
+
+	NMSGPR_ALERT("Firmware loaded");
+
+	return 0;
+}
 
 /*!
 * \brief API to initialize the device.
@@ -570,6 +636,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
         NDBGPR_L1( "Allocated IRQ Number = %d\n", dev->irq); 
 
+	DWC_ETH_QOS_load_fw(pdev);
+
 	DWC_ETH_QOS_get_all_hw_features(pdata);
 	DWC_ETH_QOS_print_all_hw_features(pdata);
 
@@ -611,6 +679,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	}
 
 	dev->ethtool_ops = DWC_ETH_QOS_get_ethtool_ops();
+
 	if (pdata->hw_feat.tso_en) {
 		dev->hw_features = NETIF_F_TSO;
 		dev->hw_features |= NETIF_F_SG;
@@ -974,9 +1043,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 *
 * \return void.
 */
-
 int DWC_ETH_QOS_init_module(void)
-/*static int __init DWC_ETH_QOS_init_module(void)*/
 {
 	INT ret = 0;
 
@@ -1001,9 +1068,7 @@ int DWC_ETH_QOS_init_module(void)
 *
 * \return void.
 */
-
 void DWC_ETH_QOS_exit_module(void)
-/*static void __exit DWC_ETH_QOS_exit_module(void)*/
 {
 	NMSGPR_ALERT("-->DWC_ETH_QOS_exit_module\n");
 
@@ -1011,28 +1076,6 @@ void DWC_ETH_QOS_exit_module(void)
 
 	NMSGPR_ALERT( "<--DWC_ETH_QOS_exit_module\n");
 }
-
-/*!
-* \brief Macro to register the driver registration function.
-*
-* \details A module always begin with either the init_module or the function
-* you specify with module_init call. This is the entry function for modules;
-* it tells the kernel what functionality the module provides and sets up the
-* kernel to run the module's functions when they're needed. Once it does this,
-* entry function returns and the module does nothing until the kernel wants
-* to do something with the code that the module provides.
-*/
-/*module_init(DWC_ETH_QOS_init_module);*/
-
-/*!
-* \brief Macro to register the driver un-registration function.
-*
-* \details All modules end by calling either cleanup_module or the function
-* you specify with the module_exit call. This is the exit function for modules;
-* it undoes whatever entry function did. It unregisters the functionality
-* that the entry function registered.
-*/
-/*module_exit(DWC_ETH_QOS_exit_module);*/
 
 /*!
 * \brief Macro to declare the module author.

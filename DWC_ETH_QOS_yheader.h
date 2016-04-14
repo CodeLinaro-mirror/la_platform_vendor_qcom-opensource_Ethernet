@@ -79,7 +79,9 @@
 
 #define __DWC_ETH_QOS__YHEADER__
 /****************************** Includes ******************************/
+#include <linux/device.h>
 #include <linux/dmapool.h>
+#include <linux/if_vlan.h>
 
 /**************************** Neutrino Defines Starts Here ***************************/
 //#define DESC_SRAM_BUF_HOSTMEM

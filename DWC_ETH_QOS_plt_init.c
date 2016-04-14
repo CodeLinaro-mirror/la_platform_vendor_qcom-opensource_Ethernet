@@ -12,7 +12,7 @@
 
 /*!@file: DWC_ETH_QOS_plt_init.c
  * @brief: Driver functions.
- */
+ */	
 
 #include <linux/module.h>
 #include <linux/gpio.h>
@@ -55,6 +55,8 @@
 
 extern int DWC_ETH_QOS_init_module(void);
 extern void DWC_ETH_QOS_exit_module(void);
+
+extern BOOL disable_platform_init;
 
 static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 {
@@ -393,18 +395,27 @@ static struct platform_driver DWC_ETH_QOS_pcie_driver = {
 static int __init DWC_ETH_QOS_pcie_init(void)
 {
 	int ret = 0;
-	NMSGPR_ALERT( "Entry:%s.\n", __func__);
-	ret = platform_driver_register(&DWC_ETH_QOS_pcie_driver);
-	NMSGPR_ALERT( "Exit:%s.\n", __func__);
+
+        NMSGPR_ALERT("Entry:%s.\n", __func__);
+        if (disable_platform_init) {
+                DWC_ETH_QOS_init_module();
+        } else {
+                ret = platform_driver_register(&DWC_ETH_QOS_pcie_driver);
+        }
+        NMSGPR_ALERT( "Exit:%s.\n", __func__);
 	return ret;
 }
 
 static void __exit DWC_ETH_QOS_pcie_exit(void)
 {
 	NMSGPR_ALERT( "Entry:%s.\n", __func__);
-	platform_driver_unregister(&DWC_ETH_QOS_pcie_driver);
+        if (disable_platform_init) {
+                DWC_ETH_QOS_exit_module();
+        } else {
+                platform_driver_unregister(&DWC_ETH_QOS_pcie_driver);
+        }
 	NMSGPR_ALERT( "Exit:%s.\n", __func__);
 }
 
-subsys_initcall_sync(DWC_ETH_QOS_pcie_init);
+module_init(DWC_ETH_QOS_pcie_init);
 module_exit(DWC_ETH_QOS_pcie_exit);

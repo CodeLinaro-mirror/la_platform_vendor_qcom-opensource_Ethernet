@@ -6,7 +6,7 @@ PTPSUPPORT=y	#ptp is enabled
 ifeq ($(RELEASE_PACKAGE),1)
 EXTRA_CFLAGS+=-DRELEASE_PACKAGE
 endif
-LBITS := $(shell getconf LONG_BIT)
+LBITS ?= $(shell getconf LONG_BIT)
 ifeq ($(LBITS),64)
 CCFLAGS += -m64
 EXTRA_CFLAGS+=-DSYSTEM_IS_64
@@ -30,12 +30,18 @@ DWC_ETH_QOS-y += DWC_ETH_QOS_dev.o \
 			DWC_ETH_QOS_ethtool.o \
 			DWC_ETH_QOS_pci.o \
 			DWC_ETH_QOS_mdio.o \
-			DWC_ETH_QOS_eee.o
+			DWC_ETH_QOS_eee.o \
+			DWC_ETH_QOS_plt_init.o
 
 DWC_ETH_QOS-$(CONFIG_PTPSUPPORT_OBJ) += DWC_ETH_QOS_ptp.o
 
+KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
+
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+	$(MAKE) -C $(KERNEL_SRC) M=$(shell pwd) modules $(KBUILD_OPTIONS)
+
+modules_install:
+	$(MAKE) INSTALL_MOD_STRIP=1 -C $(KERNEL_SRC) M=$(shell pwd) modules_install
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+	$(MAKE) -C $(KERNEL_SRC) M=$(PWD) clean
