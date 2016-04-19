@@ -3005,7 +3005,8 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 		napi_gro_receive(&rx_dma_ch->napi, skb);
 	} else if ((dev->features & NETIF_F_LRO) &&
 		(skb->ip_summed == CHECKSUM_UNNECESSARY)) {
-		lro_receive_skb(&rx_dma_ch->lro_mgr, skb, (void *)pdata);
+		NMSGPR_ALERT( "INET_LRO not enabled in kernel : %s\n", __func__);
+		/*lro_receive_skb(&rx_dma_ch->lro_mgr, skb, (void *)pdata);*/
 		rx_dma_ch->lro_flush_needed = 1;
 	} else {
 		netif_receive_skb(skb);
@@ -3939,8 +3940,10 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 		pdata->xstats.rx_pkt_n += per_q_received;
 		pdata->xstats.q_rx_pkt_n[chInx] += per_q_received;
 
-		if (rx_dma_ch->lro_flush_needed)
-			lro_flush_all(&rx_dma_ch->lro_mgr);
+		if (rx_dma_ch->lro_flush_needed) {
+			NMSGPR_ALERT( "INET_LRO not enabled in kernel : %s\n", __func__);
+			/*lro_flush_all(&rx_dma_ch->lro_mgr); */
+			}
 	}
 	
 	/* If we processed all pkts, we are done;
