@@ -14,7 +14,7 @@ DLKM_DIR   := device/qcom/common/dlkm
 
 #include $(CLEAR_VARS)
 LOCAL_MODULE      := DWC_ETH_QOS.ko
-LOCAL_MODULE_TAGS := debug
+LOCAL_MODULE_TAGS := optional
 include $(DLKM_DIR)/AndroidKernelModule.mk
 
 endif
