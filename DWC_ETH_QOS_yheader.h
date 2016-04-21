@@ -79,8 +79,9 @@
 
 #define __DWC_ETH_QOS__YHEADER__
 /****************************** Includes ******************************/
+#ifdef DESC_SRAM_BUF_SRAM
 #include <linux/dmapool.h>
-
+#endif
 /**************************** Neutrino Defines Starts Here ***************************/
 //#define DESC_SRAM_BUF_HOSTMEM
 //#define DESC_SRAM_BUF_SRAM
