@@ -80,6 +80,8 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_ethtool.h"
 
+extern BOOL enable_phy;
+
 struct DWC_ETH_QOS_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -345,6 +347,11 @@ static void DWC_ETH_QOS_get_pauseparam(struct net_device *dev,
 
 	DBGPR("-->DWC_ETH_QOS_get_pauseparam\n");
 
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return;
+        }
+
 	pause->rx_pause = 0;
 	pause->tx_pause = 0;
 
@@ -398,6 +405,11 @@ static int DWC_ETH_QOS_set_pauseparam(struct net_device *dev,
 	DBGPR("-->DWC_ETH_QOS_set_pauseparam: "\
 	      "autoneg = %d tx_pause = %d rx_pause = %d\n",
 	      pause->autoneg, pause->tx_pause, pause->rx_pause);
+
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -ENODEV;
+        }
 
 	/* return if PHY doesn't support FLOW ctrl */
 	if (pdata->hw_feat.pcs_sel) {
@@ -556,7 +568,7 @@ static int DWC_ETH_QOS_getsettings(struct net_device *dev,
 
 		cmd->port = PORT_OTHER;
 	} else {
-		if (pdata->phydev == NULL) {
+		if (!enable_phy || pdata->phydev == NULL) {
 			NMSGPR_ALERT( "%s: PHY is not registered\n", dev->name);
 			return -ENODEV;
 		}
@@ -631,9 +643,13 @@ static int DWC_ETH_QOS_setsettings(struct net_device *dev,
 			hw_if->control_an(0, 0);
 		spin_unlock_irq(&pdata->lock);
 	} else {
-		spin_lock_irq(&pdata->lock);
-		ret = phy_ethtool_sset(pdata->phydev, cmd);
-		spin_unlock_irq(&pdata->lock);
+	        if (enable_phy) {
+		        spin_lock_irq(&pdata->lock);
+		        ret = phy_ethtool_sset(pdata->phydev, cmd);
+		        spin_unlock_irq(&pdata->lock);
+		} else {
+		        NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		}
 	}
 
 	NMSGPR_ALERT( "<--DWC_ETH_QOS_setsettings\n");

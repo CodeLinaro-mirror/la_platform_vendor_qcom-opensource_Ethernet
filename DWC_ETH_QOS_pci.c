@@ -115,12 +115,16 @@ ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
 
 CHARP fw_filename = "";
 BOOL disable_platform_init = 0;
+BOOL enable_phy = 1;
 
 module_param(disable_platform_init, ushort, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(disable_platform_init, "Disable device tree initialization");
 
 module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(fw_filename, "Firmware filename");
+
+module_param(enable_phy, ushort, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+MODULE_PARM_DESC(enable_phy, "Enable Ethernet PHY support");
 
 void DWC_ETH_QOS_init_all_fptrs(struct DWC_ETH_QOS_prv_data *pdata)
 {
@@ -651,7 +655,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	pdata->interface = DWC_ETH_QOS_get_phy_interface(pdata);
 	/* Bypass PHYLIB for TBI, RTBI and SGMII interface */
-	if (1 == pdata->hw_feat.sma_sel) {
+	if (enable_phy && 1 == pdata->hw_feat.sma_sel) {
 		ret = DWC_ETH_QOS_mdio_register(dev);
 		if (ret < 0) {
 			NMSGPR_ALERT( "MDIO bus (id %d) registration failed\n",

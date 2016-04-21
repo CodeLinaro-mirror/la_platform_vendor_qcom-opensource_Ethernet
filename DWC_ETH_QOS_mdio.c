@@ -79,6 +79,8 @@
  */
 #include "DWC_ETH_QOS_yheader.h"
 
+extern BOOL enable_phy;
+
 /*!
 * \brief read MII PHY register, function called by the driver alone
 *
@@ -104,6 +106,11 @@ INT DWC_ETH_QOS_mdio_read_direct(struct DWC_ETH_QOS_prv_data *pdata,
 	int phy_reg_read_status;
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_read_direct\n");
+
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -1;
+        }
 
 	if (hw_if->read_phy_regs) {
 		phy_reg_read_status =
@@ -147,6 +154,11 @@ INT DWC_ETH_QOS_mdio_write_direct(struct DWC_ETH_QOS_prv_data *pdata,
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write_direct\n");
 
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -1;
+        }
+
 	if (hw_if->write_phy_regs) {
 		phy_reg_write_status =
 		    hw_if->write_phy_regs(phyaddr, phyreg, phydata);
@@ -182,6 +194,11 @@ static INT DWC_ETH_QOS_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	int phydata;
+
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -1;
+        }
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_read: phyaddr = %d, phyreg = %d\n",
 	      phyaddr, phyreg);
@@ -223,6 +240,11 @@ static INT DWC_ETH_QOS_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write\n");
 
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -1;
+        }
+
 	if (hw_if->write_phy_regs) {
 		hw_if->write_phy_regs(phyaddr, phyreg, phydata);
 	} else {
@@ -257,6 +279,10 @@ static INT DWC_ETH_QOS_mdio_reset(struct mii_bus *bus)
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_mdio_reset: phyaddr : %d\n", pdata->phyaddr);
 
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -ENODEV;
+        }
 
 	hw_if->read_phy_regs(pdata->phyaddr, MII_BMCR, &phydata);
 
@@ -381,6 +407,11 @@ static void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 	//unsigned long flags;
 	int new_state = 0;
 
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return;
+        }
+
 	if (phydev == NULL)
 		return;
 
@@ -487,6 +518,11 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_init_phy\n");
 
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -ENODEV;
+        }
+
 	pdata->oldlink = 0;
 	pdata->speed = 0;
 	pdata->oldduplex = -1;
@@ -560,6 +596,12 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 	int ret = Y_SUCCESS;
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_mdio_register\n");
+
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return -ENODEV;
+        }
+
 	/* find the phy ID or phy address which is connected to our MAC */
 	for (phyaddr = 0; phyaddr < 32; phyaddr++) {
 		int phy_reg_read_status, mii_status;
@@ -645,6 +687,11 @@ void DWC_ETH_QOS_mdio_unregister(struct net_device *dev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_mdio_unregister\n");
+
+        if (!enable_phy) {
+                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+                return;
+        }
 
 	if (pdata->phydev) {
 		phy_stop(pdata->phydev);
