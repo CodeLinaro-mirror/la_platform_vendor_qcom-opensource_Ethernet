@@ -558,28 +558,35 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 	int phyaddr = 0;
 	unsigned short phy_detected = 0;
 	int ret = Y_SUCCESS;
+        int phyCheckLoop = 0;
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_mdio_register\n");
 	/* find the phy ID or phy address which is connected to our MAC */
-	for (phyaddr = 0; phyaddr < 32; phyaddr++) {
-		int phy_reg_read_status, mii_status;
+        do {
+		for (phyaddr = 0; phyaddr < 32; phyaddr++) {
+			int phy_reg_read_status, mii_status;
 
-		phy_reg_read_status =
-		    DWC_ETH_QOS_mdio_read_direct(pdata, phyaddr, MII_BMSR,
-			&mii_status);
-		if (phy_reg_read_status == 0) {
-			if (mii_status != 0x0000 && mii_status != 0xffff) {
-				NMSGPR_ALERT( "%s: Phy detected at"\
-				    " ID/ADDR %d\n", DEV_NAME, phyaddr);
-				phy_detected = 1;
-				break;
+			phy_reg_read_status =
+			    DWC_ETH_QOS_mdio_read_direct(pdata, phyaddr, MII_BMSR,
+				&mii_status);
+			if (phy_reg_read_status == 0) {
+				if (mii_status != 0x0000 && mii_status != 0xffff) {
+					NMSGPR_ALERT( "%s: Phy detected at"\
+					    " ID/ADDR %d\n", DEV_NAME, phyaddr);
+					phy_detected = 1;
+					break;
+				}
+			} else if (phy_reg_read_status < 0) {
+				NMSGPR_ALERT( "%s: Error reading the phy register"\
+				    " MII_BMSR for phy ID/ADDR %d\n",
+				    DEV_NAME, phyaddr);
 			}
-		} else if (phy_reg_read_status < 0) {
-			NMSGPR_ALERT( "%s: Error reading the phy register"\
-			    " MII_BMSR for phy ID/ADDR %d\n",
-			    DEV_NAME, phyaddr);
 		}
-	}
+		if (phy_detected) {
+			  break;
+		}
+		phyCheckLoop++;
+        } while(phyCheckLoop < 100); 
 	if (!phy_detected) {
 		NMSGPR_ALERT( "%s: No phy could be detected\n", DEV_NAME);
 		return -ENOLINK;
