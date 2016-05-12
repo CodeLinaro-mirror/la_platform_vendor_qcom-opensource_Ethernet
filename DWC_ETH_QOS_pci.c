@@ -274,7 +274,7 @@ static void parse_config_file(void)
 
 	oldfs = get_fs();
 	set_fs(get_ds());
-	filep = filp_open("config.ini", flags, 0600);
+	filep = filp_open("/etc/ntn_config.ini", flags, 0600);
 	set_fs(oldfs);
 	if(IS_ERR(filep)) {
 		NMSGPR_ALERT( "Mac configuration file not found\n");
