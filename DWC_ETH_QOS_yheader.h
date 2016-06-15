@@ -73,6 +73,10 @@
 /*! History:   
  *      2-March-2016 : Initial 
  *     21-March-2016 : Corrected Macro value for "DWC_ETH_QOS_Q_GENERIC"
+ *      3-Jun-2016   : Removed Extra TX/RX Queue/DMA Channel initialization.
+ *                   : Some Clean up for unused legacy code.
+ *                   : New statistics added to Ethtool for EMAC TX/RX DMA Descriptor Status & M3 MSI Generation Statistics (SRAM).
+ *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts. 
  */
 
 #ifndef __DWC_ETH_QOS__YHEADER__
@@ -143,8 +147,8 @@
 #define NTN_RX_DMA_CH_CNT (pdata->rx_dma_ch_cnt)
 #define NTN_DMA_CH_CNT min(NTN_TX_DMA_CH_CNT, NTN_RX_DMA_CH_CNT)
 
-#define NTN_TX_QUEUE_CNT (NTN_TX_DMA_CH_CNT)
-#define NTN_RX_QUEUE_CNT (NTN_RX_DMA_CH_CNT)
+#define NTN_TX_QUEUE_CNT (NTN_TX_DMA_CH_CNT-2)
+#define NTN_RX_QUEUE_CNT (NTN_RX_DMA_CH_CNT-2)
 #define NTN_QUEUE_CNT min(NTN_TX_QUEUE_CNT, NTN_RX_QUEUE_CNT)
 
 #define	NTN_GET_QINX_FROM_CHINX(chInx)	((chInx<=2)?0:(chInx-2))
@@ -208,10 +212,10 @@
 #define NTN_DMAAPI_MEM_LENGTH       (448*1024)
 
 /* Following macros are only for memory allocaiton */
-#define NTN_DMA_TX_CH_CNT	(6)
+#define NTN_DMA_TX_CH_CNT	(5)
 #define NTN_DMA_RX_CH_CNT	(6)
-#define NTN_TX_Q_CNT		(6)
-#define NTN_RX_Q_CNT		(6)
+#define NTN_TX_Q_CNT		(3)
+#define NTN_RX_Q_CNT		(4)
 
 /**************************** Neutrino Defines Ends Here ***************************/
 
@@ -294,7 +298,7 @@
 //#define DWC_ETH_QOS_ENABLE_RX_PKT_DUMP
 
 /* Uncomment below macro definitions for testing corresponding IP features in driver */
-//#define DWC_ETH_QOS_QUEUE_SELECT_ALGO
+#define DWC_ETH_QOS_QUEUE_SELECT_ALGO
 //#define DWC_ETH_QOS_CERTIFICATION_PKTBURSTCNT
 //#define DWC_ETH_QOS_CERTIFICATION_PKTBURSTCNT_HALFDUPLEX
 #define DWC_ETH_QOS_TXPOLLING_MODE_ENABLE
@@ -383,14 +387,6 @@
 #endif
 */
 
-/* RX header size for split header */
-#define DWC_ETH_QOS_HDR_SIZE_64B   64   /* 64 bytes */
-#define DWC_ETH_QOS_HDR_SIZE_128B  128  /* 128 bytes */
-#define DWC_ETH_QOS_HDR_SIZE_256B  256  /* 256 bytes */
-#define DWC_ETH_QOS_HDR_SIZE_512B  512  /* 512 bytes */
-#define DWC_ETH_QOS_HDR_SIZE_1024B 1024 /* 1024 bytes */
-
-#define DWC_ETH_QOS_MAX_HDR_SIZE DWC_ETH_QOS_HDR_SIZE_256B
 
 #define MAX_MULTICAST_LIST 14
 #define RX_DESC_DATA_LENGTH_LBIT 0
@@ -440,8 +436,7 @@
 #define DWC_ETH_QOS_MAX_DATA_PER_TX_BUF (1 << 12)	/* for testing purpose: 4 KB Maximum data per buffer pointer(in Bytes) */
 #define DWC_ETH_QOS_MAX_DATA_PER_TXD (DWC_ETH_QOS_MAX_DATA_PER_TX_BUF * 2)	/* Maxmimum data per descriptor(in Bytes) */
 
-#define DWC_ETH_QOS_MAX_SUPPORTED_MTU 16380
-#define DWC_ETH_QOS_MAX_GPSL 9000 /* Default maximum Gaint Packet Size Limit */
+#define DWC_ETH_QOS_MAX_SUPPORTED_MTU (DWC_ETH_QOS_ETH_FRAME_LEN)
 #define DWC_ETH_QOS_MIN_SUPPORTED_MTU (ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN)
 
 #define DWC_ETH_QOS_RDESC3_OWN	0x80000000
@@ -872,10 +867,6 @@ struct hw_if_struct {
 	INT(*disable_mmc_interrupts)(VOID);
 	INT(*config_mmc_counters)(VOID);
 
-	/* for handling split header */
-	INT(*config_split_header_mode)(UINT chInx, USHORT sph_en);
-	INT(*config_header_size)(USHORT header_size);
-
 	/* for handling DCB and AVB */
 	INT(*set_dcb_algorithm)(UCHAR dcb_algorithm);
 	INT(*set_dcb_queue_weight)(UINT chInx, UINT q_weight);
@@ -908,7 +899,6 @@ struct hw_if_struct {
 
 	/* for l2, l3 and l4 layer filtering */
 	INT(*config_l2_da_perfect_inverse_match)(INT perfect_inverse_match);
-	INT(*update_mac_addr32_127_low_high_reg)(INT idx, UCHAR addr[]);
 	INT(*update_mac_addr3_31_low_high_reg)(INT idx, UCHAR addr[]);
 	INT(*update_hash_table_reg)(INT idx, UINT data);
 	INT(*config_mac_pkt_filter_reg)(UCHAR, UCHAR, UCHAR, UCHAR, UCHAR);
@@ -1070,7 +1060,6 @@ struct DWC_ETH_QOS_rx_buffer {
 	struct page *page2;	/* page address of second buffer */
 	unsigned short len2;	/* length of received packet-second buffer */
 
-	unsigned short rx_hdr_size; /* header buff size in case of split header */
     	unsigned char* skb_temp_data_ptr;
 #ifdef NTN_RX_DATA_BUF_IN_SRAM
 	dma_addr_t dma_iommu;		
@@ -1309,21 +1298,21 @@ struct DWC_ETH_QOS_mmc_counters {
 };
 
 struct DWC_ETH_QOS_extra_stats {
-	unsigned long q_re_alloc_rx_buf_failed[8];
+	unsigned long q_re_alloc_rx_buf_failed[NTN_DMA_RX_CH_CNT];
 
 	/* Tx/Rx IRQ error info */
-	unsigned long tx_process_stopped_irq_n[8];
-	unsigned long rx_process_stopped_irq_n[8];
-	unsigned long tx_buf_unavailable_irq_n[8];
-	unsigned long rx_buf_unavailable_irq_n[8];
+	unsigned long tx_process_stopped_irq_n[NTN_DMA_TX_CH_CNT];
+	unsigned long rx_process_stopped_irq_n[NTN_DMA_RX_CH_CNT];
+	unsigned long tx_buf_unavailable_irq_n[NTN_DMA_TX_CH_CNT];
+	unsigned long rx_buf_unavailable_irq_n[NTN_DMA_RX_CH_CNT];
 	unsigned long rx_watchdog_irq_n;
 	unsigned long fatal_bus_error_irq_n;
 	unsigned long pmt_irq_n;
 	/* Tx/Rx IRQ Events */
-	unsigned long tx_normal_irq_n[8];
-	unsigned long rx_normal_irq_n[8];
+	unsigned long tx_normal_irq_n[NTN_DMA_TX_CH_CNT];
+	unsigned long rx_normal_irq_n[NTN_DMA_RX_CH_CNT];
 	unsigned long napi_poll_n;
-	unsigned long tx_clean_n[8];
+	unsigned long tx_clean_n[NTN_DMA_TX_CH_CNT];
 	/* EEE */
 	unsigned long tx_path_in_lpi_mode_irq_n;
 	unsigned long tx_path_exit_lpi_mode_irq_n;
@@ -1337,11 +1326,44 @@ struct DWC_ETH_QOS_extra_stats {
 	unsigned long tx_timestamp_captured_n;
 	unsigned long rx_timestamp_captured_n;
 	unsigned long tx_tso_pkt_n;
-	unsigned long rx_split_hdr_pkt_n;
 
 	/* Tx/Rx frames per channels/queues */
-	unsigned long q_tx_pkt_n[8];
-	unsigned long q_rx_pkt_n[8];
+	unsigned long q_tx_pkt_n[NTN_DMA_TX_CH_CNT];
+	unsigned long q_rx_pkt_n[NTN_DMA_RX_CH_CNT];
+
+	/* RX DMA Descriptors Status for all channels [0-5] */
+	unsigned long rxch_status[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_control[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_intrmask[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_desc_list_haddr[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_desc_list_laddr[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_desc_ring_len[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_desc_curr[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_desc_tail[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_desc_buf_haddr[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_desc_buf_laddr[NTN_DMA_RX_CH_CNT];
+	unsigned long rxch_sw_cur_rx[NTN_DMA_RX_CH_CNT];	/* desc_data->cur_rx:  Software Checks this index for RX packet availability */
+	unsigned long rxch_sw_dirty_rx[NTN_DMA_RX_CH_CNT];	/* desc_data->dirty_rx:Software tracks skb counter for recycling */
+
+	/* TX DMA Descriptors Status for all channels [0-4] */
+	unsigned long txch_status[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_control[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_intrmask[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_desc_list_haddr[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_desc_list_laddr[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_desc_ring_len[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_desc_curr[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_desc_tail[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_desc_buf_haddr[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_desc_buf_laddr[NTN_DMA_TX_CH_CNT];
+	unsigned long txch_sw_cur_tx[NTN_DMA_TX_CH_CNT];     /* desc_data->cur_tx:  Software tracks the desc which has to be used for current xfer */
+	unsigned long txch_sw_dirty_tx[NTN_DMA_TX_CH_CNT];   /* desc_data->dirty_tx:Software tracks the desc which has to be checked for xfer complete */
+
+	/*M3 Firmware Counters*/
+	unsigned long long m3_tick_cnt;
+	unsigned long m3_wdt_cnt;
+	unsigned long m3_msi_txch[NTN_DMA_TX_CH_CNT];
+	unsigned long m3_msi_rxch[NTN_DMA_RX_CH_CNT];
 };
 
 struct DWC_ETH_QOS_prv_data {
@@ -1429,9 +1451,6 @@ struct DWC_ETH_QOS_prv_data {
 
 	struct DWC_ETH_QOS_mmc_counters mmc;
 	struct DWC_ETH_QOS_extra_stats xstats;
-
-	/* rx split header mode */
-	unsigned char rx_split_hdr;
 
 	/* for MAC loopback */
 	unsigned int mac_loopback_mode;
@@ -1570,6 +1589,9 @@ void DWC_ETH_QOS_stop_all_ch_tx_dma(struct DWC_ETH_QOS_prv_data *pdata);
 UCHAR get_tx_queue_count(void);
 UCHAR get_rx_queue_count(void);
 void DWC_ETH_QOS_mmc_read(struct DWC_ETH_QOS_mmc_counters *mmc);
+void DWC_ETH_QOS_desc_stats_read(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_m3fw_stats_read(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_reset_ethtool_stats(struct DWC_ETH_QOS_prv_data *pdata);
 UINT DWC_ETH_QOS_get_total_desc_cnt(struct DWC_ETH_QOS_prv_data *pdata,
 		struct sk_buff *skb, UINT chInx);
 

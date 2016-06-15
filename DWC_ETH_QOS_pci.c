@@ -74,6 +74,7 @@
  *      2-March-2016 : Initial 
  *     21-March-2016 : Modified "pdev->msi_cap + PCI_MSI_MASK_64" register 
  *                     read as "pci_write_config_dword"
+ *      3-Jun-2016   : Removed Extra TX/RX Queue/DMA Channel initialization.
  */
 
 /*!@file: DWC_ETH_QOS_pci.c
@@ -489,11 +490,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
     	NDBGPR_L1("No of TX Queue = %d\n", tx_q_count);
     	NDBGPR_L1("No of RX Queue = %d\n", rx_q_count);
 
-	/* TODO: current driver has combine code for TX and RX Q, so considering the maximum (which is rx q count) for now.
-     In this case TX may write one extra queue, but as those fields are reserved it will not create any issue. */	    
-	tx_q_count = rx_q_count;
-
-
 	/* Need to add 2 to number of queue as this api corresponds to number of DMA channels */
 	dev = alloc_etherdev_mqs(sizeof(struct DWC_ETH_QOS_prv_data),
 				(tx_q_count+2), (rx_q_count+2));
@@ -532,14 +528,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->tx_dma_ch_cnt = tx_q_count + 2;
 	pdata->rx_dma_ch_cnt = rx_q_count + 2;
 	
-	if( (pdata->rx_dma_ch_cnt > NTN_DMA_TX_CH_CNT) || (pdata->tx_dma_ch_cnt > NTN_DMA_TX_CH_CNT) ){
-		NMSGPR_ALERT("Bug: Allocated memory is not enough for dma ch indicator \n");
-	}
-	if( (tx_q_count > NTN_TX_Q_CNT) || (rx_q_count > NTN_RX_Q_CNT) ){
-		NMSGPR_ALERT("Bug: Allocated memory is not enough for Q indicator \n");
-	}
-	
-		
 	/* 	Host: TX DMA CH : 0,2,3,4, 
 		Host: RX DMA CH : 0,2,3,4,5 */	
 	for(i=0; i<pdata->rx_dma_ch_cnt; i++)
@@ -682,7 +670,13 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 				(64 * NTN_RX_DMA_CH_CNT));
 	}
 
-	dev->ethtool_ops = DWC_ETH_QOS_get_ethtool_ops();
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0) )
+	SET_ETHTOOL_OPS(dev, DWC_ETH_QOS_get_ethtool_ops());
+#else	//3.16.0
+	netdev_set_default_ethtool_ops(dev, DWC_ETH_QOS_get_ethtool_ops());
+#endif	//3.16.0
+
+	DWC_ETH_QOS_reset_ethtool_stats(pdata);
 
 	if (pdata->hw_feat.tso_en) {
 		dev->hw_features = NETIF_F_TSO;

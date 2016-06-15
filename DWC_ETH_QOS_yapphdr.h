@@ -72,6 +72,7 @@
 
 /*! History:   
  *      2-March-2016 : Initial 
+ *      3-Jun-2016   : Some Clean up for unused legacy code.
  */
 
 #ifndef __DWC_ETH_QOS_YAPPHDR_H__
@@ -268,10 +269,6 @@
 #define DWC_ETH_QOS_TX_VLAN_TAG_INSERT	0x2
 /* Replace the VLAN tag into pkt to be transmitted */
 #define DWC_ETH_QOS_TX_VLAN_TAG_REPLACE	0x3
-
-/* RX split header operations */
-#define DWC_ETH_QOS_RX_SPLIT_HDR_DISABLE 0x0
-#define DWC_ETH_QOS_RX_SPLIT_HDR_ENABLE 0x1
 
 /* L3/L4 filter operations */
 #define DWC_ETH_QOS_L3_L4_FILTER_DISABLE 0x0

@@ -73,6 +73,10 @@
 /*! History:   
  *      2-March-2016 : Initial 
  *     21-March-2016 : Added "DWC_ETH_QOS_config_phy_aneg" API and it's calls
+ *      3-Jun-2016   : Some Clean up for unused legacy code.
+ *                   : TX Channel selection is moved to "DWC_ETH_QOS_select_queue" function.
+ *                   : New statistics added to Ethtool for EMAC TX/RX DMA Descriptor Status & M3 MSI Generation Statistics (SRAM).
+ *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts. 
  */
 
 /*!@file: DWC_ETH_QOS_drv.c
@@ -242,6 +246,8 @@ static void DWC_ETH_QOS_all_ch_napi_disable(struct DWC_ETH_QOS_prv_data *pdata)
 	DBGPR("<--DWC_ETH_QOS_napi_enable\n");
 }
 
+
+#if 0
 /*!
  * \details This function is invoked to stop device operation
  * Following operations are performed in this function.
@@ -280,7 +286,7 @@ static void DWC_ETH_QOS_stop_dev(struct DWC_ETH_QOS_prv_data *pdata)
 
 	DBGPR("<--DWC_ETH_QOS_stop_dev\n");
 }
-
+#endif
 
 static void DWC_ETH_QOS_tx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 {
@@ -413,7 +419,7 @@ static void DWC_ETH_QOS_restart_phy(struct DWC_ETH_QOS_prv_data *pdata)
 	DBGPR("<--DWC_ETH_QOS_restart_phy\n");
 }
 
-
+#if 0
 /*!
  * \details This function is invoked to start the device operation
  * Following operations are performed in this function.
@@ -466,6 +472,7 @@ static void DWC_ETH_QOS_start_dev(struct DWC_ETH_QOS_prv_data *pdata)
 
 	DBGPR("<--DWC_ETH_QOS_start_dev\n");
 }
+#endif
 
 /*!
  * \details This function is invoked by isr handler when device issues an FATAL
@@ -1257,21 +1264,13 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 		pdata->hw_feat.lp_mode_en ? "YES" : "NO");
 
 	switch(pdata->hw_feat.hash_tbl_sz) {
-	case 0:
-		str = "No hash table selected";
-		pdata->max_hash_table_size = 0;
-		break;
 	case 1:
 		str = "64";
 		pdata->max_hash_table_size = 64;
 		break;
-	case 2:
-		str = "128";
-		pdata->max_hash_table_size = 128;
-		break;
-	case 3:
-		str = "256";
-		pdata->max_hash_table_size = 256;
+	default:
+		str = "No hash table selected";
+		pdata->max_hash_table_size = 0;
 		break;
 	}
 	NMSGPR_ALERT( "Hash Table Size                              : %s\n",
@@ -1350,7 +1349,6 @@ static const struct net_device_ops DWC_ETH_QOS_netdev_ops = {
 	.ndo_set_features = DWC_ETH_QOS_set_features,
 	.ndo_fix_features = DWC_ETH_QOS_fix_features,
 	.ndo_do_ioctl = DWC_ETH_QOS_ioctl,
-	.ndo_change_mtu = DWC_ETH_QOS_change_mtu,
 #ifdef DWC_ETH_QOS_QUEUE_SELECT_ALGO
 	.ndo_select_queue = DWC_ETH_QOS_select_queue,
 #endif
@@ -1363,154 +1361,6 @@ struct net_device_ops *DWC_ETH_QOS_get_netdev_ops(void)
 	return (struct net_device_ops *)&DWC_ETH_QOS_netdev_ops;
 }
 
-/*!
- * \brief allcation of Rx skb's for split header feature.
- *
- * \details This function is invoked by other api's for
- * allocating the Rx skb's if split header feature is enabled.
- *
- * \param[in] pdata – pointer to private data structure.
- * \param[in] buffer – pointer to wrapper receive buffer data structure.
- * \param[in] gfp – the type of memory allocation.
- *
- * \return int
- *
- * \retval 0 on success and -ve number on failure.
- */
-
-static int DWC_ETH_QOS_alloc_split_hdr_rx_buf(UINT chInx, 
-		struct DWC_ETH_QOS_prv_data *pdata,
-		struct DWC_ETH_QOS_rx_buffer *buffer,
-		gfp_t gfp)
-{
-	struct sk_buff *skb = buffer->skb;
-
-	DBGPR("-->DWC_ETH_QOS_alloc_split_hdr_rx_buf\n");
-
-	if (skb) {
-		skb_trim(skb, 0);
-		goto check_page;
-	}
-
-	buffer->rx_hdr_size = DWC_ETH_QOS_MAX_HDR_SIZE;
-	/* allocate twice the maximum header size */
-	skb = __netdev_alloc_skb_ip_align(pdata->dev,
-			(2*buffer->rx_hdr_size),
-			gfp);
-	if (skb == NULL) {
-		NMSGPR_ALERT( "Failed to allocate skb\n");
-		return -ENOMEM;
-	}
-	buffer->skb = skb;
-	DBGPR("Maximum header buffer size allocated = %d\n",
-		buffer->rx_hdr_size);
- check_page:
-	if (!buffer->dma){
-        NMSGPR_ERR("dma_map_single: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-		buffer->dma = dma_map_single(&pdata->pdev->dev,
-					buffer->skb->data,
-					(2*buffer->rx_hdr_size),
-					DMA_FROM_DEVICE);
-    }
-	buffer->len = buffer->rx_hdr_size;
-
-	/* allocate a new page if necessary */
-	if (buffer->page2 == NULL) {
-		buffer->page2 = alloc_page(gfp);
-		if (unlikely(!buffer->page2)) {
-			NMSGPR_ALERT(
-			"Failed to allocate page for second buffer\n");
-			return -ENOMEM;
-		}
-	}
-	if (!buffer->dma2){
-        NMSGPR_ERR("dma_map_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-		buffer->dma2 = dma_map_page(&pdata->pdev->dev,
-				    buffer->page2, 0,
-				    PAGE_SIZE, DMA_FROM_DEVICE);
-    }
-	buffer->len2 = PAGE_SIZE;
-	buffer->mapped_as_page = Y_TRUE;
-
-	DBGPR("<--DWC_ETH_QOS_alloc_split_hdr_rx_buf\n");
-
-	return 0;
-}
-
-/*!
- * \brief allcation of Rx skb's for jumbo frame.
- *
- * \details This function is invoked by other api's for
- * allocating the Rx skb's if jumbo frame is enabled.
- *
- * \param[in] pdata – pointer to private data structure.
- * \param[in] buffer – pointer to wrapper receive buffer data structure.
- * \param[in] gfp – the type of memory allocation.
- *
- * \return int
- *
- * \retval 0 on success and -ve number on failure.
- */
-
-static int DWC_ETH_QOS_alloc_jumbo_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pdata,
-					  struct DWC_ETH_QOS_rx_buffer *buffer,
-					  gfp_t gfp)
-{
-	struct sk_buff *skb = buffer->skb;
-	unsigned int bufsz = (256 - 16);	/* for skb_reserve */
-
-	DBGPR("-->DWC_ETH_QOS_alloc_jumbo_rx_buf\n");
-
-	if (skb) {
-		skb_trim(skb, 0);
-		goto check_page;
-	}
-
-	skb = __netdev_alloc_skb_ip_align(pdata->dev, bufsz, gfp);
-	if (skb == NULL) {
-		NMSGPR_ALERT( "Failed to allocate skb\n");
-		return -ENOMEM;
-	}
-	buffer->skb = skb;
- check_page:
-	/* allocate a new page if necessary */
-	if (buffer->page == NULL) {
-		buffer->page = alloc_page(gfp);
-		if (unlikely(!buffer->page)) {
-			NMSGPR_ALERT( "Failed to allocate page\n");
-			return -ENOMEM;
-		}
-	}
-	if (!buffer->dma){
-        NMSGPR_ERR("dma_map_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-		buffer->dma = dma_map_page(&pdata->pdev->dev,
-					   buffer->page, 0,
-					   PAGE_SIZE, DMA_FROM_DEVICE);
-    }
-	buffer->len = PAGE_SIZE;
-
-	if (buffer->page2 == NULL) {
-		buffer->page2 = alloc_page(gfp);
-		if (unlikely(!buffer->page2)) {
-			NMSGPR_ALERT(
-			       "Failed to allocate page for second buffer\n");
-			return -ENOMEM;
-		}
-	}
-	if (!buffer->dma2){
-        NMSGPR_ERR("dma_map_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-		buffer->dma2 = dma_map_page(&pdata->pdev->dev,
-					    buffer->page2, 0,
-					    PAGE_SIZE, DMA_FROM_DEVICE);
-    }
-	buffer->len2 = PAGE_SIZE;
-
-	buffer->mapped_as_page = Y_TRUE;
-
-	DBGPR("<--DWC_ETH_QOS_alloc_jumbo_rx_buf\n");
-
-	return 0;
-}
 
 /*!
  * \brief allcation of Rx skb's for default rx mode.
@@ -1603,18 +1453,9 @@ static void DWC_ETH_QOS_configure_rx_fun_ptr(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	DBGPR("-->DWC_ETH_QOS_configure_rx_fun_ptr\n");
 
-	if (pdata->rx_split_hdr) {
-		pdata->clean_rx = DWC_ETH_QOS_clean_split_hdr_rx_irq;
-		pdata->alloc_rx_buf = DWC_ETH_QOS_alloc_split_hdr_rx_buf;
-	}
-	else if (pdata->dev->mtu > DWC_ETH_QOS_ETH_FRAME_LEN) {
-		pdata->clean_rx = DWC_ETH_QOS_clean_jumbo_rx_irq;
-		pdata->alloc_rx_buf = DWC_ETH_QOS_alloc_jumbo_rx_buf;
-	} else {
-		pdata->rx_buffer_len = DWC_ETH_QOS_ETH_FRAME_LEN;
-		pdata->clean_rx = DWC_ETH_QOS_clean_rx_irq;
-		pdata->alloc_rx_buf = DWC_ETH_QOS_alloc_rx_buf;
-	}
+	pdata->rx_buffer_len = DWC_ETH_QOS_ETH_FRAME_LEN;
+	pdata->clean_rx = DWC_ETH_QOS_clean_rx_irq;
+	pdata->alloc_rx_buf = DWC_ETH_QOS_alloc_rx_buf;
 
 	DBGPR("<--DWC_ETH_QOS_configure_rx_fun_ptr\n");
 }
@@ -1969,7 +1810,6 @@ static int DWC_ETH_QOS_prepare_mc_list(struct net_device *dev)
 		ret = 1;
 		memset(mc_filter, 0, sizeof(mc_filter));
 
-		if (pdata->max_hash_table_size == 64) {
 			netdev_for_each_mc_addr(ha, dev) {
 				DBGPR_FILTER("mc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n",i++,
 						ha->addr[0], ha->addr[1], ha->addr[2],
@@ -1986,47 +1826,6 @@ static int DWC_ETH_QOS_prepare_mc_list(struct net_device *dev)
 				 * */
 				mc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
 			}
-		} else if (pdata->max_hash_table_size == 128) {
-			netdev_for_each_mc_addr(ha, dev) {
-				DBGPR_FILTER("mc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n",i++,
-						ha->addr[0], ha->addr[1], ha->addr[2],
-						ha->addr[3], ha->addr[4], ha->addr[5]);
-				/* The upper 7 bits of the calculated CRC are used to
-				 * index the content of the Hash Table Reg 0,1,2 and 3.
-				 * */
-				crc32_val =
-					(bitrev32(~crc32_le(~0, ha->addr, 6)) >> 25);
-
-				NMSGPR_ALERT( "crc_le = %#x, crc_be = %#x\n",
-						bitrev32(~crc32_le(~0, ha->addr, 6)),
-						bitrev32(~crc32_be(~0, ha->addr, 6)));
-
-				/* The most significant 2 bits determines the register
-				 * to use (Hash Table Reg X, X = 0,1,2 and 3) while the
-				 * other 5(0x1F) bits determines the bit within the
-				 * selected register
-				 * */
-				mc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
-			}
-		} else if (pdata->max_hash_table_size == 256) {
-			netdev_for_each_mc_addr(ha, dev) {
-				DBGPR_FILTER("mc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n",i++,
-						ha->addr[0], ha->addr[1], ha->addr[2],
-						ha->addr[3], ha->addr[4], ha->addr[5]);
-				/* The upper 8 bits of the calculated CRC are used to
-				 * index the content of the Hash Table Reg 0,1,2,3,4,
-				 * 5,6, and 7.
-				 * */
-				crc32_val =
-					(bitrev32(~crc32_le(~0, ha->addr, 6)) >> 24);
-				/* The most significant 3 bits determines the register
-				 * to use (Hash Table Reg X, X = 0,1,2,3,4,5,6 and 7) while
-				 * the other 5(0x1F) bits determines the bit within the
-				 * selected register
-				 * */
-				mc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
-			}
-		}
 
 		for (i = 0; i < DWC_ETH_QOS_HTR_CNT; i++)
 			hw_if->update_hash_table_reg(i, mc_filter[i]);
@@ -2039,10 +1838,7 @@ static int DWC_ETH_QOS_prepare_mc_list(struct net_device *dev)
 			DBGPR_FILTER("mc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n", i,
 					ha->addr[0], ha->addr[1], ha->addr[2],
 					ha->addr[3], ha->addr[4], ha->addr[5]);
-			if (i < 32)
 				hw_if->update_mac_addr3_31_low_high_reg(i, ha->addr);
-			else
-				hw_if->update_mac_addr32_127_low_high_reg(i, ha->addr);
 			i++;
 		}
 	}
@@ -2080,7 +1876,6 @@ static int DWC_ETH_QOS_prepare_uc_list(struct net_device *dev)
 		ret = 1;
 		memset(uc_filter, 0, sizeof(uc_filter));
 
-		if (pdata->max_hash_table_size == 64) {
 			netdev_for_each_uc_addr(ha, dev) {
 				DBGPR_FILTER("uc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n",i++,
 						ha->addr[0], ha->addr[1], ha->addr[2],
@@ -2089,45 +1884,15 @@ static int DWC_ETH_QOS_prepare_uc_list(struct net_device *dev)
 					(bitrev32(~crc32_le(~0, ha->addr, 6)) >> 26);
 				uc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
 			}
-		} else if (pdata->max_hash_table_size == 128) {
-			netdev_for_each_uc_addr(ha, dev) {
-				DBGPR_FILTER("uc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n",i++,
-						ha->addr[0], ha->addr[1], ha->addr[2],
-						ha->addr[3], ha->addr[4], ha->addr[5]);
-				crc32_val =
-					(bitrev32(~crc32_le(~0, ha->addr, 6)) >> 25);
-				uc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
-			}
-		} else if (pdata->max_hash_table_size == 256) {
-			netdev_for_each_uc_addr(ha, dev) {
-				DBGPR_FILTER("uc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n",i++,
-						ha->addr[0], ha->addr[1], ha->addr[2],
-						ha->addr[3], ha->addr[4], ha->addr[5]);
-				crc32_val =
-					(bitrev32(~crc32_le(~0, ha->addr, 6)) >> 24);
-				uc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
-			}
-		}
 
 		/* configure hash value of real/default interface also */
 		DBGPR_FILTER("real/default dev_addr = %#x:%#x:%#x:%#x:%#x:%#x\n",
 				dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
 				dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
 
-		if (pdata->max_hash_table_size == 64) {
 			crc32_val =
 				(bitrev32(~crc32_le(~0, dev->dev_addr, 6)) >> 26);
 			uc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
-		} else if (pdata->max_hash_table_size == 128) {
-			crc32_val =
-				(bitrev32(~crc32_le(~0, dev->dev_addr, 6)) >> 25);
-			uc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
-
-		} else if (pdata->max_hash_table_size == 256) {
-			crc32_val =
-				(bitrev32(~crc32_le(~0, dev->dev_addr, 6)) >> 24);
-			uc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
-		}
 
 		for (i = 0; i < DWC_ETH_QOS_HTR_CNT; i++)
 			hw_if->update_hash_table_reg(i, uc_filter[i]);
@@ -2140,10 +1905,7 @@ static int DWC_ETH_QOS_prepare_uc_list(struct net_device *dev)
 			DBGPR_FILTER("uc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n", i,
 					ha->addr[0], ha->addr[1], ha->addr[2],
 					ha->addr[3], ha->addr[4], ha->addr[5]);
-			if (i < 32)
 				hw_if->update_mac_addr3_31_low_high_reg(i, ha->addr);
-			else
-				hw_if->update_mac_addr32_127_low_high_reg(i, ha->addr);
 			i++;
 		}
 	}
@@ -2195,6 +1957,7 @@ static void DWC_ETH_QOS_set_rx_mode(struct net_device *dev)
 		if ((netdev_mc_count(dev) > (pdata->max_addr_reg_cnt - 1)) &&
 			(!pdata->max_hash_table_size)) {
 			/* switch to PROMISCUOUS mode */
+		printk("switch to promiscuous for multicast\n");
 			pr_mode = 1;
 		} else {
 			mode = DWC_ETH_QOS_prepare_mc_list(dev);
@@ -2213,6 +1976,7 @@ static void DWC_ETH_QOS_set_rx_mode(struct net_device *dev)
 	if ((netdev_uc_count(dev) > (pdata->max_addr_reg_cnt - 1)) &&
 			(!pdata->max_hash_table_size)) {
 		/* switch to PROMISCUOUS mode */
+		printk("switch to promiscuous for unicast\n");
 		pr_mode = 1;
 	} else if (!netdev_uc_empty(dev)) {
 		mode = DWC_ETH_QOS_prepare_uc_list(dev);
@@ -2328,7 +2092,7 @@ UINT DWC_ETH_QOS_get_total_desc_cnt(struct DWC_ETH_QOS_prv_data *pdata,
 static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
-	UINT chInx;// = skb_get_queue_mapping(skb);
+	UINT chInx = skb_get_queue_mapping(skb);
 	struct DWC_ETH_QOS_tx_wrapper_descriptor *desc_data;
 	struct s_tx_pkt_features *tx_pkt_features = GET_TX_PKT_FEATURES_PTR;
 	unsigned long flags;
@@ -2340,54 +2104,8 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	UINT varvlan_pkt;
 	int tso;
 
-	UINT eth_or_vlan_tag;
-	UINT avb_priority;
-	UINT eth_type;
-
 	spin_lock_irqsave(&pdata->tx_lock, flags);
-
-	/* TX Channel assignment based on Vlan tag and protocol type */	
-	eth_or_vlan_tag = htons(((skb->data[13]<<8) | skb->data[12]));
-	//NMSGPR_ALERT( "ETH TYPE or VLAN TAG : %#x\n", eth_or_vlan_tag);
-	if(eth_or_vlan_tag == NTN_VLAN_TAG)
-	{
-		eth_type = htons(((skb->data[17]<<8) | skb->data[16]));
-		//NMSGPR_INFO("VLAN ETH TYPE : %#x\n", eth_type);
-		if(eth_type == NTN_ETH_TYPE_AVB)
-	{
-		/* Extract VLAN priority field from the tx data */
-			avb_priority = htons((skb->data[15]<<8) | skb->data[14]);
-			//NMSGPR_INFO("VID : %#x\n", avb_priority);
-			avb_priority >>= 13;
-			//NMSGPR_INFO("AVB Priority : %#x\n", avb_priority);
-		if(avb_priority == NTN_AVB_PRIORITY_CLASS_A){		
-				skb_set_queue_mapping(skb, NTN_TX_PKT_AVB_CLASS_A);	
-		}else if(avb_priority == NTN_AVB_PRIORITY_CLASS_B){	
-				skb_set_queue_mapping(skb, NTN_TX_PKT_AVB_CLASS_B);	
-			}else{
-				skb_set_queue_mapping(skb, NTN_TX_PKT_HOST);
-			}
-		}else{
-			/* VLAN but not AVB send it to Q0 */
-			skb_set_queue_mapping(skb, NTN_TX_PKT_VLAN_NOT_AVB);
-		}
-	}
-	else
-	{	
-		/* It's protcol (ether type) field */
-		eth_type = eth_or_vlan_tag;
-		switch(eth_type){
-			case NTN_GPTP_ETH_TYPE:		
-				skb_set_queue_mapping(skb, NTN_TX_PKT_GPTP);	
-				break;
-			default:	
-				skb_set_queue_mapping(skb, NTN_TX_PKT_HOST);	
-				break;
-		}
-	}
-
 	/* Fetch TX Channel no */
-	chInx = skb_get_queue_mapping(skb);
 	desc_data = GET_TX_WRAPPER_DESC(chInx);
 
 	DBGPR("-->DWC_ETH_QOS_start_xmit: skb->len = %d, chInx = %u\n",
@@ -3020,32 +2738,6 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 	}
 }
 
-static void DWC_ETH_QOS_consume_page(struct DWC_ETH_QOS_rx_buffer *buffer,
-				     struct sk_buff *skb,
-				     u16 length, u16 buf2_used)
-{
-	buffer->page = NULL;
-	if (buf2_used)
-		buffer->page2 = NULL;
-	skb->len += length;
-	skb->data_len += length;
-	skb->truesize += length;
-}
-
-static void DWC_ETH_QOS_consume_page_split_hdr(
-				struct DWC_ETH_QOS_rx_buffer *buffer,
-				struct sk_buff *skb,
-				u16 length,
-				USHORT page2_used)
-{
-	if (page2_used)
-		buffer->page2 = NULL;
-
-	skb->len += length;
-	skb->data_len += length;
-	skb->truesize += length;
-}
-
 /* Receive Checksum Offload configuration */
 static inline void DWC_ETH_QOS_config_rx_csum(struct DWC_ETH_QOS_prv_data *pdata,
 		struct sk_buff *skb,
@@ -3102,566 +2794,6 @@ static int DWC_ETH_QOS_check_for_tcp_payload(struct s_RX_NORMAL_DESC *rxdesc)
 		}
 
 		return ret;
-}
-
-/*!
-* \brief API to pass the Rx packets to stack if split header
-* feature is enabled.
-*
-* \details This function is invoked by main NAPI function if RX
-* split header feature is enabled. This function checks the device
-* descriptor for the packets and passes it to stack if any packtes
-* are received by device.
-*
-* \param[in] pdata - pointer to private data structure.
-* \param[in] quota - maximum no. of packets that we are allowed to pass
-* to into the kernel.
-* \param[in] chInx - DMA channel/queue no. to be checked for packet.
-*
-* \return integer
-*
-* \retval number of packets received.
-*/
-
-static int DWC_ETH_QOS_clean_split_hdr_rx_irq(
-			struct DWC_ETH_QOS_prv_data *pdata,
-			int quota,
-			UINT chInx)
-{
-	struct DWC_ETH_QOS_rx_wrapper_descriptor *desc_data =
-	    GET_RX_WRAPPER_DESC(chInx);
-	struct net_device *dev = pdata->dev;
-	struct desc_if_struct *desc_if = &pdata->desc_if;
-	struct hw_if_struct *hw_if = &(pdata->hw_if);
-	struct sk_buff *skb = NULL;
-	int received = 0;
-	struct DWC_ETH_QOS_rx_buffer *buffer = NULL;
-	struct s_RX_NORMAL_DESC *RX_NORMAL_DESC = NULL;
-	u16 pkt_len;
-	unsigned short hdr_len = 0;
-	unsigned short payload_len = 0;
-	unsigned char intermediate_desc_cnt = 0;
-	unsigned char buf2_used = 0;
-	int ret;
-
-	DBGPR("-->DWC_ETH_QOS_clean_split_hdr_rx_irq: chInx = %u, quota = %d\n",
-		chInx, quota);
-
-	while (received < quota) {
-		buffer = GET_RX_BUF_PTR(chInx, desc_data->cur_rx);
-		RX_NORMAL_DESC = GET_RX_DESC_PTR(chInx, desc_data->cur_rx);
-
-		/* check for data availability */
-		if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_OWN)) {
-#ifdef DWC_ETH_QOS_ENABLE_RX_DESC_DUMP
-			dump_rx_desc(chInx, RX_NORMAL_DESC, desc_data->cur_rx);
-#endif
-			/* assign it to new skb */
-			skb = buffer->skb;
-			buffer->skb = NULL;
-
-			/* first buffer pointer */
-            NMSGPR_ERR("dma_unmap_single: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-			dma_unmap_single(&pdata->pdev->dev, buffer->dma,
-				       (2*buffer->rx_hdr_size), DMA_FROM_DEVICE);
-			buffer->dma = 0;
-
-			/* second buffer pointer */
-            NMSGPR_ERR("dma_unmap_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-			dma_unmap_page(&pdata->pdev->dev, buffer->dma2,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-			buffer->dma2 = 0;
-
-			/* get the packet length */
-			pkt_len =
-			    (RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_PL);
-
-			/* FIRST desc and Receive Status RDES2 Valid ? */
-			if ((RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_FD) &&
-				(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_RS2V)) {
-				/* get header length */
-				hdr_len = (RX_NORMAL_DESC->RDES2 & DWC_ETH_QOS_RDESC2_HL);
-				DBGPR("Device has %s HEADER SPLIT: hdr_len = %d\n",
-						(hdr_len ? "done" : "not done"), hdr_len);
-				if (hdr_len)
-					pdata->xstats.rx_split_hdr_pkt_n++;
-			}
-
-			/* check for bad packet,
-			 * error is valid only for last descriptor(OWN + LD bit set).
-			 * */
-			if ((RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_ES) &&
-			    (RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_LD)) {
-				DBGPR("Error in rcved pkt, failed to pass it to upper layer\n");
-				dump_rx_desc(chInx, RX_NORMAL_DESC, desc_data->cur_rx);
-				dev->stats.rx_errors++;
-				DWC_ETH_QOS_update_rx_errors(dev,
-					RX_NORMAL_DESC->RDES3);
-
-				/* recycle both page/buff and skb */
-				buffer->skb = skb;
-				if (desc_data->skb_top)
-					dev_kfree_skb_any(desc_data->skb_top);
-
-				desc_data->skb_top = NULL;
-				goto next_desc;
-			}
-
-			if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_LD)) {
-				intermediate_desc_cnt++;
-				buf2_used = 1;
-				/* this descriptor is only the beginning/middle */
-				if (RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_FD) {
-					/* this is the beginning of a chain */
-
-					/* here skb/skb_top may contain
-					 * if (device done split header)
-					 *	only header
-					 * else
-					 *	header/(header + payload)
-					 * */
-					desc_data->skb_top = skb;
-					/* page2 always contain only payload */
-					if (hdr_len) {
-						/* add header len to first skb->len */
-						skb_put(skb, hdr_len);
-						payload_len = pdata->rx_buffer_len;
-						skb_fill_page_desc(skb, 0,
-							buffer->page2, 0,
-							payload_len);
-					} else {
-						/* add header len to first skb->len */
-						skb_put(skb, buffer->rx_hdr_size);
-						/* No split header, hence
-						 * pkt_len = (payload + hdr_len)
-						 * */
-						payload_len = (pkt_len - buffer->rx_hdr_size);
-						skb_fill_page_desc(skb, 0,
-							buffer->page2, 0,
-							payload_len);
-					}
-				} else {
-					/* this is the middle of a chain */
-					payload_len = pdata->rx_buffer_len;
-					skb_fill_page_desc(desc_data->skb_top,
-						skb_shinfo(desc_data->skb_top)->nr_frags,
-						buffer->page2, 0,
-						payload_len);
-
-					/* re-use this skb, as consumed only the page */
-					buffer->skb = skb;
-				}
-				DWC_ETH_QOS_consume_page_split_hdr(buffer,
-							 desc_data->skb_top,
-							 payload_len, buf2_used);
-				goto next_desc;
-			} else {
-				if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_FD)) {
-					buf2_used = 1;
-					/* end of the chain */
-					if (hdr_len) {
-						payload_len = (pkt_len -
-							(pdata->rx_buffer_len * intermediate_desc_cnt) -
-							hdr_len);
-					} else {
-						payload_len = (pkt_len -
-							(pdata->rx_buffer_len * intermediate_desc_cnt) -
-							buffer->rx_hdr_size);
-					}
-
-					skb_fill_page_desc(desc_data->skb_top,
-						skb_shinfo(desc_data->skb_top)->nr_frags,
-						buffer->page2, 0,
-						payload_len);
-
-					/* re-use this skb, as consumed only the page */
-					buffer->skb = skb;
-					skb = desc_data->skb_top;
-					desc_data->skb_top = NULL;
-					DWC_ETH_QOS_consume_page_split_hdr(buffer, skb,
-								 payload_len, buf2_used);
-				} else {
-					/* no chain, got both FD + LD together */
-					if (hdr_len) {
-						buf2_used = 1;
-						/* add header len to first skb->len */
-						skb_put(skb, hdr_len);
-
-						payload_len = pkt_len - hdr_len;
-						skb_fill_page_desc(skb, 0,
-							buffer->page2, 0,
-							payload_len);
-					} else {
-						/* No split header, hence
-						 * payload_len = (payload + hdr_len)
-						 * */
-						if (pkt_len > buffer->rx_hdr_size) {
-							buf2_used = 1;
-							/* add header len to first skb->len */
-							skb_put(skb, buffer->rx_hdr_size);
-
-							payload_len = (pkt_len - buffer->rx_hdr_size);
-							skb_fill_page_desc(skb, 0,
-								buffer->page2, 0,
-								payload_len);
-						} else {
-							buf2_used = 0;
-							/* add header len to first skb->len */
-							skb_put(skb, pkt_len);
-							payload_len = 0; /* no data in page2 */
-						}
-					}
-					DWC_ETH_QOS_consume_page_split_hdr(buffer,
-							skb, payload_len,
-							buf2_used);
-				}
-				/* reset for next new packet/frame */
-				intermediate_desc_cnt = 0;
-				hdr_len = 0;
-			}
-
-			DWC_ETH_QOS_config_rx_csum(pdata, skb, RX_NORMAL_DESC);
-
-#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
-			DWC_ETH_QOS_get_rx_vlan(pdata, skb, RX_NORMAL_DESC);
-#endif
-
-#ifdef YDEBUG_FILTER
-			DWC_ETH_QOS_check_rx_filter_status(RX_NORMAL_DESC);
-#endif
-
-			if ((pdata->hw_feat.tsstssel) && (pdata->hwts_rx_en)) {
-				/* get rx tstamp if available */
-				if (hw_if->rx_tstamp_available(RX_NORMAL_DESC)) {
-					ret = DWC_ETH_QOS_get_rx_hwtstamp(pdata,
-							skb, desc_data, chInx);
-					if (ret == 0) {
-						/* device has not yet updated the CONTEXT desc to hold the
-						 * time stamp, hence delay the packet reception
-						 * */
-						buffer->skb = skb;
-                        NMSGPR_ERR("dma_map_single: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-						buffer->dma = dma_map_single(&pdata->pdev->dev, skb->data,
-								pdata->rx_buffer_len, DMA_FROM_DEVICE);
-						if (dma_mapping_error(&pdata->pdev->dev, buffer->dma))
-							NMSGPR_ALERT( "failed to do the RX dma map\n");
-
-						goto rx_tstmp_failed;
-					}
-				}
-			}
-
-			if (!(dev->features & NETIF_F_GRO) &&
-						(dev->features & NETIF_F_LRO)) {
-					pdata->tcp_pkt =
-							DWC_ETH_QOS_check_for_tcp_payload(RX_NORMAL_DESC);
-			}
-
-			dev->last_rx = jiffies;
-			/* update the statistics */
-			dev->stats.rx_packets++;
-			dev->stats.rx_bytes += skb->len;
-			DWC_ETH_QOS_receive_skb(pdata, dev, skb, chInx);
-			received++;
- next_desc:
-			desc_data->dirty_rx++;
-			if (desc_data->dirty_rx >= desc_data->skb_realloc_threshold)
-				desc_if->realloc_skb(pdata, chInx);
-
-			INCR_RX_DESC_INDEX(desc_data->cur_rx, 1);
-			buf2_used = 0;
-		} else {
-			/* no more data to read */
-			break;
-		}
-	}
-
-rx_tstmp_failed:
-
-	if (desc_data->dirty_rx)
-		desc_if->realloc_skb(pdata, chInx);
-
-	DBGPR("<--DWC_ETH_QOS_clean_split_hdr_rx_irq: received = %d\n",
-		received);
-
-	return received;
-}
-
-
-/*!
-* \brief API to pass the Rx packets to stack if jumbo frame
-* is enabled.
-*
-* \details This function is invoked by main NAPI function if Rx
-* jumbe frame is enabled. This function checks the device descriptor
-* for the packets and passes it to stack if any packtes are received
-* by device.
-*
-* \param[in] pdata - pointer to private data structure.
-* \param[in] quota - maximum no. of packets that we are allowed to pass
-* to into the kernel.
-* \param[in] chInx - DMA channel/queue no. to be checked for packet.
-*
-* \return integer
-*
-* \retval number of packets received.
-*/
-
-static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
-					  int quota,
-					  UINT chInx)
-{
-	struct DWC_ETH_QOS_rx_wrapper_descriptor *desc_data =
-	    GET_RX_WRAPPER_DESC(chInx);
-	struct net_device *dev = pdata->dev;
-	struct desc_if_struct *desc_if = &pdata->desc_if;
-	struct hw_if_struct *hw_if = &(pdata->hw_if);
-	struct sk_buff *skb = NULL;
-	int received = 0;
-	struct DWC_ETH_QOS_rx_buffer *buffer = NULL;
-	struct s_RX_NORMAL_DESC *RX_NORMAL_DESC = NULL;
-	u16 pkt_len;
-	UCHAR intermediate_desc_cnt = 0;
-	unsigned int buf2_used;
-	int ret;
-
-	DBGPR("-->DWC_ETH_QOS_clean_jumbo_rx_irq: chInx = %u, quota = %d\n",
-		chInx, quota);
-
-	while (received < quota) {
-		buffer = GET_RX_BUF_PTR(chInx, desc_data->cur_rx);
-		RX_NORMAL_DESC = GET_RX_DESC_PTR(chInx, desc_data->cur_rx);
-
-		/* check for data availability */
-		if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_OWN)) {
-#ifdef DWC_ETH_QOS_ENABLE_RX_DESC_DUMP
-			dump_rx_desc(chInx, RX_NORMAL_DESC, desc_data->cur_rx);
-#endif
-			/* assign it to new skb */
-			skb = buffer->skb;
-			buffer->skb = NULL;
-
-			/* first buffer pointer */
-            NMSGPR_ERR("dma_unmap_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-			dma_unmap_page(&pdata->pdev->dev, buffer->dma,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-			buffer->dma = 0;
-
-			/* second buffer pointer */
-            NMSGPR_ERR("dma_unmap_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-			dma_unmap_page(&pdata->pdev->dev, buffer->dma2,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-			buffer->dma2 = 0;
-
-			/* get the packet length */
-			pkt_len =
-				(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_PL);
-
-			/* check for bad packet,
-			 * error is valid only for last descriptor (OWN + LD bit set).
-			 * */
-			if ((RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_ES) &&
-			    (RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_LD)) {
-				NMSGPR_ALERT( "Error in rcved pkt, failed to pass it to upper layer\n");
-				dump_rx_desc(chInx, RX_NORMAL_DESC, desc_data->cur_rx);
-				dev->stats.rx_errors++;
-				DWC_ETH_QOS_update_rx_errors(dev,
-					RX_NORMAL_DESC->RDES3);
-
-				/* recycle both page and skb */
-				buffer->skb = skb;
-				if (desc_data->skb_top)
-					dev_kfree_skb_any(desc_data->skb_top);
-
-				desc_data->skb_top = NULL;
-				goto next_desc;
-			}
-
-			if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_LD)) {
-				intermediate_desc_cnt++;
-				buf2_used = 1;
-				/* this descriptor is only the beginning/middle */
-				if (RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_FD) {
-					/* this is the beginning of a chain */
-					desc_data->skb_top = skb;
-					skb_fill_page_desc(skb, 0,
-						buffer->page, 0,
-						pdata->rx_buffer_len);
-
-					DBGPR("RX: pkt in second buffer pointer\n");
-					skb_fill_page_desc(
-						desc_data->skb_top,
-						skb_shinfo(desc_data->skb_top)->nr_frags,
-						buffer->page2, 0,
-						pdata->rx_buffer_len);
-				} else {
-					/* this is the middle of a chain */
-					skb_fill_page_desc(desc_data->skb_top,
-						skb_shinfo(desc_data->skb_top)->nr_frags,
-						buffer->page, 0,
-						pdata->rx_buffer_len);
-
-					DBGPR("RX: pkt in second buffer pointer\n");
-					skb_fill_page_desc(desc_data->skb_top,
-						skb_shinfo(desc_data->skb_top)->nr_frags,
-						buffer->page2, 0,
-						pdata->rx_buffer_len);
-					/* re-use this skb, as consumed only the page */
-					buffer->skb = skb;
-				}
-				DWC_ETH_QOS_consume_page(buffer,
-							 desc_data->skb_top,
-							 (pdata->rx_buffer_len * 2),
-							 buf2_used);
-				goto next_desc;
-			} else {
-				if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_FD)) {
-					/* end of the chain */
-					pkt_len =
-						(pkt_len - (pdata->rx_buffer_len * intermediate_desc_cnt));
-					if (pkt_len > pdata->rx_buffer_len) {
-						skb_fill_page_desc(desc_data->skb_top,
-							skb_shinfo(desc_data->skb_top)->nr_frags,
-							buffer->page, 0,
-							pdata->rx_buffer_len);
-
-						DBGPR("RX: pkt in second buffer pointer\n");
-						skb_fill_page_desc(desc_data->skb_top,
-							skb_shinfo(desc_data->skb_top)->nr_frags,
-							buffer->page2, 0,
-							(pkt_len - pdata->rx_buffer_len));
-						buf2_used = 1;
-					} else {
-						skb_fill_page_desc(desc_data->skb_top,
-							skb_shinfo(desc_data->skb_top)->nr_frags,
-							buffer->page, 0,
-							pkt_len);
-						buf2_used = 0;
-					}
-					/* re-use this skb, as consumed only the page */
-					buffer->skb = skb;
-					skb = desc_data->skb_top;
-					desc_data->skb_top = NULL;
-					DWC_ETH_QOS_consume_page(buffer, skb,
-								 pkt_len,
-								 buf2_used);
-				} else {
-					/* no chain, got both FD + LD together */
-
-					/* code added for copybreak, this should improve
-					 * performance for small pkts with large amount
-					 * of reassembly being done in the stack
-					 * */
-					if ((pkt_len <= DWC_ETH_QOS_COPYBREAK_DEFAULT)
-					    && (skb_tailroom(skb) >= pkt_len)) {
-						u8 *vaddr;
-						NMSGPR_ALERT( "kmap_atomic is changed as per kernel 3.11, Verify and delete me\n");
-						vaddr = kmap_atomic(buffer->page);
-						memcpy(skb_tail_pointer(skb),
-						       vaddr, pkt_len);
-						kunmap_atomic(vaddr);
-						/* re-use the page, so don't erase buffer->page/page2 */
-						skb_put(skb, pkt_len);
-					} else {
-						if (pkt_len > pdata->rx_buffer_len) {
-							skb_fill_page_desc(skb,
-								0, buffer->page,
-								0,
-								pdata->rx_buffer_len);
-
-							DBGPR ("RX: pkt in second buffer pointer\n");
-							skb_fill_page_desc(skb,
-								skb_shinfo(skb)->nr_frags, buffer->page2,
-								0,
-								(pkt_len - pdata->rx_buffer_len));
-							buf2_used = 1;
-						} else {
-							skb_fill_page_desc(skb,
-								0, buffer->page,
-								0,
-								pkt_len);
-							buf2_used = 0;
-						}
-						DWC_ETH_QOS_consume_page(buffer,
-								skb,
-								pkt_len,
-								buf2_used);
-					}
-				}
-				intermediate_desc_cnt = 0;
-			}
-
-			DWC_ETH_QOS_config_rx_csum(pdata, skb, RX_NORMAL_DESC);
-
-#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
-			DWC_ETH_QOS_get_rx_vlan(pdata, skb, RX_NORMAL_DESC);
-#endif
-
-#ifdef YDEBUG_FILTER
-			DWC_ETH_QOS_check_rx_filter_status(RX_NORMAL_DESC);
-#endif
-
-			if ((pdata->hw_feat.tsstssel) && (pdata->hwts_rx_en)) {
-				/* get rx tstamp if available */
-				if (hw_if->rx_tstamp_available(RX_NORMAL_DESC)) {
-					ret = DWC_ETH_QOS_get_rx_hwtstamp(pdata,
-							skb, desc_data, chInx);
-					if (ret == 0) {
-						/* device has not yet updated the CONTEXT desc to hold the
-						 * time stamp, hence delay the packet reception
-						 * */
-						buffer->skb = skb;
-                        NMSGPR_ERR("dma_map_single: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-						buffer->dma = dma_map_single(&pdata->pdev->dev, skb->data,
-								pdata->rx_buffer_len, DMA_FROM_DEVICE);
-						if (dma_mapping_error(&pdata->pdev->dev, buffer->dma))
-							NMSGPR_ALERT( "failed to do the RX dma map\n");
-
-						goto rx_tstmp_failed;
-					}
-				}
-			}
-
-			if (!(dev->features & NETIF_F_GRO) &&
-						(dev->features & NETIF_F_LRO)) {
-					pdata->tcp_pkt =
-							DWC_ETH_QOS_check_for_tcp_payload(RX_NORMAL_DESC);
-			}
-
-			dev->last_rx = jiffies;
-			/* update the statistics */
-			dev->stats.rx_packets++;
-			dev->stats.rx_bytes += skb->len;
-
-			/* eth type trans needs skb->data to point to something */
-			if (!pskb_may_pull(skb, ETH_HLEN)) {
-				NMSGPR_ALERT( "pskb_may_pull failed\n");
-				dev_kfree_skb_any(skb);
-				goto next_desc;
-			}
-
-			DWC_ETH_QOS_receive_skb(pdata, dev, skb, chInx);
-			received++;
- next_desc:
-			desc_data->dirty_rx++;
-			if (desc_data->dirty_rx >= desc_data->skb_realloc_threshold)
-				desc_if->realloc_skb(pdata, chInx);
-
-			INCR_RX_DESC_INDEX(desc_data->cur_rx, 1);
-		} else {
-			/* no more data to read */
-			break;
-		}
-	}
-
-rx_tstmp_failed:
-
-	if (desc_data->dirty_rx)
-		desc_if->realloc_skb(pdata, chInx);
-
-	DBGPR("<--DWC_ETH_QOS_clean_jumbo_rx_irq: received = %d\n", received);
-
-	return received;
 }
 
 /*!
@@ -4111,85 +3243,12 @@ static int DWC_ETH_QOS_set_features(struct net_device *dev, netdev_features_t fe
 
 static netdev_features_t DWC_ETH_QOS_fix_features(struct net_device *dev, netdev_features_t features)
 {
-	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 
 	DBGPR("-->DWC_ETH_QOS_fix_features: %#llx\n", features);
-
-#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
-	if (pdata->rx_split_hdr) {
-		/* The VLAN tag stripping must be set for the split function.
-		 * For instance, the DMA separates the header and payload of
-		 * an untagged packet only. Hence, when a tagged packet is
-		 * received, the QOS must be programmed such that the VLAN
-		 * tags are deleted/stripped from the received packets.
-		 * */
-		features |= NETIF_F_HW_VLAN_CTAG_RX;
-	}
-#endif /* end of DWC_ETH_QOS_ENABLE_VLAN_TAG */
 
 	DBGPR("<--DWC_ETH_QOS_fix_features: %#llx\n", features);
 
 	return features;
-}
-
-
-/*!
- * \details This function is invoked by ioctl function when user issues
- * an ioctl command to enable/disable receive split header mode.
- *
- * \param[in] dev – pointer to net device structure.
- * \param[in] flags – flag to indicate whether RX split to be
- *                  enabled/disabled.
- *
- * \return integer
- *
- * \retval zero on success and -ve number on failure.
- */
-static int DWC_ETH_QOS_config_rx_split_hdr_mode(struct net_device *dev,
-		unsigned int flags)
-{
-	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
-	struct hw_if_struct *hw_if = &(pdata->hw_if);
-	unsigned int chInx;
-	int ret = 0;
-
-	DBGPR("-->DWC_ETH_QOS_config_rx_split_hdr_mode\n");
-
-	if (flags && pdata->rx_split_hdr) {
-		NMSGPR_ALERT(
-			"Rx Split header mode is already enabled\n");
-		return -EINVAL;
-	}
-
-	if (!flags && !pdata->rx_split_hdr) {
-		NMSGPR_ALERT(
-			"Rx Split header mode is already disabled\n");
-		return -EINVAL;
-	}
-
-	DWC_ETH_QOS_stop_dev(pdata);
-
-	/* If split header mode is disabled(ie flags == 0)
-	 * then RX will be in default/jumbo mode based on MTU
-	 * */
-	pdata->rx_split_hdr = !!flags;
-
-	DWC_ETH_QOS_start_dev(pdata);
-
-	hw_if->config_header_size(DWC_ETH_QOS_MAX_HDR_SIZE);
-	/* enable/disable split header for all RX DMA channel */
-	for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
-		if(!pdata->rx_dma_ch_for_host[chInx])
-			continue;
-		hw_if->config_split_header_mode(chInx, pdata->rx_split_hdr);
-	}
-
-	NMSGPR_ALERT( "Succesfully %s Rx Split header mode\n",
-		(flags ? "enabled" : "disabled"));
-
-	DBGPR("<--DWC_ETH_QOS_config_rx_split_hdr_mode\n");
-
-	return ret;
 }
 
 
@@ -5606,15 +4665,7 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		break;
 
 	case DWC_ETH_QOS_RX_SPLIT_HDR_CMD:
-		if (pdata->hw_feat.sph_en) {
-			ret = DWC_ETH_QOS_config_rx_split_hdr_mode(dev, req->flags);
-			if (ret == 0)
-				ret = DWC_ETH_QOS_CONFIG_SUCCESS;
-			else
-				ret = DWC_ETH_QOS_CONFIG_FAIL;
-		} else {
-			ret = DWC_ETH_QOS_NO_HW_SUPPORT;
-		}
+		ret = DWC_ETH_QOS_NO_HW_SUPPORT;
 		break;
 	case DWC_ETH_QOS_L3_L4_FILTER_CMD:
 		if (pdata->hw_feat.l3l4_filter_num > 0) {
@@ -6019,80 +5070,62 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return ret;
 }
 
-/*!
-* \brief API to change MTU.
-*
-* \details This function is invoked by upper layer when user changes
-* MTU (Maximum Transfer Unit). The MTU is used by the Network layer
-* to driver packet transmission. Ethernet has a default MTU of
-* 1500Bytes. This value can be changed with ifconfig -
-* ifconfig <interface_name> mtu <new_mtu_value>
-*
-* \param[in] dev - pointer to net_device structure
-* \param[in] new_mtu - the new MTU for the device.
-*
-* \return integer
-*
-* \retval 0 - on success and -ve on failure.
-*/
-
-static INT DWC_ETH_QOS_change_mtu(struct net_device *dev, INT new_mtu)
-{
-	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
-	int max_frame = (new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
-
-	DBGPR("-->DWC_ETH_QOS_change_mtu: new_mtu:%d\n", new_mtu);
-
-	if (dev->mtu == new_mtu) {
-		NMSGPR_ALERT( "%s: is already configured to %d mtu\n",
-		       dev->name, new_mtu);
-		return 0;
-	}
-
-	/* Supported frame sizes */
-	if ((new_mtu < DWC_ETH_QOS_MIN_SUPPORTED_MTU) ||
-	    (max_frame > DWC_ETH_QOS_MAX_SUPPORTED_MTU)) {
-		NMSGPR_ALERT(
-		       "%s: invalid MTU, min %d and max %d MTU are supported\n",
-		       dev->name, DWC_ETH_QOS_MIN_SUPPORTED_MTU,
-		       DWC_ETH_QOS_MAX_SUPPORTED_MTU);
-		return -EINVAL;
-	}
-
-	NMSGPR_ALERT( "changing MTU from %d to %d\n", dev->mtu, new_mtu);
-
-	DWC_ETH_QOS_stop_dev(pdata);
-
-	if (max_frame <= 2048)
-		pdata->rx_buffer_len = 2048;
-	else
-		pdata->rx_buffer_len = PAGE_SIZE; /* in case of JUMBO frame,
-						max buffer allocated is
-						PAGE_SIZE */
-
-	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||
-	    (max_frame == ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN))
-		pdata->rx_buffer_len =
-		    DWC_ETH_QOS_ETH_FRAME_LEN;
-
-	dev->mtu = new_mtu;
-
-	DWC_ETH_QOS_start_dev(pdata);
-
-	DBGPR("<--DWC_ETH_QOS_change_mtu\n");
-
-	return 0;
-}
-
 #ifdef DWC_ETH_QOS_QUEUE_SELECT_ALGO
-u16	DWC_ETH_QOS_select_queue(struct net_device *dev,
-			struct sk_buff *skb)
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )
+u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb)
+#elif	( LINUX_VERSION_CODE == KERNEL_VERSION(3,13,0) ) 
+u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv)
+#else   //3.13.0
+u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv, select_queue_fallback_t fallback)
+#endif	//3.13.0
 {
 	static u16 txqueue_select = 0;
+	UINT eth_or_vlan_tag;
+	UINT avb_priority;
+	UINT eth_type;
 
 	DBGPR("-->DWC_ETH_QOS_select_queue\n");
 
-	txqueue_select = skb_tx_hash(dev, skb);
+
+	/* TX Channel assignment based on Vlan tag and protocol type */ 
+	eth_or_vlan_tag = htons(((skb->data[13]<<8) | skb->data[12]));
+	//NMSGPR_ALERT( "ETH TYPE or VLAN TAG : %#x\n", eth_or_vlan_tag);
+	if(eth_or_vlan_tag == NTN_VLAN_TAG)
+	{
+		eth_type = htons(((skb->data[17]<<8) | skb->data[16]));
+		//NMSGPR_INFO("VLAN ETH TYPE : %#x\n", eth_type);
+		if(eth_type == NTN_ETH_TYPE_AVB)
+		{
+			/* Extract VLAN priority field from the tx data */
+			avb_priority = htons((skb->data[15]<<8) | skb->data[14]);
+			//NMSGPR_INFO("VID : %#x\n", avb_priority);
+			avb_priority >>= 13;
+			//NMSGPR_INFO("AVB Priority : %#x\n", avb_priority);
+			if(avb_priority == NTN_AVB_PRIORITY_CLASS_A){           
+				txqueue_select = NTN_TX_PKT_AVB_CLASS_A;
+			}else if(avb_priority == NTN_AVB_PRIORITY_CLASS_B){     
+				txqueue_select = NTN_TX_PKT_AVB_CLASS_B;
+			}else{
+				txqueue_select = NTN_TX_PKT_HOST;
+			}
+		}else{
+			/* VLAN but not AVB send it to Q0 */
+			txqueue_select = NTN_TX_PKT_VLAN_NOT_AVB;
+		}
+	}
+	else
+	{       
+		/* It's protcol (ether type) field */
+		eth_type = eth_or_vlan_tag;
+		switch(eth_type){
+			case NTN_GPTP_ETH_TYPE:         
+				txqueue_select = NTN_TX_PKT_GPTP;
+				break;
+			default:        
+				txqueue_select = NTN_TX_PKT_HOST;
+				break;
+		}
+	}
 
 	DBGPR("<--DWC_ETH_QOS_select_queue txqueue-select:%d\n",
 		txqueue_select);
@@ -7594,7 +6627,12 @@ static void DWC_ETH_QOS_mmc_setup(struct DWC_ETH_QOS_prv_data *pdata)
 
 inline unsigned int DWC_ETH_QOS_reg_read(volatile ULONG *ptr)
 {
-		return ioread32((void *)ptr);
+	return ioread32((void *)ptr);
+}
+
+inline unsigned long long DWC_ETH_QOS_reg_read64(volatile ULONG *ptr)
+{
+	return(le64_to_cpu(cpu_to_le32(ioread32((void *)ptr)) | ((u64)(cpu_to_le32(ioread32((void *)ptr + sizeof(u32)))) << 32)));
 }
 
 
@@ -7721,6 +6759,156 @@ void DWC_ETH_QOS_mmc_read(struct DWC_ETH_QOS_mmc_counters *mmc)
 	DBGPR("<--DWC_ETH_QOS_mmc_read\n");
 }
 
+
+/*!
+ * \details This function is invoked by ethtool function when user wants to
+ * read DMA Descriptor stats.
+ *
+ * \param[in] pdata – pointer to private data structure.
+ *
+ * \return void
+ */
+
+void DWC_ETH_QOS_desc_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int chInx = 0;
+	struct DWC_ETH_QOS_tx_wrapper_descriptor *tx_desc_data;
+	struct DWC_ETH_QOS_rx_wrapper_descriptor *rx_desc_data;
+	DBGPR("-->DWC_ETH_QOS_desc_stats_read\n");
+
+
+	/* TX DMA Descriptors Status for all channels [0-4] */
+	for(chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++){
+		if(!pdata->tx_dma_ch_for_host[chInx])
+			continue;
+
+		tx_desc_data = GET_TX_WRAPPER_DESC(chInx);
+		pdata->xstats.txch_status[chInx] =          DWC_ETH_QOS_reg_read(DMA_TXCHSTS_RgOffAddr(chInx));
+		pdata->xstats.txch_control[chInx] =         DWC_ETH_QOS_reg_read(DMA_TXCHCTL_RgOffAddr(chInx));
+		pdata->xstats.txch_intrmask[chInx] =        DWC_ETH_QOS_reg_read(DMA_TXCHINTMASK_RgOffAddr(chInx));
+		pdata->xstats.txch_desc_list_haddr[chInx] = DWC_ETH_QOS_reg_read(DMA_TXCH_DESC_LISTHADDR_RgOffAddr(chInx));
+		pdata->xstats.txch_desc_list_laddr[chInx] = DWC_ETH_QOS_reg_read(DMA_TXCH_DESC_LISTLADDR_RgOffAddr(chInx));
+		pdata->xstats.txch_desc_ring_len[chInx] =   DWC_ETH_QOS_reg_read(DMA_TXCH_DESC_RING_LENGTH_RgOffAddr(chInx));
+		pdata->xstats.txch_desc_curr[chInx] =       DWC_ETH_QOS_reg_read(DMA_TXCH_CUR_DESC_RgOffAddr(chInx));
+		pdata->xstats.txch_desc_tail[chInx] =       DWC_ETH_QOS_reg_read(DMA_TXCH_DESC_TAILPTR_RgOffAddr(chInx));
+		pdata->xstats.txch_desc_buf_haddr[chInx] =  DWC_ETH_QOS_reg_read(DMA_TXCH_CUR_BUFHA_RgOffAddr(chInx));
+		pdata->xstats.txch_desc_buf_laddr[chInx] =  DWC_ETH_QOS_reg_read(DMA_TXCH_CUR_BUFLA_RgOffAddr(chInx));
+		pdata->xstats.txch_sw_cur_tx[chInx] =       tx_desc_data->cur_tx;
+		pdata->xstats.txch_sw_dirty_tx[chInx] =     tx_desc_data->dirty_tx;
+	}
+
+	/* RX DMA Descriptors Status for all channels [0-5] */
+	for(chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
+		if(!pdata->rx_dma_ch_for_host[chInx])
+			continue;
+
+		rx_desc_data = GET_RX_WRAPPER_DESC(chInx);
+		pdata->xstats.rxch_status[chInx] =          DWC_ETH_QOS_reg_read(DMA_RXCHSTS_RgOffAddr(chInx));
+		pdata->xstats.rxch_control[chInx] =         DWC_ETH_QOS_reg_read(DMA_RXCHCTL_RgOffAddr(chInx));
+		pdata->xstats.rxch_intrmask[chInx] =        DWC_ETH_QOS_reg_read(DMA_RXCHINTMASK_RgOffAddr(chInx));
+		pdata->xstats.rxch_desc_list_haddr[chInx] = DWC_ETH_QOS_reg_read(DMA_RXCH_DESC_LISTHADDR_RgOffAddr(chInx));
+		pdata->xstats.rxch_desc_list_laddr[chInx] = DWC_ETH_QOS_reg_read(DMA_RXCH_DESC_LISTLADDR_RgOffAddr(chInx));
+		pdata->xstats.rxch_desc_ring_len[chInx] =   DWC_ETH_QOS_reg_read(DMA_RXCH_DESC_RING_LENGTH_RgOffAddr(chInx));
+		pdata->xstats.rxch_desc_curr[chInx] =       DWC_ETH_QOS_reg_read(DMA_RXCH_CUR_DESC_RgOffAddr(chInx));
+		pdata->xstats.rxch_desc_tail[chInx] =       DWC_ETH_QOS_reg_read(DMA_RXCH_DESC_TAILPTR_RgOffAddr(chInx));
+		pdata->xstats.rxch_desc_buf_haddr[chInx] =  DWC_ETH_QOS_reg_read(DMA_RXCH_CUR_BUFHA_RgOffAddr(chInx));
+		pdata->xstats.rxch_desc_buf_laddr[chInx] =  DWC_ETH_QOS_reg_read(DMA_RXCH_CUR_BUFLA_RgOffAddr(chInx));
+		pdata->xstats.rxch_sw_cur_rx[chInx] =       rx_desc_data->cur_rx;
+		pdata->xstats.rxch_sw_dirty_rx[chInx] =     rx_desc_data->dirty_rx;
+	}
+
+	DBGPR("<--DWC_ETH_QOS_desc_stats_read\n");
+}
+
+/*!
+ * \details This function is invoked by ethtool function when user wants to
+ * read M3 Firmware stats (MSI Count, M3 Tick, M3 WDT).
+ *
+ * \param[in] pdata – pointer to private data structure.
+ *
+ * \return void
+ */
+
+void DWC_ETH_QOS_m3fw_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int chInx = 0;
+	DBGPR("-->DWC_ETH_QOS_m3fw_stats_read\n");
+
+	/*M3 Firmware Counters*/
+	pdata->xstats.m3_tick_cnt = DWC_ETH_QOS_reg_read64(M3STAT_M3TICK_MemOffAddr);
+	pdata->xstats.m3_wdt_cnt =  DWC_ETH_QOS_reg_read(M3STAT_WDT_MemOffAddr);
+
+	/* TX DMA MSI Interrupt for all channels [0-4] */
+	for(chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++){
+		if(!pdata->tx_dma_ch_for_host[chInx])
+			continue;
+		pdata->xstats.m3_msi_txch[chInx]= DWC_ETH_QOS_reg_read(M3STAT_MSI_CNT_TXCH_MemOffAddr(chInx));
+	}
+
+	/* RX DMA MSI Interrupt for all channels [0-5] */
+	for(chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
+		if(!pdata->rx_dma_ch_for_host[chInx])
+			continue;
+		pdata->xstats.m3_msi_rxch[chInx]= DWC_ETH_QOS_reg_read(M3STAT_MSI_CNT_RXCH_MemOffAddr(chInx));
+	}
+	DBGPR("<--DWC_ETH_QOS_m3fw_stats_read\n");
+}
+
+/*!
+ * \details This function is invoked by the Probe Function before the ethtool registration
+ * It resets/initializes the Ethtool stats. 
+ *
+ * \param[in] pdata – pointer to private data structure.
+ *
+ * \return void
+ */
+void DWC_ETH_QOS_reset_ethtool_stats(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int chInx = 0;
+	DBGPR("-->DWC_ETH_QOS_reset_ethtool_stats\n");
+
+	/* TX DMA Descriptors Status for all channels [0-4] */
+	for(chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++){
+		pdata->xstats.txch_status[chInx] = 0;
+		pdata->xstats.txch_control[chInx] = 0;
+		pdata->xstats.txch_intrmask[chInx] = 0;
+		pdata->xstats.txch_desc_list_haddr[chInx] = 0;
+		pdata->xstats.txch_desc_list_laddr[chInx] = 0;
+		pdata->xstats.txch_desc_ring_len[chInx] = 0;
+		pdata->xstats.txch_desc_curr[chInx] = 0;
+		pdata->xstats.txch_desc_tail[chInx] = 0;
+		pdata->xstats.txch_desc_buf_haddr[chInx] = 0;
+		pdata->xstats.txch_desc_buf_laddr[chInx] = 0;
+		pdata->xstats.txch_sw_cur_tx[chInx] = 0;
+		pdata->xstats.txch_sw_dirty_tx[chInx] = 0;
+
+		pdata->xstats.m3_msi_txch[chInx]= 0;
+	}
+
+	/* RX DMA Descriptors Status for all channels [0-5] */
+	for(chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
+		pdata->xstats.rxch_status[chInx] = 0;
+		pdata->xstats.rxch_control[chInx] = 0;
+		pdata->xstats.rxch_intrmask[chInx] = 0;
+		pdata->xstats.rxch_desc_list_haddr[chInx] =  0;
+		pdata->xstats.rxch_desc_list_laddr[chInx] =  0;
+		pdata->xstats.rxch_desc_ring_len[chInx] =  0;
+		pdata->xstats.rxch_desc_curr[chInx] =  0;
+		pdata->xstats.rxch_desc_tail[chInx] =  0;
+		pdata->xstats.rxch_desc_buf_haddr[chInx] =  0;
+		pdata->xstats.rxch_desc_buf_laddr[chInx] =  0;
+		pdata->xstats.rxch_sw_cur_rx[chInx] =  0;
+		pdata->xstats.rxch_sw_dirty_rx[chInx] =  0;
+
+		pdata->xstats.m3_msi_rxch[chInx]= 0;
+	}
+
+	/*M3 Firmware Counters*/
+	pdata->xstats.m3_tick_cnt = 0;
+	pdata->xstats.m3_wdt_cnt = 0;
+
+	DBGPR("<--DWC_ETH_QOS_reset_ethtool_stats\n");
+}
 
 phy_interface_t DWC_ETH_QOS_get_phy_interface(struct DWC_ETH_QOS_prv_data *pdata)
 {

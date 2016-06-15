@@ -72,6 +72,7 @@
 
 /*! History:   
  *      2-March-2016 : Initial 
+ *      3-Jun-2016   : Some Clean up for unused legacy code.
  */
 
 /*!@file: DWC_ETH_QOS_desc.c
@@ -1357,17 +1358,6 @@ static void DWC_ETH_QOS_unmap_rx_skb(struct DWC_ETH_QOS_prv_data *pdata,
 
 	/* unmap the first buffer */
 	if (buffer->dma) {
-		if (pdata->rx_split_hdr) {
-            		NMSGPR_ERR("dma_unmap_single: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-			dma_unmap_single(&pdata->pdev->dev, buffer->dma,
-					 (2*buffer->rx_hdr_size),
-					 DMA_FROM_DEVICE);
-		}
-		else if (pdata->dev->mtu > DWC_ETH_QOS_ETH_FRAME_LEN) {
-            		NMSGPR_ERR("dma_unmap_page %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
-			dma_unmap_page(&pdata->pdev->dev, buffer->dma,
-				       PAGE_SIZE, DMA_FROM_DEVICE);
-		} else {
 #ifdef NTN_RX_DATA_BUF_IN_SRAM
 			dma_unmap_single((&pdata->pdev->dev), buffer->dma_iommu,
 					 pdata->rx_buffer_len, DMA_FROM_DEVICE);
@@ -1380,7 +1370,6 @@ static void DWC_ETH_QOS_unmap_rx_skb(struct DWC_ETH_QOS_prv_data *pdata,
 			dma_unmap_single(&pdata->pdev->dev, buffer->dma,
 					 pdata->rx_buffer_len, DMA_FROM_DEVICE);
 #endif
-		}
 		buffer->dma = 0;
 	}
 
@@ -1390,17 +1379,6 @@ static void DWC_ETH_QOS_unmap_rx_skb(struct DWC_ETH_QOS_prv_data *pdata,
 		dma_unmap_page(&pdata->pdev->dev, buffer->dma2,
 				PAGE_SIZE, DMA_FROM_DEVICE);
 		buffer->dma2 = 0;
-	}
-
-	/* page1 will be present only if JUMBO is enabled */
-	if (buffer->page) {
-		put_page(buffer->page);
-		buffer->page = NULL;
-	}
-	/* page2 will be present if JUMBO/SPLIT HDR is enabled */
-	if (buffer->page2) {
-		put_page(buffer->page2);
-		buffer->page2 = NULL;
 	}
 
 	if (buffer->skb) {

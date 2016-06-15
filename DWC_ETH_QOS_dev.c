@@ -75,6 +75,10 @@
  *     21-March-2016 : Added print message for "configure_mtl_queue" 
  *                     Moved and modified "DWC_ETH_QOS_yinit"
  *                     Modified "ntn_mac_clock_config" for RX clock
+ *      3-Jun-2016   : Some Clean up for unused legacy code.
+ *                   : Phy reset is allowed now through driver
+ *                   : Setting Receiveall mode when promiscuous is requested as per Neutrino requirement
+ *                   : Split "configure_mtl_queue" function for TX & RX  
  */
 
 /*!@file: DWC_ETH_QOS_dev.c
@@ -826,9 +830,10 @@ static INT config_mac_pkt_filter_reg(UCHAR pr_mode,
   /* configure device in differnet modes */
   /* promiscuous, hash unicast, hash multicast, */
   /* all multicast and perfect/hash filtering mode. */
+  /* NOTE: need to use receive_all instead of promiscuous for neutrino.*/	
   MAC_MPFR_RgRd(varMAC_MPFR);
   varMAC_MPFR = varMAC_MPFR & (ULONG)(0x003003e8);
-  varMAC_MPFR = varMAC_MPFR | ((pr_mode) << 0) | ((huc_mode) << 1) | ((hmc_mode) << 2) |
+  varMAC_MPFR = varMAC_MPFR | ((pr_mode) << 31) | ((huc_mode) << 1) | ((hmc_mode) << 2) |
                 ((pm_mode) << 4) | ((hpf_mode) << 10);
   MAC_MPFR_RgWr(varMAC_MPFR);
 
@@ -870,30 +875,6 @@ static INT config_l2_da_perfect_inverse_match(INT perfect_inverse_match)
 {
 
   MAC_MPFR_DAIF_UdfWr(perfect_inverse_match);
-
-  return Y_SUCCESS;
-}
-
-
-
-
-/*!
-* \brief This sequence is used to update the MAC address in last 96 MAC
-* address Low and High register(32-127) for L2 layer filtering
-* \param[in] idx
-* \param[in] addr
-* \return Success or Failure
-* \retval  0 Success
-* \retval -1 Failure
-*/
-
-static INT update_mac_addr32_127_low_high_reg(INT idx,
-                                              UCHAR addr[])
-{
-
-  MAC_MA32_127LR_RgWr(idx, (addr[0] | (addr[1] << 8) | (addr[2] << 16) | (addr[3] << 24)));
-  MAC_MA32_127HR_ADDRHI_UdfWr(idx, (addr[4] | (addr[5] << 8)));
-  MAC_MA32_127HR_AE_UdfWr(idx, 0x1);
 
   return Y_SUCCESS;
 }
@@ -1468,61 +1449,6 @@ static UINT get_tx_tstamp_status(t_TX_NORMAL_DESC *txdesc)
 
   return (varTDES3 & 0x20000);
 }
-
-
-
-
-/*!
-* \brief This sequence is used to enable/disable split header feature
-* \param[in] chInx
-* \param[in] sph_en
-* \return Success or Failure
-* \retval  0 Success
-* \retval -1 Failure
-*/
-
-static INT config_split_header_mode(UINT chInx,
-                             USHORT sph_en)
-{
-
-  NMSGPR_ALERT( "ALERT : Function not supported: %s: %d\n", __FUNCTION__, __LINE__);
-
-  return Y_SUCCESS;
-}
-
-
-
-
-/*!
-* \brief This sequence is used to configure header size in case of split header feature
-* \param[in] header_size
-* \return Success or Failure
-* \retval  0 Success
-* \retval -1 Failure
-*/
-
-static INT config_header_size(USHORT header_size)
-{
-
-  if (header_size == 64) {
-    MAC_MECR_HDSMS_UdfWr(0);
-  }
-  else if (header_size == 128) {
-    MAC_MECR_HDSMS_UdfWr(0x1);
-  }
-  else if (header_size == 256) {
-    MAC_MECR_HDSMS_UdfWr(0x2);
-  }
-  else if (header_size == 512) {
-    MAC_MECR_HDSMS_UdfWr(0x3);
-  }
-  else {
-    MAC_MECR_HDSMS_UdfWr(0x4);
-  }
-
-  return Y_SUCCESS;
-}
-
 
 
 
@@ -2707,7 +2633,6 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data)
 		printk(KERN_ALERT"PHY reset and power down not supported = %lx\n", (ULONG)phy_reg_data);
 		phy_reg_data &= 0x77FF;
 	}
-
 	/* wait for any previous MII read/write operation to complete */
 
 	/*Poll Until Poll Condition */
@@ -3036,20 +2961,11 @@ static void rx_descriptor_reset(UINT idx,
         RX_NORMAL_DESC_RDES1_Ml_Wr(RX_NORMAL_DESC->RDES1, 0);
 #endif
 
-	if ((pdata->dev->mtu > DWC_ETH_QOS_ETH_FRAME_LEN) ||
-			(pdata->rx_split_hdr == 1)) {
-		/* update buffer 2 address pointer */
-		RX_NORMAL_DESC_RDES2_Ml_Wr(RX_NORMAL_DESC->RDES2, buffer->dma2);
-		/* set control bits - OWN, INTE, BUF1V and BUF2V */
-		RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
-					   (0x83000000 | inte));
-	} else {
-		/* set buffer 2 address pointer to zero */
-		RX_NORMAL_DESC_RDES2_Ml_Wr(RX_NORMAL_DESC->RDES2, 0);
-		/* set control bits - OWN, INTE and BUF1V */
-		RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
-					   (0x81000000 | inte));
-	}
+	/* set buffer 2 address pointer to zero */
+	RX_NORMAL_DESC_RDES2_Ml_Wr(RX_NORMAL_DESC->RDES2, 0);
+	/* set control bits - OWN, INTE and BUF1V */
+	RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
+				   (0x81000000 | inte));
 
 	DBGPR("<--rx_descriptor_reset\n");
 }
@@ -3090,21 +3006,11 @@ static void rx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
                 RX_NORMAL_DESC_RDES1_Ml_Wr(RX_NORMAL_DESC->RDES1, 0);
 #endif
 
-		if ((pdata->dev->mtu > DWC_ETH_QOS_ETH_FRAME_LEN) ||
-			(pdata->rx_split_hdr == 1)) {
-			/* update buffer 2 address pointer */
-			RX_NORMAL_DESC_RDES2_Ml_Wr(RX_NORMAL_DESC->RDES2,
-						   buffer->dma2);
-			/* set control bits - OWN, INTE, BUF1V and BUF2V */
-			RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
-						   (0xc3000000));
-		} else {
-			/* set buffer 2 address pointer to zero */
-			RX_NORMAL_DESC_RDES2_Ml_Wr(RX_NORMAL_DESC->RDES2, 0);
-			/* set control bits - OWN, INTE and BUF1V */
-			RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
-						   (0xc1000000));
-		}
+		/* set buffer 2 address pointer to zero */
+		RX_NORMAL_DESC_RDES2_Ml_Wr(RX_NORMAL_DESC->RDES2, 0);
+		/* set control bits - OWN, INTE and BUF1V */
+		RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
+					   (0xc1000000));
 		buffer->inte = (1 << 30);
 
 		/* reconfigure INTE bit if RX watchdog timer is enabled */
@@ -3709,15 +3615,43 @@ static INT DWC_ETH_QOS_yexit(void)
 #endif
 }
 
-static INT configure_mtl_queue(UINT qInx, struct DWC_ETH_QOS_prv_data *pdata)
+static INT configure_rx_mtl_queue(UINT qInx, struct DWC_ETH_QOS_prv_data *pdata)
+{
+	UINT p_rx_fifo = eDWC_ETH_QOS_256;
+
+	DBGPR("-->configure_rx_mtl_queue\n");
+
+	MTL_QROMR_RSF_UdfWr(qInx, 0x1);
+	MTL_QROMR_FUP_UdfWr(qInx, 0x1);
+	MTL_QROMR_FEP_UdfWr(qInx, 0x1);
+
+	/* RX Queue sizes are hardcoded and assigned as per the Neutrino's configuration. */
+	switch(qInx)
+	{
+		case 0:	p_rx_fifo = 29;	break;
+		case 1:	p_rx_fifo = 1;	break;
+		case 2:	p_rx_fifo = 1;	break;
+		case 3:	p_rx_fifo = 29;	break;
+	} 
+
+	/* Receive queue fifo size programmed */
+	MTL_QROMR_RQS_UdfWr(qInx, p_rx_fifo);
+	NDBGPR_L1( "Queue%d Rx fifo size %d\n",	qInx, ((p_rx_fifo + 1) * 256));
+	
+	DBGPR("<--configure_rx_mtl_queue\n");
+
+	return Y_SUCCESS;
+}
+
+static INT configure_tx_mtl_queue(UINT qInx, struct DWC_ETH_QOS_prv_data *pdata)
 {
 	struct DWC_ETH_QOS_tx_dma_ch *queue_data = GET_TX_DMA_CH_PTR(qInx);
 	ULONG retryCount = 1000;
 	ULONG vy_count;
 	volatile ULONG varMTL_QTOMR;
-	UINT p_rx_fifo = eDWC_ETH_QOS_256, p_tx_fifo = eDWC_ETH_QOS_256;
+	UINT p_tx_fifo = eDWC_ETH_QOS_256;
 
-	DBGPR("-->configure_mtl_queue\n");
+	DBGPR("-->configure_tx_mtl_queue\n");
 
 	/*Flush Tx Queue */
 	MTL_QTOMR_FTQ_UdfWr(qInx, 0x1);
@@ -3739,9 +3673,6 @@ static INT configure_mtl_queue(UINT qInx, struct DWC_ETH_QOS_prv_data *pdata)
 		}
 	}
 
-	MTL_QROMR_RSF_UdfWr(qInx, 0x1);
-	MTL_QROMR_FUP_UdfWr(qInx, 0x1);
-
 	/*Enable Store and Forward mode for TX */
 	MTL_QTOMR_TSF_UdfWr(qInx, 0x1);
 	/* Program Tx operating mode */
@@ -3749,80 +3680,21 @@ static INT configure_mtl_queue(UINT qInx, struct DWC_ETH_QOS_prv_data *pdata)
 	/* Transmit Queue weight */
 	MTL_QW_ISCQW_UdfWr(qInx, (0x10 + qInx));
 
-	MTL_QROMR_FEP_UdfWr(qInx, 0x1);
-
-	/* Configure for Jumbo frame in MTL */
-	if (pdata->dev->mtu > DWC_ETH_QOS_ETH_FRAME_LEN) {
-		/* Disable RX Store and Forward mode */
-		MTL_QROMR_RSF_UdfWr(qInx, 0x0);
-		NMSGPR_ALERT( "RX is configured in threshold mode and threshold = 64Byte\n");
-	}
-
-	/* RX Queue sizes are hardcoded and assigned as per the Neutrino's configuration. */
+	/* TX Queue sizes are hardcoded and assigned as per the Neutrino's configuration. */
 	switch(qInx)
 	{
-		case 0:	p_rx_fifo = 29;	p_tx_fifo = 9;		break;
-		case 1:	p_rx_fifo = 1;	p_tx_fifo = 0xa;	break;
-		case 2:	p_rx_fifo = 1;	p_tx_fifo = 0xa;	break;
-		case 3:	p_rx_fifo = 29;	p_tx_fifo = 0;		break;
-	} 
-
-	/* Transmit/Receive queue fifo size programmed */
-	MTL_QROMR_RQS_UdfWr(qInx, p_rx_fifo);
-	MTL_QTOMR_TQS_UdfWr(qInx, p_tx_fifo);
-	if(qInx < 3)
-		NDBGPR_L1( "Queue%d Tx fifo size %d, Rx fifo size %d\n",
-			qInx, ((p_tx_fifo + 1) * 256), ((p_rx_fifo + 1) * 256));
-	else
-		NDBGPR_L1( "Queue%d Rx fifo size %d\n",
-			qInx, ((p_rx_fifo + 1) * 256));
-
-	/* TBD: HW flow control is not be required as of now. So commenting following piece of code */
-#if 0
-	/* flow control will be used only if
-	 * each channel gets 8KB or more fifo */
-	if (p_rx_fifo >= eDWC_ETH_QOS_4k) {
-		/* Enable Rx FLOW CTRL in MTL and MAC
-			 Programming is valid only if Rx fifo size is greater than
-			 or equal to 8k */
-		if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_TX) ==
-			DWC_ETH_QOS_FLOW_CTRL_TX) {
-
-			MTL_QROMR_EHFC_UdfWr(qInx, 0x1);
-
-			/* Set Threshold for Activating Flow Contol space for min 2 frames
-			 * ie, (1500 * 1) = 1500 bytes
-			 *
-			 * Set Threshold for Deactivating Flow Contol for space of
-			 * min 1 frame (frame size 1500bytes) in receive fifo */
-			if (p_rx_fifo == eDWC_ETH_QOS_4k) {
-				/* This violates the above formula because of FIFO size limit
-				 * therefore overflow may occur inspite of this
-				 * */
-				MTL_QROMR_RFD_UdfWr(qInx, 0x3); //Full - 3K
-				MTL_QROMR_RFA_UdfWr(qInx, 0x1); //Full - 1.5K
-			}
-			else if (p_rx_fifo == eDWC_ETH_QOS_8k) {
-				MTL_QROMR_RFD_UdfWr(qInx, 0x6); //Full - 4K
-				MTL_QROMR_RFA_UdfWr(qInx, 0xA); //Full - 6K
-			}
-			else if (p_rx_fifo == eDWC_ETH_QOS_16k) {
-				MTL_QROMR_RFD_UdfWr(qInx, 0x6); //Full - 4K
-				MTL_QROMR_RFA_UdfWr(qInx, 0x12); //Full - 10K
-			}
-			else if (p_rx_fifo == eDWC_ETH_QOS_32k) {
-				MTL_QROMR_RFD_UdfWr(qInx, 0x6); //Full - 4K
-				MTL_QROMR_RFA_UdfWr(qInx, 0x1E); //Full - 16K
-			}
-
-		}
+		case 0:	p_tx_fifo = 9;		break;
+		case 1:	p_tx_fifo = 0xa;	break;
+		case 2:	p_tx_fifo = 0xa;	break;
 	}
-#endif
-	DBGPR("<--configure_mtl_queue\n");
+
+	/* Transmit queue fifo size programmed */
+	MTL_QTOMR_TQS_UdfWr(qInx, p_tx_fifo);
+	NDBGPR_L1( "Queue%d Tx fifo size %d\n",	qInx, ((p_tx_fifo + 1) * 256));
+	DBGPR("<--configure_tx_mtl_queue\n");
 
 	return Y_SUCCESS;
 }
-
 
 static INT configure_dma_tx_channel(UINT chInx,
 			struct DWC_ETH_QOS_prv_data *pdata)
@@ -3919,6 +3791,7 @@ static INT configure_dma_rx_channel(UINT chInx,
 static int enable_mac_interrupts(void)
 {
   unsigned long varmac_imr;
+  unsigned long reg_val;
 
   /* Enable following interrupts */
   /* RGSMIIIM - RGMII/SMII interrupt Enable */
@@ -3932,9 +3805,14 @@ static int enable_mac_interrupts(void)
                 ((0x1) << 4) | ((0x1) << 5);
   MAC_IMR_RgWr(varmac_imr);
 
-  NTN_INTC_INTMCUMASK0_RgWr(0xFFFFFFFF);
-  NTN_INTC_INTMCUMASK1_RgWr(NTN_INTC_GMAC_INT_MASK);
-  NTN_INTC_INTMCUMASK2_RgWr(0xFFFFFFFF);
+  NTN_INTC_INTMCUMASK1_RgRd(reg_val);
+  reg_val = reg_val & 0xC0000000;	//Preserve int mask for qSPI and GDMA
+  reg_val = reg_val | NTN_INTC_GMAC_INT_MASK;
+  NTN_INTC_INTMCUMASK1_RgWr(reg_val);
+  
+  /* Mask PCIe controller interrupt */
+  reg_val = (0xF << 9);
+  NTN_INTC_INTMCUMASK2_RgWr(reg_val);
 
   return Y_SUCCESS;
 }
@@ -3961,42 +3839,8 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 			continue;
 		/* set Pause Time */
 		MAC_QTFCR_PT_UdfWr(qInx, 0xffff);
-		/* Assign priority for RX flow control */
 		/* Assign priority for TX flow control */
-		switch(qInx) {
-		case 0:
-			MAC_TQPM0R_PSTQ0_UdfWr(0);
-			MAC_RQC2R_PSRQ0_UdfWr(0x1 << qInx);
-			break;
-		case 1:
-			MAC_TQPM0R_PSTQ1_UdfWr(1);
-			MAC_RQC2R_PSRQ1_UdfWr(0x1 << qInx);
-			break;
-		case 2:
-			MAC_TQPM0R_PSTQ2_UdfWr(2);
-			MAC_RQC2R_PSRQ2_UdfWr(0x1 << qInx);
-			break;
-		case 3:
-			MAC_TQPM0R_PSTQ3_UdfWr(3);
-			MAC_RQC2R_PSRQ3_UdfWr(0x1 << qInx);
-			break;
-		case 4:
-			MAC_TQPM1R_PSTQ4_UdfWr(4);
-			MAC_RQC3R_PSRQ4_UdfWr(0x1 << qInx);
-			break;
-		case 5:
-			MAC_TQPM1R_PSTQ5_UdfWr(5);
-			MAC_RQC3R_PSRQ5_UdfWr(0x1 << qInx);
-			break;
-		case 6:
-			MAC_TQPM1R_PSTQ6_UdfWr(6);
-			MAC_RQC3R_PSRQ6_UdfWr(0x1 << qInx);
-			break;
-		case 7:
-			MAC_TQPM1R_PSTQ7_UdfWr(7);
-			MAC_RQC3R_PSRQ7_UdfWr(0x1 << qInx);
-			break;
-		}
+		MAC_TQPM0R_PSTQ0_UdfWr(qInx);
 
 		if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_TX) == DWC_ETH_QOS_FLOW_CTRL_TX)
 			enable_tx_flow_ctrl(qInx);
@@ -4004,6 +3848,27 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 			disable_tx_flow_ctrl(qInx);
 	}
 
+	/* Set Rx flow control parameters */
+	for (qInx = 0; qInx < NTN_RX_QUEUE_CNT; qInx++) {
+		if(!pdata->rx_q_for_host[qInx])
+			continue;
+		/* Assign priority for RX flow control */
+		switch(qInx) {
+		case 0:
+			MAC_RQC2R_PSRQ0_UdfWr(0x1 << qInx);
+			break;
+		case 1:
+			MAC_RQC2R_PSRQ1_UdfWr(0x1 << qInx);
+			break;
+		case 2:
+			MAC_RQC2R_PSRQ2_UdfWr(0x1 << qInx);
+			break;
+		case 3:
+			MAC_RQC2R_PSRQ3_UdfWr(0x1 << qInx);
+			break;
+		}
+	}
+	
 	MAC_RQC0R_RgRd(regval);
 //	NDBGPR_L1("RX_CTRL0 = %#x\n", regval);
 	MAC_RQC1R_RgRd(regval);
@@ -4033,30 +3898,10 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 	else
 		disable_rx_flow_ctrl();
 
-	/* Configure for Jumbo frame in MAC */
-	if (pdata->dev->mtu > DWC_ETH_QOS_ETH_FRAME_LEN) {
-		if (pdata->dev->mtu < DWC_ETH_QOS_MAX_GPSL) {
-			MAC_MCR_JE_UdfWr(0x1);
-			MAC_MCR_WD_UdfWr(0x0);
-			MAC_MCR_GPSLCE_UdfWr(0x0);
-			MAC_MCR_JD_UdfWr(0x0);
-		} else {
-			MAC_MCR_JE_UdfWr(0x0);
-			MAC_MCR_WD_UdfWr(0x1);
-			MAC_MCR_GPSLCE_UdfWr(0x1);
-			MAC_MECR_GPSL_UdfWr(DWC_ETH_QOS_MAX_SUPPORTED_MTU);
-			MAC_MCR_JD_UdfWr(0x1);
-			NMSGPR_ALERT( "Configured Gaint Packet Size Limit to %d\n",
-				DWC_ETH_QOS_MAX_SUPPORTED_MTU);
-		}
-		NMSGPR_ALERT( "Enabled JUMBO pkt\n");
-	} else {
-		MAC_MCR_JE_UdfWr(0x0);
-		MAC_MCR_WD_UdfWr(0x0);
-		MAC_MCR_GPSLCE_UdfWr(0x0);
-		MAC_MCR_JD_UdfWr(0x0);
-		NDBGPR_L1( "Disabled JUMBO pkt\n");
-	}
+	MAC_MCR_JE_UdfWr(0x0);
+	MAC_MCR_WD_UdfWr(0x0);
+	MAC_MCR_GPSLCE_UdfWr(0x0);
+	MAC_MCR_JD_UdfWr(0x0);
 
 	MAC_MA2HR_RgWr((((pdata->dev->dev_addr[5]) << 8) |
 			(pdata->dev->dev_addr[4])));
@@ -4357,9 +4202,14 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
         for (qInx = 0; qInx < NTN_TX_QUEUE_CNT; qInx++) {
                 if(!pdata->tx_q_for_host[qInx])
                         continue;
-                configure_mtl_queue(qInx, pdata);
+                configure_tx_mtl_queue(qInx, pdata);
         }
 
+        for (qInx = 0; qInx < NTN_RX_QUEUE_CNT; qInx++) {
+                if(!pdata->rx_q_for_host[qInx])
+                        continue;
+                configure_rx_mtl_queue(qInx, pdata);
+        }
 
 #ifdef DWC_ETH_QOS_CERTIFICATION_PKTBURSTCNT
         /* enable tx drop status */
@@ -4390,9 +4240,6 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
         MAC_MPFR_RA_UdfWr(0x1);
         MAC_MCR_BE_UdfWr(0x1);
 #endif
-
-        MAC_MPFR_RA_UdfWr(0x1);
-        MAC_MPFR_HPF_UdfWr(0x1);
 
         DBGPR("<--DWC_ETH_QOS_yinit\n");
 
@@ -4528,10 +4375,6 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 	hw_if->disable_mmc_interrupts = disable_mmc_interrupts;
 	hw_if->config_mmc_counters = config_mmc_counters;
 
-	/* for handling split header */
-	hw_if->config_split_header_mode = config_split_header_mode;
-	hw_if->config_header_size = config_header_size;
-
 	hw_if->set_dcb_algorithm = set_dcb_algorithm;
 	hw_if->set_dcb_queue_weight = set_dcb_queue_weight;
 
@@ -4563,7 +4406,6 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 
 	/* for l3 and l4 layer filtering */
 	hw_if->config_l2_da_perfect_inverse_match = config_l2_da_perfect_inverse_match;
-	hw_if->update_mac_addr32_127_low_high_reg = update_mac_addr32_127_low_high_reg;
 	hw_if->update_mac_addr3_31_low_high_reg = update_mac_addr3_31_low_high_reg;
 	hw_if->update_hash_table_reg = update_hash_table_reg;
 	hw_if->config_mac_pkt_filter_reg = config_mac_pkt_filter_reg;

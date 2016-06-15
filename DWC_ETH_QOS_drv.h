@@ -73,6 +73,7 @@
 /*! History:   
  *      2-March-2016 : Initial 
  *     21-March-2016 : Added declaration for "DWC_ETH_QOS_config_phy_aneg"
+ *      3-Jun-2016   : Some Clean up for unused legacy code.
  */
 
 #ifndef __DWC_ETH_QOS_DRV_H__
@@ -121,20 +122,8 @@ static int DWC_ETH_QOS_ioctl(struct net_device *, struct ifreq *, int);
 
 irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int, void *);
 
-static INT DWC_ETH_QOS_change_mtu(struct net_device *dev, INT new_mtu);
-
-static int DWC_ETH_QOS_clean_split_hdr_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
-					  int quota, UINT chInx);
-
-static int DWC_ETH_QOS_clean_jumbo_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
-					  int quota, UINT chInx);
-
 static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 				    int quota, UINT chInx);
-
-static void DWC_ETH_QOS_consume_page(struct DWC_ETH_QOS_rx_buffer *buffer,
-				     struct sk_buff *skb,
-				     u16 length, u16 buf2_len);
 
 static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 				    struct net_device *dev,
@@ -143,15 +132,6 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 
 static void DWC_ETH_QOS_configure_rx_fun_ptr(struct DWC_ETH_QOS_prv_data
 					     *pdata);
-
-
-static int DWC_ETH_QOS_alloc_split_hdr_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pdata,
-					  struct DWC_ETH_QOS_rx_buffer *buffer,
-					  gfp_t gfp);
-
-static int DWC_ETH_QOS_alloc_jumbo_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pdata,
-					  struct DWC_ETH_QOS_rx_buffer *buffer,
-					  gfp_t gfp);
 
 static int DWC_ETH_QOS_alloc_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pdata,
 				    struct DWC_ETH_QOS_rx_buffer *buffer,
@@ -174,7 +154,13 @@ inline unsigned int DWC_ETH_QOS_reg_read(volatile ULONG *ptr);
 static INT DWC_ETH_QOS_config_phy_aneg (struct DWC_ETH_QOS_prv_data *pdata, unsigned int enb_dis, unsigned int restart);
 
 #ifdef DWC_ETH_QOS_QUEUE_SELECT_ALGO
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )
 u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb);
+#elif	( LINUX_VERSION_CODE == KERNEL_VERSION(3,13,0) ) //3.16.0
+u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv);
+#else   //3.13.0
+u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv, select_queue_fallback_t fallback);
+#endif	//3.13.0
 #endif
 
 

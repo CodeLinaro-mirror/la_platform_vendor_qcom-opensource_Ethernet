@@ -74,6 +74,8 @@
  *      2-March-2016 : Initial 
  *     21-March-2016 : Renamed eMAC TX clock config MACROs, 
  *                     Added eMAC RX clock config MACROs
+ *      3-Jun-2016   : New statistics added to Ethtool for EMAC TX/RX DMA Descriptor Status & M3 MSI Generation Statistics (SRAM).
+ *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts. 
  */
 
 #ifndef __DWC_ETH_QOS__REGACC__H__
@@ -107,22 +109,33 @@
 #define  INTC_OFFSET        (0x8000)            
 
 #define  NTN_REG_BASE_ADRS  (dwc_eth_ntn_reg_pci_base_addr)
+#define  NTN_SRAM_BASE_ADRS (dwc_eth_ntn_SRAM_pci_base_addr_virt)
 #define  BASE_ADDRESS       (NTN_REG_BASE_ADRS + MAC_OFFSET) 
 #define  MAC_BASE_ADDRESS   (NTN_REG_BASE_ADRS + MAC_OFFSET)                         
 #define  INTC_BASE_ADDRESS  (NTN_REG_BASE_ADRS + INTC_OFFSET)                             
 #define  PCIE_BASE_ADDRESS  (NTN_REG_BASE_ADRS + PCIE_OFFSET)                             
 
 
+#define  WRAPPER_OFFSET             (0x3000)
+#define  WRAPPER_DMA_OFFSET         (0x3100)
+#define  WRAPPER_DMA_TX_CH_OFFSET   (0x3200)
+#define  WRAPPER_DMA_RX_CH_OFFSET   (0x3800)
+#define  DMA_INTER_CH_OFFSET        (0x40)
 
-#define  WRAPPER_OFFSET             (0x3000)       
-#define  WRAPPER_DMA_OFFSET         (0x3100)       
-#define  WRAPPER_DMA_TX_CH_OFFSET   (0x3200)       
-#define  WRAPPER_DMA_RX_CH_OFFSET   (0x3800)       
-#define  DMA_INTER_CH_OFFSET        (0x40)         
+#define  M3_SRAM_DEBUG_OFFSET       (0xC800)  // Debugging count SRAM area start address
+#define  M3STAT_MSI_CNT_TXCH_OFFSET (0x00)
+#define  M3STAT_MSI_MAC_LPI_OFFSET  (0x14)
+#define  M3STAT_MSI_CNT_RXCH_OFFSET (0x18)
+#define  M3STAT_MSI_TDM_OFFSET      (0x30)
+#define  M3STAT_MSI_CAN_OFFSET      (0x34)
+#define  M3STAT_RESV_OFFSET         (0x38)
+#define  M3STAT_M3TICK_OFFSET       (0x3C)
+#define  M3STAT_WDT_OFFSET          (0x44)
 
 #define  DMA_BASE_ADDRESS           (NTN_REG_BASE_ADRS + WRAPPER_DMA_OFFSET)                             
 #define  DMA_TX_CH_BASE_ADDRESS     (NTN_REG_BASE_ADRS + WRAPPER_DMA_TX_CH_OFFSET)                             
 #define  DMA_RX_CH_BASE_ADDRESS     (NTN_REG_BASE_ADRS + WRAPPER_DMA_RX_CH_OFFSET)                             
+#define  M3STAT_BASE_ADDRESS        (NTN_SRAM_BASE_ADRS + M3_SRAM_DEBUG_OFFSET)
 /******************************************************************************/
 
 /* virtual_registers Low Bit Macro Name's */
@@ -29257,6 +29270,17 @@
 #define NTN_NEMACCTL_TX_CLK_2_5MHz_RMII    (0x7)	
 
 /******************************************************************************/
+/**                          Neutrino M3 SRAM Debug Memory                   **/
+/******************************************************************************/
+#define M3STAT_MSI_CNT_TXCH_MemOffAddr(n)     ((volatile ULONG *)(M3STAT_BASE_ADDRESS + M3STAT_MSI_CNT_TXCH_OFFSET + (n * 4) ))
+#define M3STAT_MSI_CNT_RXCH_MemOffAddr(n)     ((volatile ULONG *)(M3STAT_BASE_ADDRESS + M3STAT_MSI_CNT_RXCH_OFFSET + (n * 4) ))
+#define M3STAT_MSI_MAC_LPI_MemOffAddr         ((volatile ULONG *)(M3STAT_BASE_ADDRESS + M3STAT_MSI_MAC_LPI_OFFSET ))
+#define M3STAT_MSI_TDM_MemOffAddr             ((volatile ULONG *)(M3STAT_BASE_ADDRESS + M3STAT_MSI_TDM_OFFSET ))
+#define M3STAT_MSI_CAN_MemOffAddr             ((volatile ULONG *)(M3STAT_BASE_ADDRESS + M3STAT_MSI_CAN_OFFSET ))
+#define M3STAT_M3TICK_MemOffAddr              ((volatile ULONG *)(M3STAT_BASE_ADDRESS + M3STAT_M3TICK_OFFSET ))
+#define M3STAT_WDT_MemOffAddr                 ((volatile ULONG *)(M3STAT_BASE_ADDRESS + M3STAT_WDT_OFFSET ))
+
+/******************************************************************************/
 /**                          Neutrino INTC registers                         **/
 /******************************************************************************/
 #define NTN_INTC_INTSTATUS_RgOffAddr         ((volatile ULONG *)(INTC_BASE_ADDRESS + 0x00))    /* Neutrino Wrapper Interrupt status register */
@@ -29277,13 +29301,16 @@
 #define NTN_INTC_PMEINTCFG_RgOffAddr         ((volatile ULONG *)(INTC_BASE_ADDRESS + 0x50))    /* Neutrino Wrapper PME interrupt configuration register */
 #define NTN_INTC_MCUFLG_RgOffAddr            ((volatile ULONG *)(INTC_BASE_ADDRESS + 0x54))    /* Neutrino Wrapper MCU Flag interrupt register */
 #define NTN_INTC_EXTFLG_RgOffAddr            ((volatile ULONG *)(INTC_BASE_ADDRESS + 0x58))    /* Neutrino Wrapper External host flag interrupt register */
+#define NTN_INTC_WDCTL_RgOffAddr             ((volatile ULONG *)(INTC_BASE_ADDRESS + 0x60))    /* Neutrino Interrupt WatchDog Interrupt Control register */
+#define NTN_INTC_WDEXP_RgOffAddr             ((volatile ULONG *)(INTC_BASE_ADDRESS + 0x64))    /* Neutrino Interrupt WatchDog Expiry Control register */
+#define NTN_INTC_WDMON_RgOffAddr             ((volatile ULONG *)(INTC_BASE_ADDRESS + 0x68))    /* Neutrino Interrupt WatchDog Monitor register */
 
 /* Neutrino wrapper interrupt status */
 #define NTN_INTC_INTSTATUS_RgRd(data) do {\
         (data) = ioread32((void *)NTN_INTC_INTSTATUS_RgOffAddr);\
 } while(0)
 
-#define NTN_INTC_GMAC_INT_MASK  (0xFFC000FF)
+#define NTN_INTC_GMAC_INT_MASK  (0x3FC000FF)
 
 #define NTN_INTC_INTSTATUS_GMAC_LPOS    (9)
 #define NTN_INTC_INTSTATUS_GMAC_HPOS    (13)

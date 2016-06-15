@@ -72,6 +72,7 @@
 
 /*! History:   
  *      2-March-2016 : Initial 
+ *        3-Jun-2016 : Added prints for debug
  */
 
 /*!@file: DWC_ETH_QOS_mdio.c
@@ -105,7 +106,8 @@ INT DWC_ETH_QOS_mdio_read_direct(struct DWC_ETH_QOS_prv_data *pdata,
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	int phy_reg_read_status;
 
-	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_read_direct\n");
+	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_read_direct: phyaddr = %d, phyreg = %d\n",
+	      phyaddr, phyreg);
 
         if (!enable_phy) {
                 NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
@@ -121,7 +123,7 @@ INT DWC_ETH_QOS_mdio_read_direct(struct DWC_ETH_QOS_prv_data *pdata,
 		       DEV_NAME);
 	}
 
-	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_read_direct\n");
+	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_read_direct: phydata = %#x\n", *phydata);
 
 	return phy_reg_read_status;
 }
@@ -152,7 +154,8 @@ INT DWC_ETH_QOS_mdio_write_direct(struct DWC_ETH_QOS_prv_data *pdata,
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	int phy_reg_write_status;
 
-	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write_direct\n");
+	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write_direct: phyaddr = %d, phyreg = %d, phydata = %#x\n",
+	      phyaddr, phyreg, phydata);
 
         if (!enable_phy) {
                 NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
@@ -238,7 +241,8 @@ static INT DWC_ETH_QOS_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	INT ret = Y_SUCCESS;
 
-	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write\n");
+	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write: phyaddr = %d, phyreg = %d, phydata = %#x\n",
+	      phyaddr, phyreg, phydata);
 
         if (!enable_phy) {
                 NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
