@@ -808,6 +808,8 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct desc_if_struct *desc_if = &(pdata->desc_if);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	struct DWC_ETH_QOS_rx_dma_ch *rx_dma_ch = NULL;
+	int i;
 	DBGPR("--> DWC_ETH_QOS_remove\n");
 
 	if (pdata->irq_number != 0) {
@@ -836,6 +838,15 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 
 	/* issue clock disable to GMAC device */
     hw_if->ntn_mac_clock_config(0x0);
+
+	/* If NAPI is enabled, delete any references to the NAPI struct. */
+	for (i = 0; i < NTN_RX_DMA_CH_CNT; i++) {
+		rx_dma_ch = GET_RX_DMA_CH_PTR(i);
+		if (!pdata->rx_dma_ch_for_host[i])
+			continue;
+		netif_napi_del(&rx_dma_ch->napi);
+	}
+
 	desc_if->free_queue_struct(pdata);
 
 	free_netdev(dev);
