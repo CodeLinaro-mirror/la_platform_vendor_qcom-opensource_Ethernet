@@ -380,14 +380,19 @@ struct DWC_ETH_QOS_dcb_algorithm {
 	eDWC_ETH_QOS_queue_operating_mode op_mode;
 };
 
-struct DWC_ETH_QOS_avb_algorithm {
-	unsigned int chInx;
-	unsigned int algorithm;
-	unsigned int cc;
+struct DWC_ETH_QOS_avb_algorithm_params {
 	unsigned int idle_slope;
 	unsigned int send_slope;
 	unsigned int hi_credit;
 	unsigned int low_credit;
+};
+
+struct DWC_ETH_QOS_avb_algorithm {
+	unsigned int chInx;
+	unsigned int algorithm;
+	unsigned int cc;
+	struct DWC_ETH_QOS_avb_algorithm_params speed100params;
+	struct DWC_ETH_QOS_avb_algorithm_params speed1000params;
 	eDWC_ETH_QOS_queue_operating_mode op_mode;
 };
 

@@ -88,6 +88,7 @@
 #include <linux/dmapool.h>
 #endif
 #include <linux/if_vlan.h>
+#include "DWC_ETH_QOS_yapphdr.h"
 
 /**************************** Neutrino Defines Starts Here ***************************/
 //#define DESC_SRAM_BUF_HOSTMEM
@@ -1373,6 +1374,7 @@ struct DWC_ETH_QOS_prv_data {
 	spinlock_t lock;
 	spinlock_t tx_lock;
 	spinlock_t pmt_lock;
+	spinlock_t fqtss_lock;
 	UINT mem_start_addr;
 	UINT mem_size;
 	INT irq_number;
@@ -1543,6 +1545,9 @@ struct DWC_ETH_QOS_prv_data {
 
 	/* for PHY loopback */
 	unsigned int phy_loopback_mode;
+
+	struct DWC_ETH_QOS_avb_algorithm_params cbsSpeed100Cfg[2];
+	struct DWC_ETH_QOS_avb_algorithm_params cbsSpeed1000Cfg[2];
 };
 
 typedef enum {

@@ -96,6 +96,9 @@ extern BOOL enable_phy;
 
 #include "DWC_ETH_QOS_yregacc.h"
 
+#define AVB_QUEUE_CLASS_A 1
+#define AVB_QUEUE_CLASS_B 2
+
 static INT DWC_ETH_QOS_GStatus;
 
 #ifdef NTN_POLLING_METHOD
@@ -5623,6 +5626,55 @@ static void DWC_ETH_QOS_program_dcb_algorithm(struct DWC_ETH_QOS_prv_data *pdata
 	return;
 }
 
+/*!
+ * \details This function is invoked by mdio::DWC_ETH_QOS_adjust_link function when
+ * the link speed changes.
+ *
+ * \param[in] pdata – pointer to private data structure.
+ *
+ * \return void
+ *
+ * \retval none
+ */
+
+void DWC_ETH_QOS_reload_fqtss_cfg(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	struct DWC_ETH_QOS_avb_algorithm_params *avb_params;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->fqtss_lock, flags);
+
+	NDBGPR_L1("---------------------------------------------\n");
+	NDBGPR_L1("Reloading CBS for speed %d\n", pdata->speed);
+	NDBGPR_L1("--- Class A ---\n");
+
+	if (pdata->speed == SPEED_1000)
+		avb_params = &(pdata->cbsSpeed1000Cfg[0]);
+	else
+		avb_params = &(pdata->cbsSpeed100Cfg[0]);
+
+	hw_if->config_send_slope(AVB_QUEUE_CLASS_A, avb_params->send_slope);
+	hw_if->config_idle_slope(AVB_QUEUE_CLASS_A, avb_params->idle_slope);
+	hw_if->config_high_credit(AVB_QUEUE_CLASS_A, avb_params->hi_credit);
+	hw_if->config_low_credit(AVB_QUEUE_CLASS_A, avb_params->low_credit);
+
+	NDBGPR_L1("--- Class B ---\n");
+
+	if (pdata->speed == SPEED_1000)
+		avb_params = &(pdata->cbsSpeed1000Cfg[1]);
+	else
+		avb_params = &(pdata->cbsSpeed100Cfg[1]);
+
+	hw_if->config_send_slope(AVB_QUEUE_CLASS_B, avb_params->send_slope);
+	hw_if->config_idle_slope(AVB_QUEUE_CLASS_B, avb_params->idle_slope);
+	hw_if->config_high_credit(AVB_QUEUE_CLASS_B, avb_params->hi_credit);
+	hw_if->config_low_credit(AVB_QUEUE_CLASS_B, avb_params->low_credit);
+
+	NDBGPR_L1("---------------------------------------------\n");
+
+	spin_unlock_irqrestore(&pdata->fqtss_lock, flags);
+}
 
 /*!
  * \details This function is invoked by ioctl function when the user issues an
@@ -5643,6 +5695,10 @@ static void DWC_ETH_QOS_program_avb_algorithm(struct DWC_ETH_QOS_prv_data *pdata
 	struct DWC_ETH_QOS_avb_algorithm l_avb_struct, *u_avb_struct =
 		(struct DWC_ETH_QOS_avb_algorithm *)req->ptr;
 	struct hw_if_struct *hw_if = &pdata->hw_if;
+	struct DWC_ETH_QOS_avb_algorithm_params *avb_params;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdata->fqtss_lock, flags);
 
 	DBGPR("-->DWC_ETH_QOS_program_avb_algorithm\n");
 
@@ -5650,16 +5706,31 @@ static void DWC_ETH_QOS_program_avb_algorithm(struct DWC_ETH_QOS_prv_data *pdata
 				sizeof(struct DWC_ETH_QOS_avb_algorithm)))
 		NMSGPR_ALERT( "Failed to fetch AVB Struct info from user\n");
 
+	pdata->cbsSpeed100Cfg[l_avb_struct.chInx - 1] = l_avb_struct.speed100params;
+	pdata->cbsSpeed1000Cfg[l_avb_struct.chInx - 1] = l_avb_struct.speed1000params;
+
+	if (pdata->speed == SPEED_1000)
+		avb_params = &(pdata->cbsSpeed1000Cfg[l_avb_struct.chInx - 1]);
+	else
+		avb_params = &(pdata->cbsSpeed100Cfg[l_avb_struct.chInx - 1]);
+
+	NDBGPR_L1("---------------------------------------------\n");
+	NDBGPR_L1("Setting CBS for speed %d, class %s\n", pdata->speed, l_avb_struct.chInx == 1 ? "A" : "B");
+
 	hw_if->set_tx_queue_operating_mode(l_avb_struct.chInx,
 		(UINT)l_avb_struct.op_mode);
 	hw_if->set_avb_algorithm(l_avb_struct.chInx, l_avb_struct.algorithm);
 	hw_if->config_credit_control(l_avb_struct.chInx, l_avb_struct.cc);
-	hw_if->config_send_slope(l_avb_struct.chInx, l_avb_struct.send_slope);
-	hw_if->config_idle_slope(l_avb_struct.chInx, l_avb_struct.idle_slope);
-	hw_if->config_high_credit(l_avb_struct.chInx, l_avb_struct.hi_credit);
-	hw_if->config_low_credit(l_avb_struct.chInx, l_avb_struct.low_credit);
+	hw_if->config_send_slope(l_avb_struct.chInx, avb_params->send_slope);
+	hw_if->config_idle_slope(l_avb_struct.chInx, avb_params->idle_slope);
+	hw_if->config_high_credit(l_avb_struct.chInx, avb_params->hi_credit);
+	hw_if->config_low_credit(l_avb_struct.chInx, avb_params->low_credit);
+
+	NDBGPR_L1("---------------------------------------------\n");
 
 	DBGPR("<--DWC_ETH_QOS_program_avb_algorithm\n");
+
+	spin_unlock_irqrestore(&pdata->fqtss_lock, flags);
 
 	return;
 }

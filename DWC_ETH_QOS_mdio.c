@@ -79,7 +79,7 @@
  * @brief: Driver functions.
  */
 #include "DWC_ETH_QOS_yheader.h"
-
+void DWC_ETH_QOS_reload_fqtss_cfg(struct DWC_ETH_QOS_prv_data *pdata);
 extern BOOL enable_phy;
 
 /*!
@@ -489,6 +489,9 @@ static void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 
 	if (new_state)
 		phy_print_status(phydev);
+
+	if (new_state)
+		DWC_ETH_QOS_reload_fqtss_cfg(pdata);
 
 	/* At this stage, it could be need to setup the EEE or adjust some
 	 * MAC related HW registers.
