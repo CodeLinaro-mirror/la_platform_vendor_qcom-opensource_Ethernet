@@ -3018,6 +3018,11 @@ static void rx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
 		/* set control bits - OWN, INTE and BUF1V */
 		RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
 					   (0xc1000000));
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+		/* Don't Set the IOC bit for IPA controlled Desc */
+		if (chInx != NTN_RX_DMA_CH_0) {
+#endif
 		buffer->inte = (1 << 30);
 
 		/* reconfigure INTE bit if RX watchdog timer is enabled */
@@ -3033,12 +3038,29 @@ static void rx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
 			}
 		}
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+		} else {
+			UINT varRDES3 = 0;
+			RX_NORMAL_DESC_RDES3_Ml_Rd(RX_NORMAL_DESC->RDES3,
+					varRDES3);
+			/* reset IOC for all buffers */
+			RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
+						(varRDES3 & ~(1 << 30)));
+		}
+#endif
 		INCR_RX_DESC_INDEX(rx_desc_data->cur_rx, 1);
 		RX_NORMAL_DESC =
 			GET_RX_DESC_PTR(chInx, rx_desc_data->cur_rx);
 		buffer = GET_RX_BUF_PTR(chInx, rx_desc_data->cur_rx);
 	}
 
+#ifdef	DWC_ETH_QOS_ENABLE_IPA
+	/* Reset the OWN bit of last descriptor */
+	if (chInx == NTN_RX_DMA_CH_0) {
+		RX_NORMAL_DESC = GET_RX_DESC_PTR(chInx, RX_DESC_CNT - 1);
+		RX_CONTEXT_DESC_RDES3_OWN_Mlf_Wr(RX_NORMAL_DESC->RDES3, 0);
+	}
+#endif
 
 	/* update the total no of Rx descriptors count */
 	DMA_RXCH_DESC_RING_LENGTH_RgWr(chInx, (RX_DESC_CNT - 1));
@@ -3850,10 +3872,13 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 		/* Assign priority for TX flow control */
 		MAC_TQPM0R_PSTQ0_UdfWr(qInx);
 
-		if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_TX) == DWC_ETH_QOS_FLOW_CTRL_TX)
+		if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_TX) == DWC_ETH_QOS_FLOW_CTRL_TX) {
 			enable_tx_flow_ctrl(qInx);
-		else
+			NMSGPR_INFO("TX flow control for Queue(%d): ENABLED \n",qInx);
+		} else {
 			disable_tx_flow_ctrl(qInx);
+			NMSGPR_INFO("TX flow control for Queue(%d): DISABLED \n",qInx);
+		}
 	}
 
 	/* Set Rx flow control parameters */
@@ -3902,10 +3927,13 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 
 
 	/* Set Rx flow control parameters */
-	if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_RX) == DWC_ETH_QOS_FLOW_CTRL_RX)
+	if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_RX) == DWC_ETH_QOS_FLOW_CTRL_RX) {
 		enable_rx_flow_ctrl();
-	else
+		NMSGPR_INFO("RX flow control ENABLED \n");
+	} else {
 		disable_rx_flow_ctrl();
+		NMSGPR_INFO("RX flow control DISABLED \n");
+	}
 
 	MAC_MCR_JE_UdfWr(0x0);
 	MAC_MCR_WD_UdfWr(0x0);
@@ -4187,6 +4215,27 @@ static INT ntn_set_tx_clk_2_5MHz(void)
 	return Y_SUCCESS;
 }
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+static int DWC_ETH_QOS_yinit_offload(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	DBGPR("-->DWC_ETH_QOS_yinit_offload\n");
+
+	/*Init offload TX/RX pipes */
+	configure_dma_tx_channel(NTN_TX_DMA_CH_2, pdata);
+	configure_dma_rx_channel(NTN_RX_DMA_CH_0, pdata);
+
+	DBGPR("-->DWC_ETH_QOS_yinit_offload\n");
+	return Y_SUCCESS;
+}
+
+static int DWC_ETH_QOS_yexit_offload(void)
+{
+	DBGPR("-->DWC_ETH_QOS_yexit_offload\n");
+	DBGPR("-->DWC_ETH_QOS_yexit_offload\n");
+	return Y_SUCCESS;
+}
+#endif
+
 /*!
  * * \brief Initialises device registers.
  * * \details This function initialises device registers.
@@ -4234,6 +4283,11 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
                 if(!pdata->tx_dma_ch_for_host[chInx])
                         continue;
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+		/* DMA CH to be enabled when IPA uC is ready */
+		if (chInx == NTN_TX_DMA_CH_2)
+			continue;
+#endif
                 configure_dma_tx_channel(chInx, pdata);
         }
         for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++) {
@@ -4241,6 +4295,11 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
                 if(!pdata->rx_dma_ch_for_host[chInx])
                         continue;
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+		/* DMA CH to be enabled when IPA uC is ready */
+		if (chInx == NTN_RX_DMA_CH_0)
+			continue;
+#endif
                 configure_dma_rx_channel(chInx, pdata);
         }
 
@@ -4310,6 +4369,10 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 	hw_if->dev_read = device_read;
 	hw_if->init = DWC_ETH_QOS_yinit;
 	hw_if->exit = DWC_ETH_QOS_yexit;
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	hw_if->init_offload = DWC_ETH_QOS_yinit_offload;
+	hw_if->exit_offload = DWC_ETH_QOS_yexit_offload;
+#endif
 	/* Descriptor related Sequences have to be initialized here */
 	hw_if->tx_desc_init = tx_descriptor_init;
 	hw_if->rx_desc_init = rx_descriptor_init;

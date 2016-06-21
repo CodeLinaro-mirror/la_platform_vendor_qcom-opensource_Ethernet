@@ -132,10 +132,14 @@
 #define NTN_RX_DMA_CH_4			(4)
 #define NTN_RX_DMA_CH_5			(5)
 
-#define NTN_TX_PKT_GPTP			    (NTN_TX_DMA_CH_0)
+#define NTN_TX_PKT_GPTP			(NTN_TX_DMA_CH_0)
 #define NTN_TX_PKT_VLAN_NOT_AVB		(NTN_TX_DMA_CH_0)
-#define NTN_TX_PKT_M3			    (NTN_TX_DMA_CH_1)
-#define NTN_TX_PKT_HOST			    (NTN_TX_DMA_CH_2)
+#define NTN_TX_PKT_M3			(NTN_TX_DMA_CH_1)
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+#define NTN_TX_PKT_HOST			(NTN_TX_DMA_CH_0) /*Use TX DMA Channel 0 for Embedded TX traffic */
+#else                                                     /*and avoid TX CHannel 2 which is used for IPA only*/
+#define NTN_TX_PKT_HOST			(NTN_TX_DMA_CH_2)
+#endif
 #define NTN_TX_PKT_AVB_CLASS_A		(NTN_TX_DMA_CH_3)
 #define NTN_TX_PKT_AVB_CLASS_B		(NTN_TX_DMA_CH_4)
 
@@ -198,6 +202,20 @@
 #define NTN_RX_MEM_POOL_ALLOC  (0)
 #endif
 
+/* use TAMAP 1 region for M3 to access memory mapped IPA doorbell registers*/
+#if defined(NTN_ENABLE_PCIE_MEM_ACCESS) && defined(DWC_ETH_QOS_ENABLE_IPA)
+#define NTN_HOST_TAMAP_MEM_LENGTH	(1<<12)
+#define NTN_PCIE_REGION_MEM_MAP_BASE	0x60000000
+#define NTN_GET_TAMAP_MASK_BITS(length, no_of_bits)	do {\
+	int len = length;\
+	no_of_bits = 64;\
+	while(!(len&0x1)){\
+		len>>=1;\
+		no_of_bits--;\
+	};\
+} while(0)
+#define IPA_UC_REG_BASE	0x7962000 /* IPA uC base register address*/
+#endif
 
 #ifdef NTN_POLLING_METHOD
 #define NTN_POLL_DELAY_US	    (1000) //Any value less then 1000 will be considered as 1000us
@@ -370,8 +388,13 @@
 	0x13c7ULL << 32)
 #define MAC_MASK (0x10ULL << 0)
 
-#define TX_DESC_CNT 16
-#define RX_DESC_CNT 16
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+#define TX_DESC_CNT	128 /*Increase the TX desc count to 128 for IPA offload*/
+#define RX_DESC_CNT	128 /*Increase the RX desc count to 128 for IPA offload*/
+#else
+#define TX_DESC_CNT	16
+#define RX_DESC_CNT	16
+#endif
 #define MIN_RX_DESC_CNT 4
 
 #define TX_BUF_SIZE 1536
@@ -431,6 +454,10 @@
 #define DWC_ETH_QOS_MAC_ADDR_LEN 6
 #define DWC_ETH_QOS_ETH_FRAME_LEN (ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+#define DWC_ETH_QOS_ETH_FRAME_LEN_IPA	(1<<11) /*IPA can support 2KB max pkt length*/
+#endif
+
 #define FIFO_SIZE_B(x) (x)
 #define FIFO_SIZE_KB(x) (x*1024)
 
@@ -469,6 +496,13 @@
 #define GET_TX_DESC_PTR(chInx, dInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_desc_ptrs[(dInx)])
 
 #define GET_TX_DESC_DMA_ADDR(chInx, dInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_desc_dma_addrs[(dInx)])
+
+/* Add IPA specific Macros to access the DMA and virtual address to be provided to IPA uC*/
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+#define GET_TX_BUFF_DMA_ADDR(chInx, dInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_ipa_dma_buff_addrs[(dInx)])
+#define GET_TX_BUFF_LOGICAL_ADDR(chInx, dInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_ipa_buff_addrs[(dInx)])
+#define GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_ipa_dma_buff_addrs)
+#endif
 
 #define GET_TX_WRAPPER_DESC(chInx) (&(pdata->tx_dma_ch[(chInx)].tx_desc_data))
 
@@ -512,6 +546,12 @@
 #define GET_RX_DESC_PTR(chInx, dInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.rx_desc_ptrs[(dInx)])
 
 #define GET_RX_DESC_DMA_ADDR(chInx, dInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.rx_desc_dma_addrs[(dInx)])
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+/* Add IPA specific Macros to access the DMA address to be provided to IPA uC*/
+#define GET_RX_BUFF_DMA_ADDR(chInx, dInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.rx_buff_addrs[(dInx)])
+#define GET_RX_BUFF_POOL_BASE_ADRR(chInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.rx_buff_addrs)
+#endif
 
 #define GET_RX_WRAPPER_DESC(chInx) (&(pdata->rx_dma_ch[(chInx)].rx_desc_data))
 
@@ -791,6 +831,10 @@ struct hw_if_struct {
 
 	INT(*init) (struct DWC_ETH_QOS_prv_data *);
 	INT(*exit) (void);
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	INT(*init_offload) (struct DWC_ETH_QOS_prv_data *);
+	INT(*exit_offload) (void);
+#endif
 	INT(*enable_int) (e_DWC_ETH_QOS_int_id);
 	INT(*disable_int) (e_DWC_ETH_QOS_int_id);
 	void (*pre_xmit) (struct DWC_ETH_QOS_prv_data *, UINT chInx);
@@ -1008,6 +1052,11 @@ struct DWC_ETH_QOS_tx_wrapper_descriptor {
 
 	struct DWC_ETH_QOS_tx_buffer *tx_buf_ptrs[TX_DESC_CNT];
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	dma_addr_t *tx_ipa_dma_buff_addrs;
+	struct sk_buff *tx_ipa_buff_addrs[TX_DESC_CNT];
+#endif
+
 	unsigned char contigous_mem;
 
 	int cur_tx;	/* always gives index of desc which has to
@@ -1073,6 +1122,10 @@ struct DWC_ETH_QOS_rx_wrapper_descriptor {
 
 	void *rx_desc_ptrs[RX_DESC_CNT];
 	dma_addr_t rx_desc_dma_addrs[RX_DESC_CNT];
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	dma_addr_t *rx_buff_addrs;
+#endif
 
 	struct DWC_ETH_QOS_rx_buffer *rx_buf_ptrs[RX_DESC_CNT];
 
@@ -1368,9 +1421,32 @@ struct DWC_ETH_QOS_extra_stats {
 	unsigned long m3_msi_rxch[NTN_DMA_RX_CH_CNT];
 };
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+struct DWC_ETH_QOS_prv_ipa_data {
+        phys_addr_t uc_db_rx_addr;
+        phys_addr_t uc_db_tx_addr;
+        u32 ipa_client_hndl;
+        struct dentry *debugfs_dir;
+
+	/* IPA state variables */
+	bool ipa_ready;
+	bool ipa_offload_init;
+	bool ipa_offload_ready;
+
+	/* Dev state */
+	bool is_dev_ready;
+
+	/* IPA Stats */
+	unsigned long long ipa_ul_exception;
+};
+#endif
+
 struct DWC_ETH_QOS_prv_data {
 	struct net_device *dev;
 	struct pci_dev *pdev;
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	struct DWC_ETH_QOS_prv_ipa_data prv_ipa;
+#endif
 
 	spinlock_t lock;
 	spinlock_t tx_lock;

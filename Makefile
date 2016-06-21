@@ -22,6 +22,11 @@ else
 CONFIG_PTPSUPPORT_OBJ=y
 endif
 
+ifeq ($(CONFIG_IPA_OFFLOAD), 1)
+CDEFINES+=-DDWC_ETH_QOS_ENABLE_IPA
+DWC_ETH_QOS-y += DWC_ETH_QOS_ipa.o
+endif
+
 obj-m := DWC_ETH_QOS.o
 
 DWC_ETH_QOS-y += DWC_ETH_QOS_dev.o \

@@ -84,6 +84,12 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_pci.h"
 
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+#include "DWC_ETH_QOS_ipa.h"
+#endif
+
+struct DWC_ETH_QOS_prv_data *gDWC_ETH_QOS_prv_data;
+
 static UCHAR dev_addr[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8};
 typedef struct
 {
@@ -101,6 +107,7 @@ const config_param_list_t config_param_list[] = {
 /* Holds virtual address for BAR0 for register access,
    BAR1 for SRAM memory and BAR2 for Flash memory */
 ULONG dwc_eth_ntn_reg_pci_base_addr;
+ULONG dwc_eth_ntn_reg_pci_base_addr_phy;
 ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;
 ULONG dwc_eth_ntn_SRAM_pci_base_addr_virt;
 #if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
@@ -439,11 +446,11 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
     NDBGPR_L1( "BAR2 length = %ld kb\n", dwc_eth_ntn_SRAM_len);
     NDBGPR_L1( "BAR4 length = %ld kb\n", dwc_eth_ntn_FLASH_len);
 
-    dwc_eth_ntn_reg_pci_base_addr = pci_resource_start(pdev, 0);
+    dwc_eth_ntn_reg_pci_base_addr_phy = pci_resource_start(pdev, 0);
     dwc_eth_ntn_SRAM_pci_base_addr_phy = pci_resource_start(pdev, 2);
     dwc_eth_ntn_FLASH_pci_base_addr = pci_resource_start(pdev, 4);
 
-    NDBGPR_L1( "BAR0 iommu address = 0x%lx\n", dwc_eth_ntn_reg_pci_base_addr);
+    NDBGPR_L1( "BAR0 iommu address = 0x%lx\n", dwc_eth_ntn_reg_pci_base_addr_phy);
     NDBGPR_L1( "BAR2 iommu address = 0x%lx\n", dwc_eth_ntn_SRAM_pci_base_addr_phy);
     NDBGPR_L1( "BAR4 iommu address = 0x%lx\n", dwc_eth_ntn_FLASH_pci_base_addr);
 
@@ -517,6 +524,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	dev->base_addr = dwc_eth_ntn_reg_pci_base_addr;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	pdata = netdev_priv(dev);
+	pr_info("gDWC_ETH_QOS_prv_data %p \n", pdata);
 	DWC_ETH_QOS_init_all_fptrs(pdata);
 	hw_if = &(pdata->hw_if);
 	desc_if = &(pdata->desc_if);
@@ -588,6 +596,19 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	adrs_for_replacement = ( (unsigned long long)0x00000000 << 32);
 	no_of_bits = 28;
 	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced, adrs_for_replacement, no_of_bits);
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	/* Configure TMAP 1 to access IPA uC Register in host memory */
+	tmap_no = 1;
+	adrs_to_be_replaced = NTN_PCIE_REGION_MEM_MAP_BASE;
+	adrs_for_replacement = IPA_UC_REG_BASE;
+	NTN_GET_TAMAP_MASK_BITS(NTN_HOST_TAMAP_MEM_LENGTH, no_of_bits);
+	NMSGPR_ALERT("TAMAP %d, adrs_to_be_replaced %llx adrs_for_replacement "
+		"%llx no_of_bits %d \n",tmap_no, adrs_to_be_replaced,
+		adrs_for_replacement, no_of_bits);
+	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
+				adrs_for_replacement, no_of_bits);
+#endif
 #endif
 
     /* issue clock enable to GMAC device */
@@ -735,6 +756,24 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		netif_carrier_off(dev);
 		NMSGPR_ALERT( "carrier off till LINK is up\n");
 	}
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	/* Configure IPA Related Stuff */
+	ret = ipa_register_ipa_ready_cb(DWC_ETH_QOS_ipa_ready_cb,
+					(void *)pdata);
+	if (ret < 0) {
+		if (ret == -EEXIST) {
+			NMSGPR_ALERT("IPA is ready %d\n", ret);
+			pdata->prv_ipa.ipa_ready = true;
+		} else {
+			NMSGPR_ERR("IPA ready registration failed %d\n", ret);
+			pdata->prv_ipa.ipa_ready = false;
+		}
+	} else if (ret == 0) {
+		NMSGPR_ALERT("IPA Not ready, cb registered successfully \n");
+		pdata->prv_ipa.ipa_ready = false;
+	}
+#endif
 
 	return 0;
 
