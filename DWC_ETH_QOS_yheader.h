@@ -335,6 +335,7 @@
 //#define YDEBUG_PTP
 //#define YDEBUG_FILTER
 //#define YDEBUG_EEE
+//#define YDEBUG_VLAN
 
 #define Y_TRUE 1
 #define Y_FALSE 0
@@ -1681,6 +1682,12 @@ void DWC_ETH_QOS_enable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata);
 #define DBGPR_EEE(x...) printk(KERN_ALERT x)
 #else
 #define DBGPR_EEE(x...) do {} while (0)
+#endif
+
+#ifdef YDEBUG_VLAN
+#define DBGPR_VLAN(x...) printk(KERN_ALERT x)
+#else
+#define DBGPR_VLAN(x...) do {} while (0)
 #endif
 
 #endif

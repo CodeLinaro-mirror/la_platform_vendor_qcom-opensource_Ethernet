@@ -2047,13 +2047,15 @@ UINT DWC_ETH_QOS_get_total_desc_cnt(struct DWC_ETH_QOS_prv_data *pdata,
 		USHORT vlan_tag = vlan_tx_tag_get(skb);
 		vlan_tag |= (chInx << 13);
 		desc_data->vlan_tag_present = 1;
+		DBGPR_VLAN("%s:VLAN: Tag seen on TX Packet\n",__func__);
 		if (vlan_tag != desc_data->vlan_tag_id ||
 				desc_data->context_setup == 1) {
 			desc_data->vlan_tag_id = vlan_tag;
 			if (Y_TRUE == desc_data->tx_vlan_tag_via_reg) {
-				NMSGPR_ALERT( "VLAN control info update via register\n\n");
+				DBGPR_VLAN("%s:VLAN: enable_vlan_reg_control\n",__func__);
 				hw_if->enable_vlan_reg_control(desc_data);
 			} else {
+				DBGPR_VLAN("%s:VLAN: enable_vlan_desc_control\n",__func__);
 				hw_if->enable_vlan_desc_control(pdata);
 				TX_PKT_FEATURES_PKT_ATTRIBUTES_VLAN_PKT_Mlf_Wr
 				    (tx_pkt_features->pkt_attributes, 1);
@@ -2211,8 +2213,10 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 #ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
 	TX_PKT_FEATURES_PKT_ATTRIBUTES_VLAN_PKT_Mlf_Rd
 		(tx_pkt_features->pkt_attributes, varvlan_pkt);
-	if (varvlan_pkt == 0x1)
+	if (varvlan_pkt == 0x1) {
 		count++;
+		DBGPR_VLAN("%s:VLAN: pkt_attributes.vlan\n",__func__);
+	}
 #endif
 #ifdef DWC_ETH_QOS_ENABLE_DVLAN
 	NMSGPR_ALERT( "Defined DWC_ETH_QOS_ENABLE_DVLAN\n");
@@ -2771,12 +2775,14 @@ static inline void DWC_ETH_QOS_get_rx_vlan(struct DWC_ETH_QOS_prv_data *pdata,
 		if ((rx_normal_desc->RDES3 & DWC_ETH_QOS_RDESC3_RS0V)) {
 			/* device received frame with VLAN Tag or
 			 * double VLAN Tag ? */
+			DBGPR_VLAN("%s:VLAN: RDES3.DWC_ETH_QOS_RDESC3_RS0V\n",__func__);
 			if (((rx_normal_desc->RDES3 & DWC_ETH_QOS_RDESC3_LT) == 0x40000)
 				|| ((rx_normal_desc->RDES3 & DWC_ETH_QOS_RDESC3_LT) == 0x50000)) {
 				vlan_tag = rx_normal_desc->RDES0 & 0xffff;
 				/* insert VLAN tag into skb */
 				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 				pdata->xstats.rx_vlan_pkt_n++;
+				DBGPR_VLAN("%s:VLAN: RDES3.DWC_ETH_QOS_RDESC3_LT, TAG=%x\n",__func__,vlan_tag);
 			}
 		}
 	}
@@ -3203,23 +3209,23 @@ static int DWC_ETH_QOS_set_features(struct net_device *dev, netdev_features_t fe
 	    && !dev_rxvlan_enable) {
 		pdata->dev_state |= NETIF_F_HW_VLAN_CTAG_RX;
 		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS);
-		NMSGPR_ALERT( "State change - rxvlan enable\n");
+		DBGPR_VLAN("%s:VLAN: State change - rxvlan enable\n",__func__);
 	} else if (((features & NETIF_F_HW_VLAN_CTAG_RX) == 0) &&
 			dev_rxvlan_enable) {
 		pdata->dev_state &= ~NETIF_F_HW_VLAN_CTAG_RX;
 		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
-		NMSGPR_ALERT( "State change - rxvlan disable\n");
+		DBGPR_VLAN("%s:VLAN: State change - rxvlan disable\n",__func__);
 	}
 
 	dev_txvlan_enable = !!(pdata->dev_state & NETIF_F_HW_VLAN_CTAG_TX);
 	if (((features & NETIF_F_HW_VLAN_CTAG_TX) == NETIF_F_HW_VLAN_CTAG_TX)
 	    && !dev_txvlan_enable) {
 		pdata->dev_state |= NETIF_F_HW_VLAN_CTAG_TX;
-		NMSGPR_ALERT( "State change - txvlan enable\n");
+		DBGPR_VLAN("%s:VLAN: State change - txvlan enable\n",__func__);
 	} else if (((features & NETIF_F_HW_VLAN_CTAG_TX) == 0) &&
 			dev_txvlan_enable) {
 		pdata->dev_state &= ~NETIF_F_HW_VLAN_CTAG_TX;
-		NMSGPR_ALERT( "State change - txvlan disable\n");
+		DBGPR_VLAN("%s:VLAN: State change - txvlan disable\n",__func__);
 	}
 #endif	/* DWC_ETH_QOS_ENABLE_VLAN_TAG */
 

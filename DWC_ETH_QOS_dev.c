@@ -484,22 +484,29 @@ static INT config_vlan_filtering(INT filter_enb_dis,
 				 INT perfect_inverse_match)
 {
   MAC_MPFR_VTFE_UdfWr(filter_enb_dis);
+  DBGPR_VLAN("%s:VLAN: MPFR_VTFE=%d\n",__func__,filter_enb_dis);
   MAC_VLANTR_VTIM_UdfWr(perfect_inverse_match);
+  DBGPR_VLAN("%s:VLAN: TR_VTIMi=%d\n",__func__,perfect_inverse_match);
   MAC_VLANTR_VTHM_UdfWr(perfect_hash_filtering);
+  DBGPR_VLAN("%s:VLAN: TR_VTHM=%d\n",__func__,perfect_hash_filtering);
   /* To enable only HASH filtering then VL/VID
    * should be > zero. Hence we are writting 1 into VL.
    * It also means that MAC will always receive VLAN pkt with
    * VID = 1 if inverse march is not set.
    * */
-  if (perfect_hash_filtering)
+  if (perfect_hash_filtering){
     MAC_VLANTR_VL_UdfWr(0x1);
+    DBGPR_VLAN("%s:VLAN: TR_VL=1\n",__func__);
+  }
 
   /* By default enable MAC to calculate vlan hash on
    * only 12-bits of received VLAN tag (ie only on
    * VLAN id and ignore priority and other fields)
    * */
-  if (perfect_hash_filtering)
-	  MAC_VLANTR_ETV_UdfWr(0x1);
+  if (perfect_hash_filtering) {
+    MAC_VLANTR_ETV_UdfWr(0x1);
+    DBGPR_VLAN("%s:VLAN: TR_ETV=1\n",__func__);
+  }
 
   return Y_SUCCESS;
 }
@@ -1884,18 +1891,24 @@ static INT configure_mac_for_vlan_pkt(void)
 #endif
 	/* Enable operation on the outer VLAN Tag, if present */
 	MAC_VLANTR_ERIVLT_UdfWr(0);
+	DBGPR_VLAN("%s:VLAN: TR_ERIVLT=0\n",__func__);
 	/* Disable double VLAN Tag processing on TX and RX */
 	MAC_VLANTR_EDVLP_UdfWr(0);
+	DBGPR_VLAN("%s:VLAN: TR_EDVLP=0\n",__func__);
 	/* Enable VLAN Tag in RX Status. */
 	MAC_VLANTR_EVLRXS_UdfWr(0x1);
+	DBGPR_VLAN("%s:VLAN: TR_EVLRXS=1\n",__func__);
 	/* Disable VLAN Type Check */
 	MAC_VLANTR_DOVLTC_UdfWr(0x1);
+	DBGPR_VLAN("%s:VLAN: TR_DOVLTC=1\n",__func__);
 
 	/* configure MAC to get VLAN Tag to be inserted/replaced from */
 	/* TX descriptor(context desc) */
 	MAC_VLANTIRR_VLTI_UdfWr(0x1);
+	DBGPR_VLAN("%s:VLAN: TIRR_VLTI=1\n",__func__);
 	/* insert/replace C_VLAN in 13th ans 14th bytes of transmitted frames */
 	MAC_VLANTIRR_CSVL_UdfWr(0);
+	DBGPR_VLAN("%s:VLAN: TIRR_CSVL=0\n",__func__);
 
 	return Y_SUCCESS;
 }
@@ -2606,7 +2619,8 @@ static INT set_all_multicast_mode(void)
 static INT set_promiscuous_mode(void)
 {
 
-	MAC_MPFR_PR_UdfWr(0x1);
+	//MAC_MPFR_PR_UdfWr(0x1);
+        MAC_MPFR_RA_UdfWr(0x1);
 
 	return Y_SUCCESS;
 }
@@ -3117,7 +3131,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 	    GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 	UINT varcsum_enable;
 	UINT varvlan_pkt;
-	UINT varvt;
+	UINT varvt = 0;
 	INT i;
 	INT start_index = tx_desc_data->cur_tx;
 	INT last_index, original_start_index = tx_desc_data->cur_tx;
@@ -3162,6 +3176,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		TX_CONTEXT_DESC_TDES3_VLTV_Mlf_Wr(TX_CONTEXT_DESC->TDES3, 0x1);
 		TX_CONTEXT_DESC_TDES3_CTXT_Mlf_Wr(TX_CONTEXT_DESC->TDES3, 0x1);
 		TX_CONTEXT_DESC_TDES3_OWN_Mlf_Wr(TX_CONTEXT_DESC->TDES3, 0x1);
+		DBGPR_VLAN("%s:VLAN: TXDESC3_VT=%x VLTV,CTXT,OWN=1\n",__func__,varvt);
 
 		original_start_index = tx_desc_data->cur_tx;
 		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1);
@@ -3250,9 +3265,9 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 	 * CONTEXT descriptor
 	 * */
 	if (tx_desc_data->vlan_tag_present && Y_FALSE == tx_desc_data->tx_vlan_tag_via_reg) {
-		//NMSGPR_ALERT( "VLAN control info update via descriptor\n\n");
 		TX_NORMAL_DESC_TDES2_VTIR_Mlf_Wr(TX_NORMAL_DESC->TDES2,
 						 tx_desc_data->tx_vlan_tag_ctrl);
+		DBGPR_VLAN("%s:VLAN control info update via descriptor\n\n",__func__);
 	}
 #endif	/* DWC_ETH_QOS_ENABLE_VLAN_TAG */
 
@@ -3870,26 +3885,27 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 	}
 	
 	MAC_RQC0R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL0 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL0 = %#x\n", regval);
 	MAC_RQC1R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL1 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL1 = %#x\n", regval);
 	MAC_RQC2R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL2 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL2 = %#x\n", regval);
 	MAC_RQC3R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL3 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL3 = %#x\n", regval);
 
 	MAC_RQC0R_RgWr(0x56);
+	//MAC_RQC0R_RgWr(0x96);	//VLAN DEBUG
 	MAC_RQC1R_RgWr(0x12);
 	MAC_RQC2R_RgWr(0xC000000);
 
 	MAC_RQC0R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL0 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL0 = %#x\n", regval);
 	MAC_RQC1R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL1 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL1 = %#x\n", regval);
 	MAC_RQC2R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL2 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL2 = %#x\n", regval);
 	MAC_RQC3R_RgRd(regval);
-//	NDBGPR_L1("RX_CTRL3 = %#x\n", regval);
+	NDBGPR_L1("RX_CTRL3 = %#x\n", regval);
 
 
 	/* Set Rx flow control parameters */
