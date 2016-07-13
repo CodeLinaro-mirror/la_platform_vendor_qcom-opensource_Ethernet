@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,13 +70,13 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
+/*! History:
+ *      2-March-2016 : Initial
  *     21-March-2016 : Added "DWC_ETH_QOS_config_phy_aneg" API and it's calls
  *      3-Jun-2016   : Some Clean up for unused legacy code.
  *                   : TX Channel selection is moved to "DWC_ETH_QOS_select_queue" function.
  *                   : New statistics added to Ethtool for EMAC TX/RX DMA Descriptor Status & M3 MSI Generation Statistics (SRAM).
- *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts. 
+ *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts.
  */
 
 /*!@file: DWC_ETH_QOS_drv.c
@@ -107,11 +107,11 @@ static struct delayed_work task;
 #endif //NTN_POLLING_METHOD
 
 /* SA(Source Address) operations on TX */
-unsigned char mac_addr0[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8 };    
+unsigned char mac_addr0[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8 };
 unsigned char mac_addr1[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF7 };
 
 /* module parameters for configuring the queue modes
- * 
+ *
  * */
 static int q_op_mode[DWC_ETH_QOS_MAX_TX_QUEUE_CNT] = {
 	DWC_ETH_QOS_Q_GENERIC,
@@ -307,7 +307,7 @@ static void DWC_ETH_QOS_tx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 
 		if(!pdata->tx_dma_ch_for_host[chInx])
 			continue;
-		
+
 		tx_desc_data = GET_TX_WRAPPER_DESC(chInx);
 
 		NMSGPR_ALERT( "DMA CHANNEL = %d\n", chInx);
@@ -362,7 +362,7 @@ static void DWC_ETH_QOS_rx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-		
+
 		rx_desc_data = GET_RX_WRAPPER_DESC(chInx);
 
 		NMSGPR_ALERT( "DMA CHANNEL = %d\n", chInx);
@@ -612,7 +612,7 @@ static void print_time2()
 		NMSGPR_INFO("ISR Entry Gap = %d\n", diff);
 	prev_ns = now_ns;
 }
-                
+
 
 static void print_time(int val)
 {
@@ -632,7 +632,7 @@ static void print_time(int val)
 	if(val)
 	{
 		diff = now_ns - prev_ns;
-	
+
 		if(diff > 500000) //
 	        	NMSGPR_INFO("ISR Execution time = %d\n", diff);
 	}
@@ -647,7 +647,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 {
 	ULONG varNTN_INTC_INTSTATUS;
 	ULONG varNTN_INTC_MACSTATUS;
-	ULONG varNTN_INTC_INTMCUMASK1; 
+	ULONG varNTN_INTC_INTMCUMASK1;
         ULONG var_NTN_INTC_TDMSTATUS;
 	ULONG var_raw_DMA_RXCHSTS;
 	ULONG varDMA_RXCHSTS;
@@ -656,7 +656,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 	ULONG varDMA_RXCHINTMASK;
 	ULONG varDMA_TXCHINTMASK;
 	ULONG varBitField;
-    
+
 	ULONG varMAC_ISR;
 	ULONG varMAC_IMR;
 	ULONG varMAC_PMTCSR;
@@ -679,20 +679,20 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
         /* TOP level status register: Check if there is any interrupt from EMAC, if not return with IRQ_NONE. */
         NTN_INTC_INTSTATUS_RgRd(varNTN_INTC_INTSTATUS);
 
-	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_TXRX_LPOS, NTN_INTC_INTSTATUS_TXRX_HPOS)) 
+	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_TXRX_LPOS, NTN_INTC_INTSTATUS_TXRX_HPOS))
 	{
 		NTN_INTC_MACSTATUS_RgRd(varNTN_INTC_MACSTATUS);
-    
+
 	/* Handle DMA RX interrupts */
 	for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++) {
 
 			/* Check if Current DMA channel didn't raise an interrupt, continue to next channel */
 			if(!GET_VALUE(varNTN_INTC_MACSTATUS, (chInx+16), (chInx+16) ))
-				continue;   
+				continue;
         if(!pdata->rx_dma_ch_for_host[chInx])
             continue;
 	    	rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
-        
+
             	/* DMA RX Channel level status register */
 			DMA_RXCHSTS_RgRd(chInx, var_raw_DMA_RXCHSTS);
 	    	/* clear interrupts. This will clear INTC interrupt status as well. */
@@ -702,11 +702,11 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
             	/* get enabled interrupt mask */
             	DMA_RXCHINTMASK_RgRd(chInx, varDMA_RXCHINTMASK);
             	varDMA_RXCHINTMASK &= DMA_RXCHINTMASK_MASK;
-        
+
 	    	/* handle only those DMA interrupts which are enabled */
 	    	varDMA_RXCHSTS = (var_raw_DMA_RXCHSTS & varDMA_RXCHINTMASK);
 			NDBGPR_L2( "DMA_RXCHSTS[%d] = %#lx\n", chInx, varDMA_RXCHSTS);
-        
+
 		if ((GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RC_LPOS, DMA_RXCHSTS_RC_HPOS) & 1) ||
 			(GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_UNF_LPOS, DMA_RXCHSTS_UNF_HPOS) & 1)) {
 
@@ -737,7 +737,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 			pdata->xstats.fatal_bus_error_irq_n++;
 			DWC_ETH_QOS_GStatus = -E_DMA_RX_FE;
 
-			DMA_RXCHSTS_FESTS_UdfRd(chInx, varBitField);	
+			DMA_RXCHSTS_FESTS_UdfRd(chInx, varBitField);
 			NMSGPR_ALERT( "RX Fatal Bus error Status %#lx\n", varBitField);
 
 			DMA_RXCHSTS_CHSTS_UdfRd(chInx, varBitField);
@@ -747,8 +747,8 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		}
 
 			chSts = GET_VALUE(var_raw_DMA_RXCHSTS, DMA_RXCHSTS_CHSTS_LPOS, DMA_RXCHSTS_CHSTS_HPOS);
-			switch(chSts)	
-			{	
+			switch(chSts)
+			{
 				case DMA_RXCHSTS_CHSTS_SUSPEND:
 					//NMSGPR_ALERT( "RX Channel %d Suspended\n", chInx);
 					break;
@@ -765,7 +765,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 			/* Check if Current DMA channel didn't raise an interrupt, continue to next channel */
 			if(!GET_VALUE(varNTN_INTC_MACSTATUS, (chInx), (chInx) ))
             continue;
-    
+
 			if(!pdata->tx_dma_ch_for_host[chInx])
                         continue;
 
@@ -782,7 +782,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		/* handle only those DMA interrupts which are enabled */
 		varDMA_TXCHSTS = (var_raw_DMA_TXCHSTS & varDMA_TXCHINTMASK);
 		NDBGPR_L2("DMA_TXCHSTS[%d] = %#lx\n", chInx, varDMA_TXCHSTS);
-        
+
 		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TC_LPOS, DMA_TXCHSTS_TC_HPOS) & 1) {
 			pdata->xstats.tx_normal_irq_n[chInx]++;
 			DWC_ETH_QOS_tx_interrupt(dev, pdata, chInx);
@@ -798,7 +798,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 			if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 				NDBGPR_L2( "TX Buffer underflow interrupt, It should be avoided for AVB traffic\n");
 		}
-        
+
 		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_FE_LPOS, DMA_TXCHSTS_FE_HPOS) & 1) {
 			pdata->xstats.fatal_bus_error_irq_n++;
 			DWC_ETH_QOS_GStatus = -E_DMA_TX_FE;
@@ -811,7 +811,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 			DWC_ETH_QOS_restart_dev(pdata, chInx);
 		}
-        
+
 		if ( (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_ETC_LPOS, DMA_TXCHSTS_ETC_HPOS) & 1) ){
 			NDBGPR_L2( "ETC Interrupt is not handled\n");
 		}
@@ -820,8 +820,8 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		}
 
 			chSts = GET_VALUE(var_raw_DMA_TXCHSTS, DMA_TXCHSTS_CHSTS_LPOS, DMA_TXCHSTS_CHSTS_HPOS);
-			switch(chSts)	
-			{	
+			switch(chSts)
+			{
 				case DMA_TXCHSTS_CHSTS_SUSPEND:
 					//NMSGPR_ALERT( "TX Channel %d Suspended\n", chInx);
 					break;
@@ -835,7 +835,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 	/* Handle MAC interrupts */
 	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_LPOS, NTN_INTC_INTSTATUS_MAC_HPOS)) {
-        
+
 		MAC_ISR_RgRd(varMAC_ISR);
 		NDBGPR_L2("MAC_ISR = %#lx\n", varMAC_ISR);
 
@@ -861,10 +861,10 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 				netif_carrier_on(dev);
 				if ((varMAC_PCS & 0x10000) == 0x10000) {
 					pdata->pcs_duplex = 1;
-					hw_if->set_full_duplex(); 
+					hw_if->set_full_duplex();
 				} else {
 					pdata->pcs_duplex = 0;
-					hw_if->set_half_duplex(); 
+					hw_if->set_half_duplex();
 				}
 
 				if ((varMAC_PCS & 0x60000) == 0x0) {
@@ -872,10 +872,10 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 					hw_if->set_mii_speed_10();
 				} else if ((varMAC_PCS & 0x60000) == 0x20000) {
 					pdata->pcs_speed = SPEED_100;
-					hw_if->set_mii_speed_100(); 
-				} else if ((varMAC_PCS & 0x60000) == 0x40000) { 
+					hw_if->set_mii_speed_100();
+				} else if ((varMAC_PCS & 0x60000) == 0x40000) {
 					pdata->pcs_speed = SPEED_1000;
-					hw_if->set_gmii_speed(); 
+					hw_if->set_gmii_speed();
 				}
 				NMSGPR_ALERT( "Link is UP:%dMbps & %s duplex\n",
 					pdata->pcs_speed, pdata->pcs_duplex ? "Full" : "Half");
@@ -942,7 +942,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_OP_OVERFLOW){
 			NMSGPR_ALERT( "Neutrino TDM Output Overflow detected.\n");
-		}	
+		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_OP_UNDERFLOW){
 			NMSGPR_ALERT( "Neutrino TDM Output Underflow detected.\n");
 		}
@@ -1400,14 +1400,14 @@ static int DWC_ETH_QOS_alloc_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pda
 	}
 	buffer->skb = skb;
 	buffer->len = pdata->rx_buffer_len;
-    
+
  map_skb:
- 
-#ifdef NTN_RX_DATA_BUF_IN_SRAM    
+
+#ifdef NTN_RX_DATA_BUF_IN_SRAM
     //buffer->skb_temp_data_ptr: holds the address given by "__netdev_alloc_skb_ip_align" for data
     //buffer->dma : Holds device address
     //skb->data : holds the virtual address, which is mapped to device address (buffer->dma)
-    
+
     buffer->skb_temp_data_ptr = skb->data;  //Store skb data pointer to free at the end.
 
     skb->data = dma_pool_alloc(pdata->rx_mem_pool, GFP_ATOMIC, &buffer->dma);
@@ -1417,7 +1417,7 @@ static int DWC_ETH_QOS_alloc_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pda
             skb->data = buffer->skb_temp_data_ptr;
 		return -ENOMEM;
     }
-    
+
 	buffer->dma_iommu = dma_map_single(&pdata->pdev->dev, skb->data,
 				     pdata->rx_buffer_len, DMA_FROM_DEVICE);
 	if (dma_mapping_error(&pdata->pdev->dev, buffer->dma_iommu))
@@ -1428,7 +1428,7 @@ static int DWC_ETH_QOS_alloc_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pda
 	if (dma_mapping_error(&pdata->pdev->dev, buffer->dma))
 		NMSGPR_ALERT( "failed to do the RX dma map\n");
 
-#endif 
+#endif
 
     NDBGPR_L2("RX skb->data = %#lx : buffer->dma = %#lx\n", (long unsigned int)skb->data, (long unsigned int)buffer->dma);
 
@@ -1520,7 +1520,7 @@ static void DWC_ETH_QOS_default_tx_confs_single_q(
 	struct DWC_ETH_QOS_tx_dma_ch *queue_data;
 	struct DWC_ETH_QOS_tx_wrapper_descriptor *desc_data =
 		GET_TX_WRAPPER_DESC(chInx);
-	unsigned int qInx;	
+	unsigned int qInx;
 
 	DBGPR("-->DWC_ETH_QOS_default_tx_confs_single_q\n");
 
@@ -1605,7 +1605,7 @@ static void DWC_ETH_QOS_default_rx_confs(struct DWC_ETH_QOS_prv_data *pdata)
 /*!
  *  \brief Disable Standard PHY ANEG (BMCR:)
  *  \details
- * 
+ *
  *  \param[in] enb_dis
  *  \return Success or Failure
  *  \retval  0 Success
@@ -1673,7 +1673,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		ret = -EBUSY;
 		goto err_irq_0;
 	}
-	
+
 	ret = desc_if->alloc_buff_and_desc(pdata);
 	if (ret < 0) {
 		NMSGPR_ALERT(
@@ -1687,7 +1687,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	DWC_ETH_QOS_default_tx_confs(pdata);
 	DWC_ETH_QOS_default_rx_confs(pdata);
 	DWC_ETH_QOS_configure_rx_fun_ptr(pdata);
-        
+
 	DWC_ETH_QOS_napi_enable_mq(pdata);
 
 	DWC_ETH_QOS_set_rx_mode(dev);
@@ -1726,7 +1726,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	DBGPR("<--DWC_ETH_QOS_open\n");
 
 	return ret;
- 
+
  err_out_desc_buf_alloc_failed:
 	free_irq(pdata->irq_number, pdata);
 	pdata->irq_number = 0;
@@ -2114,7 +2114,7 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	DBGPR("-->DWC_ETH_QOS_start_xmit: skb->len = %d, chInx = %u\n",
 		skb->len, chInx);
 
-	if (skb->len <= 0) 	
+	if (skb->len <= 0)
 	{
 		dev_kfree_skb_any(skb);
 		NMSGPR_ERR( "%s : Empty skb received from stack\n",
@@ -2234,7 +2234,7 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 		skb_tx_timestamp(skb);
 
 	/* Extract the launch time from the packet if it is AVB packet */
-	if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) ) 
+	if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 	{
 		tx_pkt_features->launch_time = skb->data[30];
 		tx_pkt_features->launch_time = (tx_pkt_features->launch_time<<8) | skb->data[31];
@@ -2652,7 +2652,7 @@ static void DWC_ETH_QOS_tx_interrupt(struct net_device *dev,
 		if (hw_if->get_tx_desc_ctxt(txptr)) {
 			NMSGPR_ERR("TX Context descriptor is not handled, Check if TX path has any issue\n");
 		}
-				
+
 		dev->stats.tx_bytes += buffer->len;
 		dev->stats.tx_bytes += buffer->len2;
 		desc_if->unmap_tx_skb(pdata, buffer);
@@ -2833,7 +2833,7 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 	struct s_RX_NORMAL_DESC *RX_NORMAL_DESC = NULL;
 	UINT pkt_len;
 	int ret;
-	
+
 	DBGPR("-->DWC_ETH_QOS_clean_rx_irq: chInx = %u, quota = %d\n",
 		chInx, quota);
 
@@ -2850,11 +2850,11 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 			/* assign it to new skb */
 			skb = buffer->skb;
 			buffer->skb = NULL;
-            
+
 			pkt_len =
 			    (RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_PL);
 
-#ifdef NTN_RX_DATA_BUF_IN_SRAM   
+#ifdef NTN_RX_DATA_BUF_IN_SRAM
             		//NDBGPR_L2("unmap rx dma coherent memory\n");
 			dma_unmap_single(&pdata->pdev->dev, buffer->dma_iommu, pdata->rx_buffer_len, DMA_FROM_DEVICE);
 
@@ -3068,7 +3068,7 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 #endif
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-	
+
 		rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
 
 		rx_dma_ch->lro_flush_needed = 0;
@@ -3087,7 +3087,7 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 			/*lro_flush_all(&rx_dma_ch->lro_mgr); */
 			}
 	}
-	
+
 	/* If we processed all pkts, we are done;
 	 * tell the kernel & re-enable interrupt */
 	if (received < budget) {
@@ -3705,7 +3705,7 @@ static int DWC_ETH_QOS_config_mac_loopback_mode(struct net_device *dev,
 /*!
  * \details This function is invoked by ioctl function when user issues
  * an ioctl command to enable/disable phy loopback mode.
- *  
+ *
  * \param[in] dev pointer to net device structure.
  * \param[in] flags flag to indicate whether mac loopback mode to be
  *            enabled/disabled.
@@ -3733,7 +3733,7 @@ static int DWC_ETH_QOS_config_phy_loopback_mode(struct net_device *dev,
                 return -EINVAL;
         }
         pdata->phy_loopback_mode = !!flags;
-	
+
 	DWC_ETH_QOS_mdio_read_direct(pdata, pdata->phyaddr, MII_BMCR, &regval);
 	regval = (regval & (~(1<<14))) | (flags<<14);
 	DWC_ETH_QOS_mdio_write_direct(pdata, pdata->phyaddr, MII_BMCR, regval);
@@ -4088,7 +4088,7 @@ static int DWC_ETH_QOS_config_pfc(struct net_device *dev,
 
 /*!
  * \brief Register read/write function called by driver IOCTL routine
- *     This function doesn't do address validation, it is application's resposibility 
+ *     This function doesn't do address validation, it is application's resposibility
  *     to make sure a valid address is passed in.
  *
  * \param[in] pdata : pointer to private data structure.
@@ -4097,15 +4097,15 @@ static int DWC_ETH_QOS_config_pfc(struct net_device *dev,
  *     	req->flags = 1: Neutrino Register Write
  *     	req->flags = 2: PCIe config Register Read
  *     	req->flags = 3: PCIe config Register Write
- *		
- *		req->bar_num = 0: Use BAR0 for Register access 
- *		req->bar_num = 1: Use BAR1 for SRAM access 
- *		req->bar_num = 2: Use BAR2 for Flash access 
- *		
+ *
+ *		req->bar_num = 0: Use BAR0 for Register access
+ *		req->bar_num = 1: Use BAR1 for SRAM access
+ *		req->bar_num = 2: Use BAR2 for Flash access
+ *
  *	req->adrs : register address
  *	req->ptr : pointer to data
  *
- * \retval 0: Success, -1 : Failure 
+ * \retval 0: Success, -1 : Failure
  */
 static int DWC_ETH_QOS_RD_WR_REG(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct *req)
 {
@@ -4116,22 +4116,22 @@ static int DWC_ETH_QOS_RD_WR_REG(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_
 	{
 		case NTN_REG_RD: /* Neutrino Register Read */
 			*(unsigned int*)(req->ptr) = hw_if->ntn_reg_rd(req->adrs, req->bar_num);
-			ret = 0;			
+			ret = 0;
 			break;
 		case NTN_REG_WR: /* Neutrino Register Write */
 			hw_if->ntn_reg_wr(req->adrs, *(UINT*)req->ptr, req->bar_num);
-			ret = 0;			
+			ret = 0;
 			break;
-		case NTN_PCIE_CONFIG_REG_RD: /* PCIe config Register Read */ 
+		case NTN_PCIE_CONFIG_REG_RD: /* PCIe config Register Read */
 			pci_read_config_dword(pdata->pdev, req->adrs, (unsigned int*)(req->ptr));
-			ret = 0;			
+			ret = 0;
 			break;
 		case NTN_PCIE_CONFIG_REG_WR: /* PCIe config Register Write */
 			pci_write_config_dword(pdata->pdev, req->adrs, *(unsigned int*)(req->ptr));
-			ret = 0;			
+			ret = 0;
 			break;
 		default:
-			ret = -1;			
+			ret = -1;
 			break;
 	}
 	return ret;
@@ -4139,7 +4139,7 @@ static int DWC_ETH_QOS_RD_WR_REG(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_
 
 
 /*!
- * \brief This function confiures the TDM path for TDM-Ethernet data transfer. 
+ * \brief This function confiures the TDM path for TDM-Ethernet data transfer.
  * \param[in] pdata : pointer to private data structure.
  * \param[in] req : pointer to ioctl structure.
  *
@@ -4155,23 +4155,23 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 	unsigned int int_mask_val;
 	int i;
 
-		//Assert TDM reset	
-		reg_val = hw_if->ntn_reg_rd(0x1008, 0);		
+		//Assert TDM reset
+		reg_val = hw_if->ntn_reg_rd(0x1008, 0);
 		reg_val |= 0x1<<6;
-		hw_if->ntn_reg_wr(0x1008, reg_val, 0);		
+		hw_if->ntn_reg_wr(0x1008, reg_val, 0);
 
 	/* Stop TDM */
 	if(ntn_tdm_cfg->tdm_start == 0){
-     	NMSGPR_INFO("Disabled TDM path\n"); 
+     	NMSGPR_INFO("Disabled TDM path\n");
 
 		//Disable TDM clock
 		reg_val = hw_if->ntn_reg_rd(0x1004, 0);
 		reg_val &= ~(0x1<<6);
 		hw_if->ntn_reg_wr(0x1004, reg_val, 0);
-		
+
 		/* Disable TDM interrupt in INTC Module */
 		NTN_INTC_INTMCUMASK1_RgRd(int_mask_val);
-		int_mask_val |= (0x7F<<22);	//Disable all TDM interrupts 
+		int_mask_val |= (0x7F<<22);	//Disable all TDM interrupts
 		NTN_INTC_INTMCUMASK1_RgWr(int_mask_val);
 		return 0;
 	}
@@ -4185,11 +4185,11 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 	reg_val = hw_if->ntn_reg_rd(0x1004, 0);
 	reg_val |= 0x1<<6;
    	hw_if->ntn_reg_wr(0x1004, reg_val, 0);
-	
-	//Deassert TDM reset	
-	reg_val = hw_if->ntn_reg_rd(0x1008, 0);		
+
+	//Deassert TDM reset
+	reg_val = hw_if->ntn_reg_rd(0x1008, 0);
 	reg_val &= ~(0x1<<6);
-	hw_if->ntn_reg_wr(0x1008, reg_val, 0);		
+	hw_if->ntn_reg_wr(0x1008, reg_val, 0);
 
 	/* Start TDM */
 	NMSGPR_INFO("TDM Path Configuration\n");
@@ -4203,35 +4203,35 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 
 	switch(ntn_tdm_cfg->sample_rate){
 	case 48000:
-		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)  
+		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)
 		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0);   	//T0EVB_DDANRatio (N value)
 #ifdef NTN_DRV_TEST_LOOPBACK
 		hw_if->ntn_reg_wr(0x44e0, 0x0000760C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
 #else
 		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
 #endif
-		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0);	//DDA_PLL_Ctrl1  
+		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0);	//DDA_PLL_Ctrl1
 		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
 		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0);	//DDA_PLL_UPDT
 		ntn_tdm_cfg->fdf = 2;
        	break;
 	case 44100:
-		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)  
+		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)
 		hw_if->ntn_reg_wr(0x44a0, 0x00006E40, 0);   	//T0EVB_DDANRatio (N value)
 		hw_if->ntn_reg_wr(0x44e0, 0x0001060C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
-		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0);	//DDA_PLL_Ctrl1  
+		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0);	//DDA_PLL_Ctrl1
 		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
 		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0);	//DDA_PLL_UPDT
 		ntn_tdm_cfg->fdf = 1;
 	break;
 //	case 96000:
-//		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)  
+//		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)
 //		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0);   	//T0EVB_DDANRatio (N value)
 //		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
-//		hw_if->ntn_reg_wr(0x44e4, 0x00FFB700, 0);	//DDA_PLL_Ctrl1  
+//		hw_if->ntn_reg_wr(0x44e4, 0x00FFB700, 0);	//DDA_PLL_Ctrl1
 //		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0);	//DDA_PLL_Ctrl2  ( BCLK and MCLK divider )
 //	break;
-	default: break;	
+	default: break;
 	}
 
 	/*Clock & Reset*/
@@ -4239,15 +4239,15 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 
 	/*EMAC RX*/
 	/* TDM Source MAC ID */
-        ptr = ntn_tdm_cfg->TDM_SRC_ID;	
+        ptr = ntn_tdm_cfg->TDM_SRC_ID;
 //        NMSGPR_INFO("SRC: \n");
 //        for(i=0;i<sizeof(ntn_tdm_cfg->TDM_SRC_ID); i++)
 //                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_SRC_ID[i]);
 
         reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
-	hw_if->ntn_reg_wr(0x3010, reg_val, 0);		//TDM Header Ethernet MAC Source Low Address Register 
+	hw_if->ntn_reg_wr(0x3010, reg_val, 0);		//TDM Header Ethernet MAC Source Low Address Register
         reg_val = (ptr[5] << 8) | (ptr[4] << 0);
-	hw_if->ntn_reg_wr(0x3014, reg_val, 0);		//TDM Header Ethernet MAC Source High Address Register 
+	hw_if->ntn_reg_wr(0x3014, reg_val, 0);		//TDM Header Ethernet MAC Source High Address Register
 
 #ifdef NTN_DRV_TEST_LOOPBACK
 	hw_if->ntn_reg_wr(0xab98, 0x00003D08, 0);	//MAC_PPS0_Width : 125 us
@@ -4255,14 +4255,14 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 	hw_if->ntn_reg_wr(0xab98, 0x0000186a, 0);	//MAC_PPS0_Width : 125 us
 #endif
 	hw_if->ntn_reg_wr(0xab70, 0x00000212, 0);       //MAC_PPS_Control : Set for only PPS0 output
-	
-	 
+
+
 	/*TDM*/
 	if(ntn_tdm_cfg->direction == NTN_TDM_IN)
 	{
-	hw_if->ntn_reg_wr(0x4414, 0x08100058, 0);		//TDM conf0 
+	hw_if->ntn_reg_wr(0x4414, 0x08100058, 0);		//TDM conf0
 
-	reg_val = hw_if->ntn_reg_rd(0x3000, 0);			
+	reg_val = hw_if->ntn_reg_rd(0x3000, 0);
 	reg_val |= (ntn_tdm_cfg->a_priority&0x7)<<2;
 	reg_val |= (ntn_tdm_cfg->fdf&0xFF)<<8;
 	hw_if->ntn_reg_wr(0x3000, reg_val, 0);			//TDM Control Register
@@ -4272,14 +4272,14 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 		        NMSGPR_INFO("Stream: \n");
 		        for(i=0;i<sizeof(ntn_tdm_cfg->TDM_STREAM_ID); i++)
 		                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_STREAM_ID[i]);
-	
+
         reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
-	hw_if->ntn_reg_wr(0x4418, reg_val, 0);		//TDM Stream ID low 
+	hw_if->ntn_reg_wr(0x4418, reg_val, 0);		//TDM Stream ID low
         reg_val = (ptr[7] << 24) | (ptr[6] << 16) | (ptr[5] << 8) | ptr[4];
 	hw_if->ntn_reg_wr(0x441c, reg_val, 0);		//TDM Stream ID hi
 
 	/* TDM Destination MAC ID */
-        ptr = ntn_tdm_cfg->TDM_DST_ID;	
+        ptr = ntn_tdm_cfg->TDM_DST_ID;
 //        NMSGPR_INFO("DST: \n");
 //        for(i=0;i<sizeof(ntn_tdm_cfg->TDM_DST_ID); i++)
 //                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_DST_ID[i]);
@@ -4288,7 +4288,7 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 	hw_if->ntn_reg_wr(0x4420, reg_val, 0);		//TDM MAC low
         reg_val = (ptr[5] << 8) | (ptr[4] << 0);
 	hw_if->ntn_reg_wr(0x4424, reg_val, 0);		//TDM MAC hi
-	
+
 	reg_val = 0x40005800;
 	reg_val |= (ntn_tdm_cfg->channels & 0xF)<<16;
 	reg_val |= (ntn_tdm_cfg->protocol & 0x1)<<15;
@@ -4298,7 +4298,7 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 	reg_val = 0x2003072C;
 	reg_val |= (ntn_tdm_cfg->mode_sel & 0x1)<<31;
 	hw_if->ntn_reg_wr(0x4400, reg_val, 0);			//TDM Control Register
-	
+
 #ifdef NTN_DRV_TEST_LOOPBACK
 	hw_if->ntn_reg_wr(0x100C, 0x00002600, 0);	//Pin Mux control
 #else
@@ -4316,13 +4316,13 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
                 pdata->dev_state &= ~NETIF_F_HW_VLAN_CTAG_RX;
                 hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
 #ifdef NTN_DRV_TEST_LOOPBACK
-		hw_if->ntn_reg_wr(0x100C, 0x00002600, 0);	//Pin Mux control 
-		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0);	//Pin Mux control 
-		hw_if->ntn_reg_wr(0x44b8, 0x00000000, 0);	//Pin Mux control 
+		hw_if->ntn_reg_wr(0x100C, 0x00002600, 0);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x44b8, 0x00000000, 0);	//Pin Mux control
 #else
-		hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0);	//Pin Mux control 
-		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0);	//Pin Mux control 
-		hw_if->ntn_reg_wr(0x44b8, 0x0006e61e, 0);	//Pin Mux control 
+		hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x44b8, 0x0006e61e, 0);	//Pin Mux control
 		reg_val = 0x0003072C;
 		reg_val |= (ntn_tdm_cfg->mode_sel & 0x1)<<31;
 		hw_if->ntn_reg_wr(0x4400, reg_val, 0);			//TDM Control Register
@@ -4336,10 +4336,10 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 		reg_val = (ptr[4] << 24) | (ptr[5] << 16) | (ptr[6] << 8) | ptr[7];
 		hw_if->ntn_reg_wr(0x3084, reg_val, 0);		//TDM Stream ID hi
 		reg_val = (ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3];
-		hw_if->ntn_reg_wr(0x3088, reg_val, 0);		//TDM Stream ID low 
+		hw_if->ntn_reg_wr(0x3088, reg_val, 0);		//TDM Stream ID low
 
-		hw_if->ntn_reg_wr(0x44CC, 0x00CC0133, 0);	//TDM buffer near underflow threshold register 
-		hw_if->ntn_reg_wr(0x44D0, 0x02CC0333, 0);	//TDM buffer near overflow threshold register 
+		hw_if->ntn_reg_wr(0x44CC, 0x00CC0133, 0);	//TDM buffer near underflow threshold register
+		hw_if->ntn_reg_wr(0x44D0, 0x02CC0333, 0);	//TDM buffer near overflow threshold register
 
 #ifdef NTN_DRV_TEST_LOOPBACK
 		reg_val = 0x6003072C;
@@ -4743,7 +4743,7 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
         break;
 	case NTN_DWC_GET_FREE_TX_DESC_CNT_CMD:
                 *(unsigned int*)(req->ptr) = tx_desc_data->free_desc_cnt;
-		ret = DWC_ETH_QOS_CONFIG_SUCCESS; 
+		ret = DWC_ETH_QOS_CONFIG_SUCCESS;
 		break;
 	case NTN_DWC_TDM_CONFIG_CMD:
 		ret = NTN_TDM_Config(pdata, (void*)req);
@@ -5076,7 +5076,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 #ifdef DWC_ETH_QOS_QUEUE_SELECT_ALGO
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )
 u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb)
-#elif	( LINUX_VERSION_CODE == KERNEL_VERSION(3,13,0) ) 
+#elif	( LINUX_VERSION_CODE == KERNEL_VERSION(3,13,0) )
 u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv)
 #else   //3.13.0
 u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *accel_priv, select_queue_fallback_t fallback)
@@ -5090,7 +5090,7 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 	DBGPR("-->DWC_ETH_QOS_select_queue\n");
 
 
-	/* TX Channel assignment based on Vlan tag and protocol type */ 
+	/* TX Channel assignment based on Vlan tag and protocol type */
 	eth_or_vlan_tag = htons(((skb->data[13]<<8) | skb->data[12]));
 	//NMSGPR_ALERT( "ETH TYPE or VLAN TAG : %#x\n", eth_or_vlan_tag);
 	if(eth_or_vlan_tag == NTN_VLAN_TAG)
@@ -5104,9 +5104,9 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 			//NMSGPR_INFO("VID : %#x\n", avb_priority);
 			avb_priority >>= 13;
 			//NMSGPR_INFO("AVB Priority : %#x\n", avb_priority);
-			if(avb_priority == NTN_AVB_PRIORITY_CLASS_A){           
+			if(avb_priority == NTN_AVB_PRIORITY_CLASS_A){
 				txqueue_select = NTN_TX_PKT_AVB_CLASS_A;
-			}else if(avb_priority == NTN_AVB_PRIORITY_CLASS_B){     
+			}else if(avb_priority == NTN_AVB_PRIORITY_CLASS_B){
 				txqueue_select = NTN_TX_PKT_AVB_CLASS_B;
 			}else{
 				txqueue_select = NTN_TX_PKT_HOST;
@@ -5117,14 +5117,14 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 		}
 	}
 	else
-	{       
+	{
 		/* It's protcol (ether type) field */
 		eth_type = eth_or_vlan_tag;
 		switch(eth_type){
-			case NTN_GPTP_ETH_TYPE:         
+			case NTN_GPTP_ETH_TYPE:
 				txqueue_select = NTN_TX_PKT_GPTP;
 				break;
-			default:        
+			default:
 				txqueue_select = NTN_TX_PKT_HOST;
 				break;
 		}
@@ -6614,7 +6614,7 @@ void update_pkt_lp(struct sk_buff *skb)
 {
 	UINT eth_or_vlan_tag;
 	UINT eth_type;
-	
+
 	eth_or_vlan_tag = htons(((skb->data[13]<<8) | skb->data[12]));
 	if(eth_or_vlan_tag == NTN_VLAN_TAG)
 	{
@@ -6624,7 +6624,7 @@ void update_pkt_lp(struct sk_buff *skb)
 		skb->data[19] = 0xFF;
 	}
 	else
-	{	
+	{
 		eth_type = eth_or_vlan_tag;
 		/* It's protcol (ether type) field */
 		if (eth_type == NTN_GPTP_ETH_TYPE){
@@ -6927,7 +6927,7 @@ void DWC_ETH_QOS_m3fw_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
 
 /*!
  * \details This function is invoked by the Probe Function before the ethtool registration
- * It resets/initializes the Ethtool stats. 
+ * It resets/initializes the Ethtool stats.
  *
  * \param[in] pdata – pointer to private data structure.
  *

@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,8 +70,8 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
+/*! History:
+ *      2-March-2016 : Initial
  *        3-Jun-2016 : Added prints for debug
  */
 
@@ -541,7 +541,7 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 
 	DBGPR_MDIO("trying to attach to %s\n", phy_id_fmt);
 
-	phydev = phy_connect(dev, phy_id_fmt, &DWC_ETH_QOS_adjust_link, 
+	phydev = phy_connect(dev, phy_id_fmt, &DWC_ETH_QOS_adjust_link,
 			     pdata->interface);
 
 	if (IS_ERR(phydev)) {
@@ -611,7 +611,7 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
         }
 
 	/* find the phy ID or phy address which is connected to our MAC */
-	do{	
+	do{
 		for (phyaddr = 0; phyaddr < 32; phyaddr++) {
 			int phy_reg_read_status, mii_status;
 
@@ -636,12 +636,12 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 		}
 		phyCheckLoop++;
 	}while(phyCheckLoop < 100);
-		
+
 	if (!phy_detected) {
 		NMSGPR_ALERT( "%s: No phy could be detected\n", DEV_NAME);
 		return -ENOLINK;
 	}
-	
+
 	pdata->phyaddr = phyaddr;
 	pdata->bus_id = 0x1;
 

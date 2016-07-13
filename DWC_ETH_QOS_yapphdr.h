@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,8 +70,8 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
+/*! History:
+ *      2-March-2016 : Initial
  *      3-Jun-2016   : Some Clean up for unused legacy code.
  */
 
@@ -178,7 +178,7 @@
 /* for PTP OFFLOADING configuration */
 #define DWC_ETH_QOS_PTPOFFLOADING_CMD			42
 /* command to read/write registers */
-#define NTN_DWC_REG_RD_WR_CMD                   43  
+#define NTN_DWC_REG_RD_WR_CMD                   43
 /* for PHY LOOPBACK configuration */
 #define DWC_ETH_QOS_PHY_LOOPBACK_MODE_CMD	44
 
@@ -363,7 +363,7 @@ struct NTN_TDM_Config
 	unsigned int mac_addr_hi;
 	unsigned int mode_sel;
 	unsigned int protocol;
-	unsigned int direction;	
+	unsigned int direction;
 	unsigned int tdm_start;
 	unsigned int a_priority;
 	unsigned int a_vid;
@@ -480,7 +480,7 @@ struct DWC_ETH_QOS_config_ptpoffloading {
 	int en_dis;
 	int mode;
 	int domain_num;
-    int mc_uc; 
+    int mc_uc;
 };
 
 #endif

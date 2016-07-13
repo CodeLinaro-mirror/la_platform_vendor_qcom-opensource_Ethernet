@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,8 +70,8 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
+/*! History:
+ *      2-March-2016 : Initial
  *      3-Jun-2016   : Some Clean up for unused legacy code.
  */
 
@@ -100,7 +100,7 @@ static void DWC_ETH_QOS_tx_desc_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 {
 	struct DWC_ETH_QOS_tx_wrapper_descriptor *desc_data = NULL;
 	UINT chInx;
-	
+
 #if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
 	return;
 #endif
@@ -265,7 +265,7 @@ static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata)
 	UINT chInx;
 #if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
 	UINT DESC_MEM_ALLOC_SZ = 4096;
-#endif	
+#endif
 
 	NDBGPR_L1( "-->allocate_buffer_and_desc: TX_DMA_CH_CNT = %d, "\
 		"RX_DMA_CH_CNT = %d\n", NTN_TX_DMA_CH_CNT,
@@ -293,16 +293,16 @@ static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata)
 #else
 		if( (cur_sram_adr+DESC_MEM_ALLOC_SZ) < (NTN_DMAAPI_MEM_BASE + NTN_DMAAPI_MEM_OFFSET + NTN_DMAAPI_MEM_LENGTH) )
 		{
-			GET_TX_DESC_PTR(chInx, 0) = (struct s_TX_NORMAL_DESC *)cur_virt; 
+			GET_TX_DESC_PTR(chInx, 0) = (struct s_TX_NORMAL_DESC *)cur_virt;
 			GET_TX_DESC_DMA_ADDR(chInx, 0) = cur_sram_adr;
-	
+
 			cur_virt = cur_virt + DESC_MEM_ALLOC_SZ;
-		        cur_sram_adr = cur_sram_adr + DESC_MEM_ALLOC_SZ; 
+		        cur_sram_adr = cur_sram_adr + DESC_MEM_ALLOC_SZ;
 		}
 		else
-			GET_TX_DESC_PTR(chInx, 0) = NULL; 
+			GET_TX_DESC_PTR(chInx, 0) = NULL;
 #endif
-		NDBGPR_L1("TX_DESC_PTR(%d, 0) = 0x%lx : TX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n" 
+		NDBGPR_L1("TX_DESC_PTR(%d, 0) = 0x%lx : TX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n"
 			, chInx, (long unsigned int)GET_TX_DESC_PTR(chInx, 0), chInx, (long unsigned int)GET_TX_DESC_DMA_ADDR(chInx, 0));
 		if (GET_TX_DESC_PTR(chInx, 0) == NULL) {
 			ret = -ENOMEM;
@@ -345,12 +345,12 @@ static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata)
                 	GET_RX_DESC_DMA_ADDR(chInx, 0) = cur_sram_adr;
 
 			cur_virt = cur_virt + DESC_MEM_ALLOC_SZ;
-		        cur_sram_adr = cur_sram_adr + DESC_MEM_ALLOC_SZ; 
+		        cur_sram_adr = cur_sram_adr + DESC_MEM_ALLOC_SZ;
 		}
 		else
-			GET_RX_DESC_PTR(chInx, 0) = NULL; 
+			GET_RX_DESC_PTR(chInx, 0) = NULL;
 #endif
-		NDBGPR_L1("RX_DESC_PTR(%d, 0) = 0x%lx : RX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n" 
+		NDBGPR_L1("RX_DESC_PTR(%d, 0) = 0x%lx : RX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n"
 			, chInx, (long unsigned int)GET_RX_DESC_PTR(chInx, 0), chInx, (long unsigned int)GET_RX_DESC_DMA_ADDR(chInx, 0));
 		if (GET_RX_DESC_PTR(chInx, 0) == NULL) {
 			ret = -ENOMEM;
@@ -510,7 +510,7 @@ static void DWC_ETH_QOS_wrapper_tx_descriptor_init(struct DWC_ETH_QOS_prv_data
 
 		if(!pdata->tx_dma_ch_for_host[chInx])
 			continue;
-		
+
 		DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q(pdata, chInx);
 	}
 
@@ -529,7 +529,7 @@ static void DWC_ETH_QOS_wrapper_rx_descriptor_init(struct DWC_ETH_QOS_prv_data
 
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-		
+
 		rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
 		rx_dma_ch->pdata = pdata;
 
@@ -648,7 +648,7 @@ static void DWC_ETH_QOS_tx_skb_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 			continue;
 		DWC_ETH_QOS_tx_skb_free_mem_single_q(pdata, chInx);
 	}
-	
+
 	DBGPR("<--DWC_ETH_QOS_tx_skb_free_mem\n");
 }
 
@@ -706,7 +706,7 @@ static void DWC_ETH_QOS_rx_skb_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 			continue;
 		DWC_ETH_QOS_rx_skb_free_mem_single_q(pdata, chInx);
 	}
-	
+
 	DBGPR("<--DWC_ETH_QOS_rx_skb_free_mem\n");
 }
 
@@ -958,12 +958,12 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
             		if (buffer->dma_virt == NULL) {
                 		NMSGPR_ALERT( "failed to allocate dma memory\n");
                 		return - ENOMEM;
-            		}	
+            		}
 
             		NDBGPR_L2("buffer->dma_virt = %#lx : buffer->dma = %#lx\n", (long unsigned int)buffer->dma_virt, (long unsigned int)buffer->dma);
             		memcpy(buffer->dma_virt, (skb->data + offset), size);
             		NDBGPR_L2("offset = %d, size = %d\n", offset, size);
-   			
+
 			buffer->dma_iommu = dma_map_single((&pdata->pdev->dev),
 						buffer->dma_virt,
 						size, DMA_TO_DEVICE);
@@ -981,7 +981,7 @@ static int DWC_ETH_QOS_map_non_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 				return - ENOMEM;
 			}
 
-#endif 
+#endif
 
 			buffer->len = size;
 			buffer->buf1_mapped_as_page = Y_FALSE;
@@ -1308,7 +1308,7 @@ static void DWC_ETH_QOS_unmap_tx_skb(struct DWC_ETH_QOS_prv_data *pdata,
 
             		buffer->dma_iommu = 0;
             		buffer->dma_virt = 0;
-#else 
+#else
 			dma_unmap_single((&pdata->pdev->dev), buffer->dma,
 					 buffer->len, DMA_TO_DEVICE);
 #endif

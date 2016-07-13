@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,8 +70,8 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
+/*! History:
+ *      2-March-2016 : Initial
  */
 
 /*!@file: DWC_ETH_QOS_eee.c
@@ -112,10 +112,10 @@ void DWC_ETH_QOS_enable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata)
 	DBGPR_EEE("-->DWC_ETH_QOS_enable_eee_mode\n");
 
 	for (chInx = 0; chInx < pdata->tx_dma_ch_cnt; chInx++) {
-		
+
 		if(!pdata->tx_dma_ch_for_host[chInx])
 			continue;
-		
+
 		tx_desc_data = GET_TX_WRAPPER_DESC(chInx);
 
 		if ((tx_desc_data->dirty_tx == tx_desc_data->cur_tx) &&

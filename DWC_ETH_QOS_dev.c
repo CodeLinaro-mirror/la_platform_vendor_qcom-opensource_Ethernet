@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,15 +70,15 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
- *     21-March-2016 : Added print message for "configure_mtl_queue" 
+/*! History:
+ *      2-March-2016 : Initial
+ *     21-March-2016 : Added print message for "configure_mtl_queue"
  *                     Moved and modified "DWC_ETH_QOS_yinit"
  *                     Modified "ntn_mac_clock_config" for RX clock
  *      3-Jun-2016   : Some Clean up for unused legacy code.
  *                   : Phy reset is allowed now through driver
  *                   : Setting Receiveall mode when promiscuous is requested as per Neutrino requirement
- *                   : Split "configure_mtl_queue" function for TX & RX  
+ *                   : Split "configure_mtl_queue" function for TX & RX
  */
 
 /*!@file: DWC_ETH_QOS_dev.c
@@ -830,7 +830,7 @@ static INT config_mac_pkt_filter_reg(UCHAR pr_mode,
   /* configure device in differnet modes */
   /* promiscuous, hash unicast, hash multicast, */
   /* all multicast and perfect/hash filtering mode. */
-  /* NOTE: need to use receive_all instead of promiscuous for neutrino.*/	
+  /* NOTE: need to use receive_all instead of promiscuous for neutrino.*/
   MAC_MPFR_RgRd(varMAC_MPFR);
   varMAC_MPFR = varMAC_MPFR & (ULONG)(0x003003e8);
   varMAC_MPFR = varMAC_MPFR | ((pr_mode) << 31) | ((huc_mode) << 1) | ((hmc_mode) << 2) |
@@ -887,8 +887,8 @@ static INT config_l2_da_perfect_inverse_match(INT perfect_inverse_match)
 * address Low and High register(3-31) for L2 layer filtering.
 *
 * MAC Address Registers [0] [1] [2] should not be used for Perfect filtering.
-* OS may override valid MAC Addresses (when multiple MACs are enabled). 
-* 
+* OS may override valid MAC Addresses (when multiple MACs are enabled).
+*
 * \param[in] idx
 * \param[in] addr
 * \return Success or Failure
@@ -900,7 +900,7 @@ static INT update_mac_addr3_31_low_high_reg(INT idx,
                                             UCHAR addr[])
 {
   if(idx < 3)
-	return Y_FAILURE;	
+	return Y_FAILURE;
 
   MAC_MA1_31LR_RgWr(idx+3, (addr[0] | (addr[1] << 8) | (addr[2] << 16) | (addr[3] << 24)));
   MAC_MA1_31HR_ADDRHI_UdfWr(idx+3, (addr[4] | (addr[5] << 8)));
@@ -2270,7 +2270,7 @@ static INT stop_dma_rx(UINT chInx)
   /* wait for Rx DMA to stop, ie wait till Rx DMA
    * goes in either Running or Suspend state.
    * */
-   
+
     /*Poll*/
     vy_count = 0;
     while(1){
@@ -2419,8 +2419,8 @@ static INT enable_dma_tx_interrupts(UINT chInx)
     DMA_TXCHSTS_RgWr(chInx, varDMA_TXCHSTS);
 
 	/* Enable all interrupts for Queue */
-    varDMA_TXCHINTMASK = DMA_TXCHINTMASK_MASK; 
-#if 0    
+    varDMA_TXCHINTMASK = DMA_TXCHINTMASK_MASK;
+#if 0
 #ifndef DWC_ETH_QOS_TXPOLLING_MODE_ENABLE
 	/* TIE - Disable Transmit Interrupt Enable */
 	varDMA_TXCHINTMASK &= ~((0x1) << 0);
@@ -2431,10 +2431,10 @@ static INT enable_dma_tx_interrupts(UINT chInx)
     //NTN_INTC_INTMCUMASK1_TXCHINT_UdfWr(chInx, 0x1);
 
     /* MAC Wrapper register */
-	    	
+
 	//NDBGPR_L1("------- CH INX = %d : %#x\n",chInx, varDMA_TXCHINTMASK);
     DMA_TXCHINTMASK_RgWr(chInx, varDMA_TXCHINTMASK);
-    
+
 	return Y_SUCCESS;
 }
 
@@ -2456,13 +2456,13 @@ static INT enable_dma_rx_interrupts(UINT chInx)
 
 	/* Enable all interrupts for Queue */
     varDMA_RXCHINTMASK = DMA_RXCHINTMASK_MASK;
-    
+
     /* INTC register */
     //NTN_INTC_INTMCUMASK1_RXCHINT_UdfWr(chInx, 0x1);
 
     /* MAC Wrapper register */
     DMA_RXCHINTMASK_RgWr(chInx, varDMA_RXCHINTMASK);
-    
+
 	return Y_SUCCESS;
 }
 
@@ -3393,7 +3393,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		mod_timer(&pdata->eee_ctrl_timer,
 			DWC_ETH_QOS_LPI_TIMER(DWC_ETH_QOS_DEFAULT_LPI_TIMER));
 	}
-  
+
 	DBGPR("<--pre_transmit\n");
 }
 
@@ -3596,14 +3596,14 @@ static INT DWC_ETH_QOS_yexit(void)
 	return Y_SUCCESS;
 #else
     INT ret = 0;
-    
+
 	DBGPR("-->DWC_ETH_QOS_yexit\n");
 
 	/* assert software reset */
     ret |= ntn_mac_reset_config(0x1);
     /* DELAY IMPLEMENTATION USING udelay() */
 	udelay(10);
-    
+
 	/* deassert software reset */
     ret |= ntn_mac_reset_config(0x0);
     /* DELAY IMPLEMENTATION USING udelay() */
@@ -3632,12 +3632,12 @@ static INT configure_rx_mtl_queue(UINT qInx, struct DWC_ETH_QOS_prv_data *pdata)
 		case 1:	p_rx_fifo = 1;	break;
 		case 2:	p_rx_fifo = 1;	break;
 		case 3:	p_rx_fifo = 29;	break;
-	} 
+	}
 
 	/* Receive queue fifo size programmed */
 	MTL_QROMR_RQS_UdfWr(qInx, p_rx_fifo);
 	NDBGPR_L1( "Queue%d Rx fifo size %d\n",	qInx, ((p_rx_fifo + 1) * 256));
-	
+
 	DBGPR("<--configure_rx_mtl_queue\n");
 
 	return Y_SUCCESS;
@@ -3700,7 +3700,7 @@ static INT configure_dma_tx_channel(UINT chInx,
 			struct DWC_ETH_QOS_prv_data *pdata)
 {
 	DBGPR("-->configure_dma_tx_channel\n");
-   
+
 	DMA_TXCHCTL_OSP_UdfWr(chInx, 0x1);
 
 	enable_dma_tx_interrupts(chInx);
@@ -3712,7 +3712,7 @@ static INT configure_dma_tx_channel(UINT chInx,
     DMA_BUSCFG_BLEN16_UdfWr(1);
     DMA_BUSCFG_BLEN8_UdfWr(1);
     DMA_BUSCFG_BLEN4_UdfWr(1);
-    
+
     DMA_BUSCFG_RD_OSR_LMT_UdfWr(15);
     DMA_BUSCFG_WR_OSR_LMT_UdfWr(15);
 
@@ -3729,7 +3729,7 @@ static INT configure_dma_rx_channel(UINT chInx,
 	struct DWC_ETH_QOS_rx_wrapper_descriptor *rx_desc_data =
 		GET_RX_WRAPPER_DESC(chInx);
     UINT reg_val;
-        
+
 	DBGPR("-->configure_dma_rx_channel\n");
 
 	/*Select Rx Buffer size = 2048bytes */
@@ -3747,9 +3747,9 @@ static INT configure_dma_rx_channel(UINT chInx,
 		reg_val = 2048;
 		break;
 	}
-    
+
     DMA_RXCHCTL_RBSZ_UdfWr(chInx, reg_val);
-    
+
 	/* program RX watchdog timer */
 	if (rx_desc_data->use_riwt) {
 			/* Program RX Watchdog time to maximum for AVB RX Channel: that is = 0xFF*256*5.3ns (187MHz)*/
@@ -3809,7 +3809,7 @@ static int enable_mac_interrupts(void)
   reg_val = reg_val & 0xC0000000;	//Preserve int mask for qSPI and GDMA
   reg_val = reg_val | NTN_INTC_GMAC_INT_MASK;
   NTN_INTC_INTMCUMASK1_RgWr(reg_val);
-  
+
   /* Mask PCIe controller interrupt */
   reg_val = (0xF << 9);
   NTN_INTC_INTMCUMASK2_RgWr(reg_val);
@@ -3868,7 +3868,7 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 			break;
 		}
 	}
-	
+
 	MAC_RQC0R_RgRd(regval);
 //	NDBGPR_L1("RX_CTRL0 = %#x\n", regval);
 	MAC_RQC1R_RgRd(regval);
@@ -3912,12 +3912,12 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 			(pdata->dev->dev_addr[0])));
 	{
 		UINT regval;
-		/* Config DMA RX Channel 2 to use MAC ID offset 2 */	
-		/* Configure DMA RX Channel 1 to use MAC ID offset 65 as host doesn't control channel and 
-                 * as 65 is not a valid channel it want route any multicast packet to channel. This will 
-                 * avoid RX DMA stall issue that was observed in past. */	
+		/* Config DMA RX Channel 2 to use MAC ID offset 2 */
+		/* Configure DMA RX Channel 1 to use MAC ID offset 65 as host doesn't control channel and
+                 * as 65 is not a valid channel it want route any multicast packet to channel. This will
+                 * avoid RX DMA stall issue that was observed in past. */
 		//regval = ioread32((void*)(dwc_eth_ntn_reg_pci_base_addr + 0x3004));
-		regval = 0x02FF0000;	
+		regval = 0x02FF0000;
 		//regval = (regval & 0x00FF0000) | 0x02000000;
 		iowrite32(regval, (void*)(dwc_eth_ntn_reg_pci_base_addr + 0x3004));
 	}
@@ -3967,11 +3967,11 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 }
 
 
-/******************************************************************************/ 
-/**                         Neutrino wrapper registers                       **/  
+/******************************************************************************/
+/**                         Neutrino wrapper registers                       **/
 /******************************************************************************/
 /*!
-* \brief This function is used to enable or disable the Neutrino GMAC TX & RX 
+* \brief This function is used to enable or disable the Neutrino GMAC TX & RX
 *        clock
 * \param[in] ena_dis, 1=enable, 0=disable
 * \return Success or Failure
@@ -3985,18 +3985,18 @@ static INT ntn_mac_clock_config(UINT ena_dis)
 
     NTN_NCLKCTRL_MACTXCEN_UdfWr(ena_dis);
     NTN_NCLKCTRL_MACTXCEN_UdfRd(rd_val);
-    
+
     if(rd_val != ena_dis)
     {
         NMSGPR_ALERT( "ERROR: NTN MACTXCEN Bit config error wr_val:0x%x, rd_val:0x%x \n", ena_dis, rd_val);
         return -Y_FAILURE;
     }else{
         DBGPR("NTN MACTXCEN Bit config : wr_val:0x%x, rd_val:0x%x \n", ena_dis, rd_val);
-    }    
-	
+    }
+
     NTN_NCLKCTRL_MACRXCEN_UdfWr(ena_dis);
     NTN_NCLKCTRL_MACRXCEN_UdfRd(rd_val);
-    
+
     if(rd_val != ena_dis)
     {
         NMSGPR_ALERT( "ERROR: NTN MACRXCEN Bit config error wr_val:0x%x, rd_val:0x%x \n", ena_dis, rd_val);
@@ -4004,7 +4004,7 @@ static INT ntn_mac_clock_config(UINT ena_dis)
     }else{
         DBGPR("NTN MACRXCEN Bit config : wr_val:0x%x, rd_val:0x%x \n", ena_dis, rd_val);
         return Y_SUCCESS;
-    }    
+    }
 }
 
 
@@ -4023,7 +4023,7 @@ static INT ntn_wrap_ts_ignore_config(UINT ena_dis)
 
     ETH_AVB_WRAPPER_TS_CTRL_UdfWr(ena_dis);
     ETH_AVB_WRAPPER_TS_CTRL_UdfRd(rd_val);
-    
+
     if(rd_val != ena_dis)
     {
         NMSGPR_ALERT( "ERROR: NTN Wrapper Timestamp Enable Feature wr_val:0x%x, rd_val:0x%x \n", ena_dis, rd_val);
@@ -4031,19 +4031,19 @@ static INT ntn_wrap_ts_ignore_config(UINT ena_dis)
     }else{
         DBGPR("NTN Wrapper Timestamp Enable Feature : wr_val:0x%x, rd_val:0x%x \n", ena_dis, rd_val);
         return Y_SUCCESS;
-    }    
+    }
 }
 
 
 /*!
- * \brief This function is used to enable and configure PCIe TAMAP to access host memory from Neutrino 
- *		It can be improved to extract no of bits for replacement from the size. 
+ * \brief This function is used to enable and configure PCIe TAMAP to access host memory from Neutrino
+ *		It can be improved to extract no of bits for replacement from the size.
  *
  * \param[in] UINT
  *       [in] ULONG_LONG
  *       [in] ULONG_LONG
  *       [in] UINT
- * \return 
+ * \return
  * \retval  0 Success
  */
 void ntn_config_tamap(UINT tmap_no, ULONG_LONG adrs, ULONG_LONG replacement_adrs, UINT no_of_bits)
@@ -4057,10 +4057,10 @@ void ntn_config_tamap(UINT tmap_no, ULONG_LONG adrs, ULONG_LONG replacement_adrs
 	unsigned int reg_val;
 
 	NDBGPR_L1("-->%s\n", __FUNCTION__);
-	
+
 	if(varOFFSET_OW >= 53) //53 is the max limit defined in spec
 		NMSGPR_ALERT("No of mask bit error, HW cannot support %d mask bits\n", varOFFSET_OW);
-	
+
 	NTN_PCIE_RANGE_UP_OFFSET_RgWr(tmap_no, varOFFSET_ADR_UP);
 	NTN_PCIE_RANGE_EN_RgWr(tmap_no, varOFFSET_ADR_DW | varOFFSET_EN);
 	NTN_PCIE_RANGE_UP_RPLC_RgWr(tmap_no, varOFFSET_REPLACE_UP);
@@ -4074,7 +4074,7 @@ void ntn_config_tamap(UINT tmap_no, ULONG_LONG adrs, ULONG_LONG replacement_adrs
 	NDBGPR_L1("RANGE_UP_RPLC[%d] = 0x%08x\n", tmap_no, reg_val);
 	NTN_PCIE_RANGE_WIDTH_RgRd(tmap_no, reg_val);
 	NDBGPR_L1("RANGE_WIDTH[%d] = 0x%08x\n", tmap_no, reg_val);
-	
+
  	NDBGPR_L1("<--%s\n", __FUNCTION__);
 }
 
@@ -4099,7 +4099,7 @@ static INT ntn_mac_reset_config(UINT assert_deassert)
     }else{
         DBGPR("NTN MAC_RST Bit config : wr_val:0x%x, rd_val:0x%x \n", assert_deassert, rd_val);
         return Y_SUCCESS;
-    }   
+    }
 }
 
 /*!
@@ -4121,7 +4121,7 @@ static UINT ntn_reg_rd(UINT reg_offset, INT bar_num)
 /*!
  * \brief API to write register
  * \param[in] address offset as per Neutrino data-sheet
- * \return register 
+ * \return register
  */
 static void ntn_reg_wr(UINT reg_offset, UINT reg_val, INT bar_num)
 {
@@ -4136,8 +4136,8 @@ static void ntn_reg_wr(UINT reg_offset, UINT reg_val, INT bar_num)
 
 /*!
  * \brief Following Three API are used to set TX clk for EMAC
- * \param[in] 
- * \return register 
+ * \param[in]
+ * \return register
  */
 static INT ntn_set_tx_clk_125MHz(void)
 {
@@ -4145,7 +4145,7 @@ static INT ntn_set_tx_clk_125MHz(void)
 
     NTN_NEMACCTL_RgRd(reg_val);
 	reg_val &= NTN_NEMACCTL_TX_CLK_MASK;
-	reg_val |= NTN_NEMACCTL_TX_CLK_125MHz; 
+	reg_val |= NTN_NEMACCTL_TX_CLK_125MHz;
 	NDBGPR_L2("NEMACCTL Reg Value : %x\n", reg_val);
     NTN_NEMACCTL_RgWr(reg_val);
 
@@ -4158,7 +4158,7 @@ static INT ntn_set_tx_clk_25MHz(void)
 
     NTN_NEMACCTL_RgRd(reg_val);
 	reg_val &= NTN_NEMACCTL_TX_CLK_MASK;
-	reg_val |= NTN_NEMACCTL_TX_CLK_25MHz; 
+	reg_val |= NTN_NEMACCTL_TX_CLK_25MHz;
 	NDBGPR_L2("NEMACCTL Reg Value : %x\n", reg_val);
     NTN_NEMACCTL_RgWr(reg_val);
 
@@ -4171,7 +4171,7 @@ static INT ntn_set_tx_clk_2_5MHz(void)
 
     NTN_NEMACCTL_RgRd(reg_val);
 	reg_val &= NTN_NEMACCTL_TX_CLK_MASK;
-	reg_val |= NTN_NEMACCTL_TX_CLK_2_5MHz; 
+	reg_val |= NTN_NEMACCTL_TX_CLK_2_5MHz;
 	NDBGPR_L2("NEMACCTL Reg Value : %x\n", reg_val);
     NTN_NEMACCTL_RgWr(reg_val);
 
@@ -4467,14 +4467,14 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
         /* for Neutrino wraper */
         hw_if->ntn_mac_clock_config = ntn_mac_clock_config;
         hw_if->ntn_mac_reset_config = ntn_mac_reset_config;
-   
+
 	/* for PCIe tamap */
 	hw_if->ntn_config_tamap = ntn_config_tamap;
- 
+
 	/* for register read-write */
 	hw_if->ntn_reg_rd = ntn_reg_rd;
 	hw_if->ntn_reg_wr = ntn_reg_wr;
- 
+
 	/* For Neutrino Wrapper Timestamp Feature disable Enbale */
 	hw_if->ntn_wrap_ts_ignore_config = ntn_wrap_ts_ignore_config;
 

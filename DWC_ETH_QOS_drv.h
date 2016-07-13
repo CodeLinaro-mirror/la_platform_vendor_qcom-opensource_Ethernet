@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,8 +70,8 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
+/*! History:
+ *      2-March-2016 : Initial
  *     21-March-2016 : Added declaration for "DWC_ETH_QOS_config_phy_aneg"
  *      3-Jun-2016   : Some Clean up for unused legacy code.
  */
@@ -164,7 +164,7 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 #endif
 
 
-#ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID	
+#ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
 #ifdef NETIF_F_HW_VLAN_CTAG_RX
 static int DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev,
 				__always_unused __be16 proto, u16 vid);
