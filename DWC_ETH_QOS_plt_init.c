@@ -12,7 +12,7 @@
 
 /*!@file: DWC_ETH_QOS_plt_init.c
  * @brief: Driver functions.
- */	
+ */
 
 #include <linux/module.h>
 #include <linux/gpio.h>

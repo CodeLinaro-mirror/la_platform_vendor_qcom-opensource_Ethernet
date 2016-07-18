@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,12 +70,12 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
- *     21-March-2016 : Renamed eMAC TX clock config MACROs, 
+/*! History:
+ *      2-March-2016 : Initial
+ *     21-March-2016 : Renamed eMAC TX clock config MACROs,
  *                     Added eMAC RX clock config MACROs
  *      3-Jun-2016   : New statistics added to Ethtool for EMAC TX/RX DMA Descriptor Status & M3 MSI Generation Statistics (SRAM).
- *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts. 
+ *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts.
  */
 
 #ifndef __DWC_ETH_QOS__REGACC__H__
@@ -104,16 +104,16 @@
 /******************************************************************************/
 /**                          Neutrino Base Address                           **/
 /******************************************************************************/
-#define  PCIE_OFFSET        (0x20000)           
-#define  MAC_OFFSET         (0xA000)            
-#define  INTC_OFFSET        (0x8000)            
+#define  PCIE_OFFSET        (0x20000)
+#define  MAC_OFFSET         (0xA000)
+#define  INTC_OFFSET        (0x8000)
 
 #define  NTN_REG_BASE_ADRS  (dwc_eth_ntn_reg_pci_base_addr)
 #define  NTN_SRAM_BASE_ADRS (dwc_eth_ntn_SRAM_pci_base_addr_virt)
-#define  BASE_ADDRESS       (NTN_REG_BASE_ADRS + MAC_OFFSET) 
-#define  MAC_BASE_ADDRESS   (NTN_REG_BASE_ADRS + MAC_OFFSET)                         
-#define  INTC_BASE_ADDRESS  (NTN_REG_BASE_ADRS + INTC_OFFSET)                             
-#define  PCIE_BASE_ADDRESS  (NTN_REG_BASE_ADRS + PCIE_OFFSET)                             
+#define  BASE_ADDRESS       (NTN_REG_BASE_ADRS + MAC_OFFSET)
+#define  MAC_BASE_ADDRESS   (NTN_REG_BASE_ADRS + MAC_OFFSET)
+#define  INTC_BASE_ADDRESS  (NTN_REG_BASE_ADRS + INTC_OFFSET)
+#define  PCIE_BASE_ADDRESS  (NTN_REG_BASE_ADRS + PCIE_OFFSET)
 
 
 #define  WRAPPER_OFFSET             (0x3000)
@@ -132,9 +132,9 @@
 #define  M3STAT_M3TICK_OFFSET       (0x3C)
 #define  M3STAT_WDT_OFFSET          (0x44)
 
-#define  DMA_BASE_ADDRESS           (NTN_REG_BASE_ADRS + WRAPPER_DMA_OFFSET)                             
-#define  DMA_TX_CH_BASE_ADDRESS     (NTN_REG_BASE_ADRS + WRAPPER_DMA_TX_CH_OFFSET)                             
-#define  DMA_RX_CH_BASE_ADDRESS     (NTN_REG_BASE_ADRS + WRAPPER_DMA_RX_CH_OFFSET)                             
+#define  DMA_BASE_ADDRESS           (NTN_REG_BASE_ADRS + WRAPPER_DMA_OFFSET)
+#define  DMA_TX_CH_BASE_ADDRESS     (NTN_REG_BASE_ADRS + WRAPPER_DMA_TX_CH_OFFSET)
+#define  DMA_RX_CH_BASE_ADDRESS     (NTN_REG_BASE_ADRS + WRAPPER_DMA_RX_CH_OFFSET)
 #define  M3STAT_BASE_ADDRESS        (NTN_SRAM_BASE_ADRS + M3_SRAM_DEBUG_OFFSET)
 /******************************************************************************/
 
@@ -28147,7 +28147,7 @@
 #define TX_NORMAL_DESC_TDES1_LAUNCHTIME_Mlf_Rd(ptr, data) do { \
     GET_BITS(TX_NORMAL_DESC_TDES1_LAUNCHTIME_HBIT_POS, TX_NORMAL_DESC_TDES1_LAUNCHTIME_LBIT_POS, ptr, data); \
 } while(0)
-	
+
 #define TX_NORMAL_DESC_TDES2_TMODE_Mlf_Wr(ptr, data) do { \
     SET_BITS(TX_NORMAL_DESC_TDES2_TMODE_HBIT_POS, TX_NORMAL_DESC_TDES2_TMODE_LBIT_POS, ptr, data); \
 } while(0)
@@ -28172,7 +28172,7 @@
 /**                       Neutrino Wrapper DMA registers                     **/
 /******************************************************************************/
 
-#define DMA_BUSCFG_RgOffAddr ((volatile ULONG *)(DMA_BASE_ADDRESS)) 
+#define DMA_BUSCFG_RgOffAddr ((volatile ULONG *)(DMA_BASE_ADDRESS))
 
 #define DMA_BUSCFG_RgWr(data) do {\
         iowrite32(data, (void *)DMA_BUSCFG_RgOffAddr);\
@@ -28215,7 +28215,7 @@
         DMA_BUSCFG_RgRd(data);\
         data = ((data >> 16) & DMA_BUSCFG_RD_OSR_LMT_Mask);\
 } while(0)
-    
+
 /*#define DMA_BUSCFG_WCHSTS_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_BUSCFG_WCHSTS_Mask (ULONG)(0x1)
 /*#define DMA_BUSCFG_WCHSTS_Wr_Mask (ULONG)(~((~(~0 << (1))) << (9)))*/
@@ -28251,7 +28251,7 @@
         data = ((data >> 8) & DMA_BUSCFG_RCHSTS_Mask);\
 } while(0)
 
-    
+
 /*#define DMA_BUSCFG_BLEN16_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_BUSCFG_BLEN16_Mask (ULONG)(0x1)
 /*#define DMA_BUSCFG_BLEN16_Wr_Mask (ULONG)(~((~(~0 << (1))) << (3)))*/
@@ -28303,7 +28303,7 @@
         data = ((data >> 1) & DMA_BUSCFG_BLEN4_Mask);\
 } while(0)
 
-    
+
 /*#define DMA_BUSCFG_FB_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_BUSCFG_FB_Mask (ULONG)(0x1)
 /*#define DMA_BUSCFG_FB_Wr_Mask (ULONG)(~((~(~0 << (1))) << (0)))*/
@@ -28367,8 +28367,8 @@
 #define DMA_TXCHSTS_CHSTS_STOP    	0
 #define DMA_TXCHSTS_CHSTS_SUSPEND 	5
 
-#define DMA_TXCHSTS_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCHSTS_RgOffAddr(n));   } 
-#define DMA_TXCHSTS_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCHSTS_RgOffAddr(n)); } 
+#define DMA_TXCHSTS_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCHSTS_RgOffAddr(n));   }
+#define DMA_TXCHSTS_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCHSTS_RgOffAddr(n)); }
 
 /*#define DMA_TXCHSTS_TC_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_TXCHSTS_TC_Mask (ULONG)(0x1)
@@ -28507,10 +28507,10 @@
         data = ((data >> 8) & DMA_TXCHSTS_CHSTS_Mask);\
 } while(0)
 
-    
-    
-#define DMA_TXCHCTL_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCHCTL_RgOffAddr(n));   } 
-#define DMA_TXCHCTL_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCHCTL_RgOffAddr(n)); } 
+
+
+#define DMA_TXCHCTL_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCHCTL_RgOffAddr(n));   }
+#define DMA_TXCHCTL_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCHCTL_RgOffAddr(n)); }
 
 /*#define DMA_TXCHCTL_ST_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_TXCHCTL_ST_Mask (ULONG)(0x1)
@@ -28580,26 +28580,26 @@
         data = ((data >> 16) & DMA_TXCHCTL_TXPBL_Mask);\
 } while(0)
 
-    
-#define DMA_TXCH_DESC_LISTHADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_LISTHADDR_RgOffAddr(n));   } 
-#define DMA_TXCH_DESC_LISTHADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_LISTHADDR_RgOffAddr(n)); } 
+
+#define DMA_TXCH_DESC_LISTHADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_LISTHADDR_RgOffAddr(n));   }
+#define DMA_TXCH_DESC_LISTHADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_LISTHADDR_RgOffAddr(n)); }
 
 
-#define DMA_TXCH_DESC_LISTLADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_LISTLADDR_RgOffAddr(n));   } 
-#define DMA_TXCH_DESC_LISTLADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_LISTLADDR_RgOffAddr(n)); } 
+#define DMA_TXCH_DESC_LISTLADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_LISTLADDR_RgOffAddr(n));   }
+#define DMA_TXCH_DESC_LISTLADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_LISTLADDR_RgOffAddr(n)); }
 
 
-#define DMA_TXCH_DESC_TAILPTR_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_TAILPTR_RgOffAddr(n));   } 
-#define DMA_TXCH_DESC_TAILPTR_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_TAILPTR_RgOffAddr(n)); } 
+#define DMA_TXCH_DESC_TAILPTR_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_TAILPTR_RgOffAddr(n));   }
+#define DMA_TXCH_DESC_TAILPTR_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_TAILPTR_RgOffAddr(n)); }
 
 
-#define DMA_TXCH_DESC_RING_LENGTH_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_RING_LENGTH_RgOffAddr(n));   } 
-#define DMA_TXCH_DESC_RING_LENGTH_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_RING_LENGTH_RgOffAddr(n)); } 
+#define DMA_TXCH_DESC_RING_LENGTH_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_DESC_RING_LENGTH_RgOffAddr(n));   }
+#define DMA_TXCH_DESC_RING_LENGTH_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_DESC_RING_LENGTH_RgOffAddr(n)); }
 
 #define DMA_TXCHINTMASK_MASK    (0x81F)
 
-#define DMA_TXCHINTMASK_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCHINTMASK_RgOffAddr(n));   } 
-#define DMA_TXCHINTMASK_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCHINTMASK_RgOffAddr(n)); } 
+#define DMA_TXCHINTMASK_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCHINTMASK_RgOffAddr(n));   }
+#define DMA_TXCHINTMASK_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCHINTMASK_RgOffAddr(n)); }
 
 
 #define DMA_TXCHINTMASK_TCEN_Mask (ULONG)(0x1)
@@ -28696,19 +28696,19 @@
         DMA_TXCHINTMASK_RgRd(n, data);\
         data = ((data >> 8) & DMA_TXCHINTMASK_CDEE_Mask);\
 } while(0)
-    
-    
-#define DMA_TXCH_CUR_DESC_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_CUR_DESC_RgOffAddr(n));   } 
-#define DMA_TXCH_CUR_DESC_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_CUR_DESC_RgOffAddr(n)); } 
 
-                                                
-#define DMA_TXCH_CUR_BUFHA_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_CUR_BUFHA_RgOffAddr(n));   } 
-#define DMA_TXCH_CUR_BUFHA_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_CUR_BUFHA_RgOffAddr(n)); } 
-                    
-                    
-#define DMA_TXCH_CUR_BUFLA_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_CUR_BUFLA_RgOffAddr(n));   } 
-#define DMA_TXCH_CUR_BUFLA_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_CUR_BUFLA_RgOffAddr(n)); } 
-                                                
+
+#define DMA_TXCH_CUR_DESC_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_CUR_DESC_RgOffAddr(n));   }
+#define DMA_TXCH_CUR_DESC_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_CUR_DESC_RgOffAddr(n)); }
+
+
+#define DMA_TXCH_CUR_BUFHA_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_CUR_BUFHA_RgOffAddr(n));   }
+#define DMA_TXCH_CUR_BUFHA_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_CUR_BUFHA_RgOffAddr(n)); }
+
+
+#define DMA_TXCH_CUR_BUFLA_RgWr(n, data) { iowrite32(data, (void *)DMA_TXCH_CUR_BUFLA_RgOffAddr(n));   }
+#define DMA_TXCH_CUR_BUFLA_RgRd(n, data) { (data) = ioread32((void *)DMA_TXCH_CUR_BUFLA_RgOffAddr(n)); }
+
 
 #define DMA_RXCHSTS_RC_LPOS 0
 #define DMA_RXCHSTS_RC_HPOS 0
@@ -28726,8 +28726,8 @@
 #define DMA_RXCHSTS_CHSTS_STOP 		0
 #define DMA_RXCHSTS_CHSTS_SUSPEND 	5
 
-#define DMA_RXCHSTS_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCHSTS_RgOffAddr(n));   } 
-#define DMA_RXCHSTS_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCHSTS_RgOffAddr(n)); } 
+#define DMA_RXCHSTS_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCHSTS_RgOffAddr(n));   }
+#define DMA_RXCHSTS_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCHSTS_RgOffAddr(n)); }
 
 /*#define DMA_RXCHSTS_RC_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_RXCHSTS_RC_Mask (ULONG)(0x1)
@@ -28833,12 +28833,12 @@
         DMA_RXCHSTS_RgRd(n, data);\
         data = ((data >> 8) & DMA_RXCHSTS_CHSTS_Mask);\
 } while(0)
-    
-    
-    
-    
-#define DMA_RXCHCTL_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCHCTL_RgOffAddr(n));   } 
-#define DMA_RXCHCTL_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCHCTL_RgOffAddr(n)); } 
+
+
+
+
+#define DMA_RXCHCTL_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCHCTL_RgOffAddr(n));   }
+#define DMA_RXCHCTL_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCHCTL_RgOffAddr(n)); }
 
 /*#define DMA_RXCHCTL_ST_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_RXCHCTL_ST_Mask (ULONG)(0x1)
@@ -28857,7 +28857,7 @@
         data = ((data >> 0) & DMA_RXCHCTL_ST_Mask);\
 } while(0)
 
-                                                
+
 /*#define DMA_RXCHCTL_RBSZ_Mask (ULONG)(~(~0<<(14)))*/
 #define DMA_RXCHCTL_RBSZ_Mask (ULONG)(0x3fff)
 /*#define DMA_RXCHCTL_RBSZ_Wr_Mask (ULONG)(~((~(~0 << (14))) << (1)))*/
@@ -28908,7 +28908,7 @@
         DMA_RXCHCTL_RgRd(n, data);\
         data = ((data >> 25) & DMA_RXCHCTL_RDSL_Mask);\
 } while(0)
-                                                
+
 /*#define DMA_RXCHCTL_RPF_Mask (ULONG)(~(~0<<(1)))*/
 #define DMA_RXCHCTL_RPF_Mask (ULONG)(0x1)
 /*#define DMA_RXCHCTL_RPF_Wr_Mask (ULONG)(~((~(~0 << (1))) << (31)))*/
@@ -28926,7 +28926,7 @@
         data = ((data >> 31) & DMA_RXCHCTL_RPF_Mask);\
 } while(0)
 
-    
+
 #define DMA_RXCHCTL_WCHSTS_Mask (ULONG)(0xFF)
 #define DMA_RXCHCTL_WCHSTS_Wr_Mask (ULONG)(0xfffff00ff)
 
@@ -28942,26 +28942,26 @@
         data = ((data >> 8) & DMA_RXCHCTL_WCHSTS_Mask);\
 } while(0)
 
-    
-#define DMA_RXCH_DESC_LISTHADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_LISTHADDR_RgOffAddr(n));   } 
-#define DMA_RXCH_DESC_LISTHADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_LISTHADDR_RgOffAddr(n)); } 
 
-                                                
-#define DMA_RXCH_DESC_LISTLADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_LISTLADDR_RgOffAddr(n));   } 
-#define DMA_RXCH_DESC_LISTLADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_LISTLADDR_RgOffAddr(n)); } 
+#define DMA_RXCH_DESC_LISTHADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_LISTHADDR_RgOffAddr(n));   }
+#define DMA_RXCH_DESC_LISTHADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_LISTHADDR_RgOffAddr(n)); }
 
-                                                
-#define DMA_RXCH_DESC_TAILPTR_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_TAILPTR_RgOffAddr(n));   } 
-#define DMA_RXCH_DESC_TAILPTR_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_TAILPTR_RgOffAddr(n)); } 
 
-                                                
-#define DMA_RXCH_DESC_RING_LENGTH_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_RING_LENGTH_RgOffAddr(n));   } 
-#define DMA_RXCH_DESC_RING_LENGTH_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_RING_LENGTH_RgOffAddr(n)); } 
+#define DMA_RXCH_DESC_LISTLADDR_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_LISTLADDR_RgOffAddr(n));   }
+#define DMA_RXCH_DESC_LISTLADDR_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_LISTLADDR_RgOffAddr(n)); }
+
+
+#define DMA_RXCH_DESC_TAILPTR_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_TAILPTR_RgOffAddr(n));   }
+#define DMA_RXCH_DESC_TAILPTR_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_TAILPTR_RgOffAddr(n)); }
+
+
+#define DMA_RXCH_DESC_RING_LENGTH_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_DESC_RING_LENGTH_RgOffAddr(n));   }
+#define DMA_RXCH_DESC_RING_LENGTH_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_DESC_RING_LENGTH_RgOffAddr(n)); }
 
 #define DMA_RXCHINTMASK_MASK    (0x17)
 
-#define DMA_RXCHINTMASK_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCHINTMASK_RgOffAddr(n));   } 
-#define DMA_RXCHINTMASK_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCHINTMASK_RgOffAddr(n)); } 
+#define DMA_RXCHINTMASK_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCHINTMASK_RgOffAddr(n));   }
+#define DMA_RXCHINTMASK_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCHINTMASK_RgOffAddr(n)); }
 
 #define DMA_RXCHINTMASK_RCEN_Mask (ULONG)(0x1)
 #define DMA_RXCHINTMASK_RCEN_Wr_Mask (ULONG)(0xfffffffe)
@@ -29010,7 +29010,7 @@
         data = ((data >> 2) & DMA_RXCHINTMASK_UNFEN_Mask);\
 } while(0)
 
-    
+
 #define DMA_RXCHINTMASK_RWTE_Mask (ULONG)(0x1)
 #define DMA_RXCHINTMASK_RWTE_Wr_Mask (ULONG)(0xfffffff7)
 
@@ -29043,21 +29043,21 @@
 } while(0)
 
 
-#define DMA_RXCH_CUR_DESC_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_DESC_RgOffAddr(n));   } 
-#define DMA_RXCH_CUR_DESC_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_DESC_RgOffAddr(n)); } 
+#define DMA_RXCH_CUR_DESC_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_DESC_RgOffAddr(n));   }
+#define DMA_RXCH_CUR_DESC_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_DESC_RgOffAddr(n)); }
 
 
-#define DMA_RXCH_CUR_BUFHA_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_BUFHA_RgOffAddr(n));   } 
-#define DMA_RXCH_CUR_BUFHA_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_BUFHA_RgOffAddr(n)); } 
+#define DMA_RXCH_CUR_BUFHA_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_BUFHA_RgOffAddr(n));   }
+#define DMA_RXCH_CUR_BUFHA_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_BUFHA_RgOffAddr(n)); }
 
 
-#define DMA_RXCH_CUR_BUFLA_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_BUFLA_RgOffAddr(n));   } 
-#define DMA_RXCH_CUR_BUFLA_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_BUFLA_RgOffAddr(n)); } 
+#define DMA_RXCH_CUR_BUFLA_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_BUFLA_RgOffAddr(n));   }
+#define DMA_RXCH_CUR_BUFLA_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_BUFLA_RgOffAddr(n)); }
 
 
 
-#define DMA_RXCH_CUR_WATCHDOG_TIMER_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_WATCHDOG_TIMER_RgOffAddr(n));   } 
-#define DMA_RXCH_CUR_WATCHDOG_TIMER_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_WATCHDOG_TIMER_RgOffAddr(n)); } 
+#define DMA_RXCH_CUR_WATCHDOG_TIMER_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_CUR_WATCHDOG_TIMER_RgOffAddr(n));   }
+#define DMA_RXCH_CUR_WATCHDOG_TIMER_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_CUR_WATCHDOG_TIMER_RgOffAddr(n)); }
 
 #define DMA_RXCH_CUR_WATCHDOG_RWT_Mask (ULONG)(0xff)
 #define DMA_RXCH_CUR_WATCHDOG_RWT_Wr_Mask (ULONG)(0xffffff00)
@@ -29075,8 +29075,8 @@
 } while(0)
 
 
-#define DMA_RXCH_MISS_COUNTER_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_MISS_COUNTER_RgOffAddr(n));   } 
-#define DMA_RXCH_MISS_COUNTER_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_MISS_COUNTER_RgOffAddr(n)); } 
+#define DMA_RXCH_MISS_COUNTER_RgWr(n, data) { iowrite32(data, (void *)DMA_RXCH_MISS_COUNTER_RgOffAddr(n));   }
+#define DMA_RXCH_MISS_COUNTER_RgRd(n, data) { (data) = ioread32((void *)DMA_RXCH_MISS_COUNTER_RgOffAddr(n)); }
 
 #define DMA_RXCH_MISS_COUNTER_MFC_Mask (ULONG)(0x7ff)
 #define DMA_RXCH_MISS_COUNTER_MFC_Wr_Mask (ULONG)(0xfffff800)
@@ -29092,7 +29092,7 @@
         DMA_RXCH_MISS_COUNTER_RgRd(n, data);\
         data = ((data >> 0) & DMA_RXCH_MISS_COUNTER_MFC_Mask);\
 } while(0)
-    
+
 #define DMA_RXCH_MISS_COUNTER_MFCO_Mask (ULONG)(0x1)
 #define DMA_RXCH_MISS_COUNTER_MFCO_Wr_Mask (ULONG)(0xffff7fff)
 
@@ -29171,7 +29171,7 @@
 #define NTN_NCID_RgOffAddr       ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x0000))      /* Neutrino Chip and revision ID       */
 #define NTN_NMODESTS_RgOffAddr   ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x0004))      /* Neutrino current operation mode     */
 #define NTN_NCTLSTS_RgOffAddr    ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x1000))      /* Neutrino control and status         */
-#define NTN_NEMACCTL_RgOffAddr   ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x0010))      /* Neutrino eMAC div and control       */ 
+#define NTN_NEMACCTL_RgOffAddr   ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x0010))      /* Neutrino eMAC div and control       */
 #define NTN_NCLKCTRL_RgOffAddr   ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x1004))      /* Neutrino clock control              */
 #define NTN_NRSTCTRL_RgOffAddr   ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x1008))      /* Neutrino reset control              */
 #define NTN_NFUNCEN0_RgOffAddr   ((volatile ULONG *)(NTN_REG_BASE_ADRS + 0x0008))      /* Neutrino pin mux control            */
@@ -29238,8 +29238,8 @@
 } while(0)
 
 /* eMAC force reset */
-#define NTN_NRSTCTRL_MACRST_Mask (ULONG)(0x1)        
-#define NTN_NRSTCTRL_MACRST_Wr_Mask (ULONG)(~(0x0080))  
+#define NTN_NRSTCTRL_MACRST_Mask (ULONG)(0x1)
+#define NTN_NRSTCTRL_MACRST_Wr_Mask (ULONG)(~(0x0080))
 
 #define NTN_NRSTCTRL_MACRST_UdfWr(data) do {\
         ULONG v;\
@@ -29263,11 +29263,11 @@
 } while(0)
 
 #define NTN_NEMACCTL_TX_CLK_MASK     	   (~0x7)
-#define NTN_NEMACCTL_TX_CLK_125MHz  	   (0x0)	
-#define NTN_NEMACCTL_TX_CLK_25MHz   	   (0x2)	
-#define NTN_NEMACCTL_TX_CLK_2_5MHz    	   (0x3)	
-#define NTN_NEMACCTL_TX_CLK_25MHz_RMII     (0x6)	
-#define NTN_NEMACCTL_TX_CLK_2_5MHz_RMII    (0x7)	
+#define NTN_NEMACCTL_TX_CLK_125MHz  	   (0x0)
+#define NTN_NEMACCTL_TX_CLK_25MHz   	   (0x2)
+#define NTN_NEMACCTL_TX_CLK_2_5MHz    	   (0x3)
+#define NTN_NEMACCTL_TX_CLK_25MHz_RMII     (0x6)
+#define NTN_NEMACCTL_TX_CLK_2_5MHz_RMII    (0x7)
 
 /******************************************************************************/
 /**                          Neutrino M3 SRAM Debug Memory                   **/
@@ -29373,30 +29373,30 @@
 } while(0)
 
 /* Neutrino wrapper MAC DMA channels interrupt mask */
-#define NTN_INTC_MACSTATUS_RXCH5INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_RXCH4INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_RXCH3INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_RXCH2INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_RXCH1INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_RXCH0INT_Mask (ULONG)(0x1) 
+#define NTN_INTC_MACSTATUS_RXCH5INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_RXCH4INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_RXCH3INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_RXCH2INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_RXCH1INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_RXCH0INT_Mask (ULONG)(0x1)
 
-#define NTN_INTC_MACSTATUS_TXCH4INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_TXCH3INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_TXCH2INT_Mask (ULONG)(0x1) 
-#define NTN_INTC_MACSTATUS_TXCH1INT_Mask (ULONG)(0x1) 
+#define NTN_INTC_MACSTATUS_TXCH4INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_TXCH3INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_TXCH2INT_Mask (ULONG)(0x1)
+#define NTN_INTC_MACSTATUS_TXCH1INT_Mask (ULONG)(0x1)
 #define NTN_INTC_MACSTATUS_TXCH0INT_Mask (ULONG)(0x1)
 
-#define NTN_INTC_MACSTATUS_RXCH5INT_StartPos (ULONG)(21) 
-#define NTN_INTC_MACSTATUS_RXCH4INT_StartPos (ULONG)(20) 
-#define NTN_INTC_MACSTATUS_RXCH3INT_StartPos (ULONG)(19) 
-#define NTN_INTC_MACSTATUS_RXCH2INT_StartPos (ULONG)(18) 
-#define NTN_INTC_MACSTATUS_RXCH1INT_StartPos (ULONG)(17) 
-#define NTN_INTC_MACSTATUS_RXCH0INT_StartPos (ULONG)(16) 
+#define NTN_INTC_MACSTATUS_RXCH5INT_StartPos (ULONG)(21)
+#define NTN_INTC_MACSTATUS_RXCH4INT_StartPos (ULONG)(20)
+#define NTN_INTC_MACSTATUS_RXCH3INT_StartPos (ULONG)(19)
+#define NTN_INTC_MACSTATUS_RXCH2INT_StartPos (ULONG)(18)
+#define NTN_INTC_MACSTATUS_RXCH1INT_StartPos (ULONG)(17)
+#define NTN_INTC_MACSTATUS_RXCH0INT_StartPos (ULONG)(16)
 
-#define NTN_INTC_MACSTATUS_TXCH4INT_StartPos (ULONG)(4) 
-#define NTN_INTC_MACSTATUS_TXCH3INT_StartPos (ULONG)(3) 
-#define NTN_INTC_MACSTATUS_TXCH2INT_StartPos (ULONG)(2) 
-#define NTN_INTC_MACSTATUS_TXCH1INT_StartPos (ULONG)(1) 
+#define NTN_INTC_MACSTATUS_TXCH4INT_StartPos (ULONG)(4)
+#define NTN_INTC_MACSTATUS_TXCH3INT_StartPos (ULONG)(3)
+#define NTN_INTC_MACSTATUS_TXCH2INT_StartPos (ULONG)(2)
+#define NTN_INTC_MACSTATUS_TXCH1INT_StartPos (ULONG)(1)
 #define NTN_INTC_MACSTATUS_TXCH0INT_StartPos (ULONG)(0)
 
 #define NTN_INTC_MACSTATUS_TXCHINT_Mask (ULONG)(0x1)
@@ -29498,10 +29498,10 @@
 #define NTN_INTC_TDM_IP_1_OVERFLOW 	(0x20)
 #define NTN_INTC_TDM_IP_2_OVERFLOW 	(0x10)
 #define NTN_INTC_TDM_IP_3_OVERFLOW 	(0x08)
-#define NTN_INTC_TDM_OP_OVERFLOW 	(0x04)	
+#define NTN_INTC_TDM_OP_OVERFLOW 	(0x04)
 #define NTN_INTC_TDM_OP_UNDERFLOW 	(0x02)
 #define NTN_INTC_TDM_GENERAL_ERROR	(0x01)
-	
+
 /* Neutrino Interrupt MCU mask */
 #define NTN_INTC_INTMCUMASK0_RgWr(data) do {\
         iowrite32(data, (void *)NTN_INTC_INTMCUMASK0_RgOffAddr);\
@@ -30075,7 +30075,7 @@
 #define NTN_INTC_MCUFLG_RgRd(data) do {\
         (data) = ioread32((void *)NTN_INTC_MCUFLG_RgOffAddr);\
 } while(0)
-	
+
 /* Neutrino Interrupt External Flag */
 #define NTN_INTC_EXTFLG_RgWr(data) do {\
         iowrite32(data, (void *)NTN_INTC_EXTFLG_RgOffAddr);\
@@ -30084,14 +30084,14 @@
 #define NTN_INTC_EXTFLG_RgRd(data) do {\
         (data) = ioread32((void *)NTN_INTC_EXTFLG_RgOffAddr);\
 } while(0)
-	
+
 /******************************************************************************/
 /**                          Neutrino PCIe registers                         **/
 /******************************************************************************/
-#define NTN_PCIE_RANGE_UP_OFFSET_RgOffAddr(no)  ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x6200 + (no*0x10) ))    
-#define NTN_PCIE_RANGE_EN_RgOffAddr(no)         ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x6204 + (no*0x10) ))    
-#define NTN_PCIE_RANGE_UP_RPLC_RgOffAddr(no)    ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x6208 + (no*0x10) ))    
-#define NTN_PCIE_RANGE_WIDTH_RgOffAddr(no)      ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x620C + (no*0x10) ))    
+#define NTN_PCIE_RANGE_UP_OFFSET_RgOffAddr(no)  ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x6200 + (no*0x10) ))
+#define NTN_PCIE_RANGE_EN_RgOffAddr(no)         ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x6204 + (no*0x10) ))
+#define NTN_PCIE_RANGE_UP_RPLC_RgOffAddr(no)    ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x6208 + (no*0x10) ))
+#define NTN_PCIE_RANGE_WIDTH_RgOffAddr(no)      ((volatile ULONG *)(PCIE_BASE_ADDRESS + 0x620C + (no*0x10) ))
 
 #define NTN_PCIE_RANGE_UP_OFFSET_RgWr(no, data) do {\
         iowrite32(data, (void *)NTN_PCIE_RANGE_UP_OFFSET_RgOffAddr(no));\

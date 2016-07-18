@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,13 +70,13 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
+/*! History:
+ *      2-March-2016 : Initial
  *     21-March-2016 : Corrected Macro value for "DWC_ETH_QOS_Q_GENERIC"
  *      3-Jun-2016   : Removed Extra TX/RX Queue/DMA Channel initialization.
  *                   : Some Clean up for unused legacy code.
  *                   : New statistics added to Ethtool for EMAC TX/RX DMA Descriptor Status & M3 MSI Generation Statistics (SRAM).
- *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts. 
+ *                   : Enabled WDT in INTC and added a counter in M3 Firmware(FW_OSLESS) for WDT half expiry interrupts.
  */
 
 #ifndef __DWC_ETH_QOS__YHEADER__
@@ -84,7 +84,7 @@
 #define __DWC_ETH_QOS__YHEADER__
 /****************************** Includes ******************************/
 #include <linux/device.h>
-#ifdef DESC_SRAM_BUF_SRAM 
+#ifdef DESC_SRAM_BUF_SRAM
 #include <linux/dmapool.h>
 #endif
 #include <linux/if_vlan.h>
@@ -93,17 +93,17 @@
 /**************************** Neutrino Defines Starts Here ***************************/
 //#define DESC_SRAM_BUF_HOSTMEM
 //#define DESC_SRAM_BUF_SRAM
-#define DESC_HOSTMEM_BUF_HOSTMEM	
+#define DESC_HOSTMEM_BUF_HOSTMEM
 
- 
+
 /* Neutrino Specific Macros*/
 
 //#define NTN_POLLING_METHOD
 #define NTN_MAX_MSI         (1)
 
 //Neutrino Debugging
-#define NTN_DEBUG_L1	
-//#define NTN_DEBUG_L2		
+#define NTN_DEBUG_L1
+//#define NTN_DEBUG_L2
 //#define NTN_DEBUG_TS1
 //#define NTN_DEBUG_TS2
 //#define NTN_AVB_LAUNCHTIME_DUMP
@@ -209,7 +209,7 @@
 
 /* Lower 64k is reserved for M3 */
 #define NTN_DMAAPI_MEM_BASE         (0x00000000)
-#define NTN_DMAAPI_MEM_OFFSET	    (0x00010000)	
+#define NTN_DMAAPI_MEM_OFFSET	    (0x00010000)
 #define NTN_DMAAPI_MEM_LENGTH       (448*1024)
 
 /* Following macros are only for memory allocaiton */
@@ -269,7 +269,7 @@
 #include <linux/phy.h>
 #include <linux/mdio.h>
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
-#define HAVE_INT_NDO_VLAN_RX_ADD_VID	
+#define HAVE_INT_NDO_VLAN_RX_ADD_VID
 #define DWC_ETH_QOS_ENABLE_VLAN_TAG
 #include <linux/if_vlan.h>
 #endif
@@ -370,9 +370,9 @@
 	0x13c7ULL << 32)
 #define MAC_MASK (0x10ULL << 0)
 
-#define TX_DESC_CNT 16 
-#define RX_DESC_CNT 16 
-#define MIN_RX_DESC_CNT 4 
+#define TX_DESC_CNT 16
+#define RX_DESC_CNT 16
+#define MIN_RX_DESC_CNT 4
 
 #define TX_BUF_SIZE 1536
 #define RX_BUF_SIZE 1568
@@ -400,8 +400,8 @@
 #define DEV_ADDRESS 0xffffffff
 #define DEV_REG_MMAP_SIZE 0x14e8
 
-#define VENDOR_ID 0x1179     
-#define DEVICE_ID 0x021a     
+#define VENDOR_ID 0x1179
+#define DEVICE_ID 0x021a
 
 #define PCI_BAR_NO 0
 #define COMPLETE_BAR 0
@@ -610,12 +610,12 @@
 #define DWC_ETH_QOS_LPI_TIMER(x) (jiffies + msecs_to_jiffies(x))
 
 /* Error and status macros defined below */
-#define E_DMA_TX_TS         6   
-#define E_DMA_TX_UNF        7   
-#define E_DMA_RX_UNF        8   
-#define E_DMA_RX_TS         9   
-#define E_DMA_TX_FE        10  
-#define E_DMA_RX_FE        12  
+#define E_DMA_TX_TS         6
+#define E_DMA_TX_UNF        7
+#define E_DMA_RX_UNF        8
+#define E_DMA_RX_TS         9
+#define E_DMA_TX_FE        10
+#define E_DMA_RX_FE        12
 
 #define S_MAC_ISR_PMTIS     11
 
@@ -958,7 +958,7 @@ struct hw_if_struct {
 
 	/* for PFC */
 	void (*config_pfc)(int enb_dis);
-    
+
     /* for PTP offloading */
 	VOID(*config_ptpoffload_engine)(UINT, UINT);
 
@@ -974,7 +974,7 @@ struct hw_if_struct {
 	    void (*ntn_reg_wr)(UINT, UINT, INT);
 	/* Neutrino Wrapper Timestamp Ignore logic enable disable*/
 	INT(*ntn_wrap_ts_ignore_config)(UINT);
-	/* Set TX CLK for EMAC based on negotiated speed */	
+	/* Set TX CLK for EMAC based on negotiated speed */
 	INT(*ntn_set_tx_clk_125MHz)(void);
 	INT(*ntn_set_tx_clk_25MHz)(void);
 	INT(*ntn_set_tx_clk_2_5MHz)(void);
@@ -1064,7 +1064,7 @@ struct DWC_ETH_QOS_rx_buffer {
 
     	unsigned char* skb_temp_data_ptr;
 #ifdef NTN_RX_DATA_BUF_IN_SRAM
-	dma_addr_t dma_iommu;		
+	dma_addr_t dma_iommu;
 #endif //NTN_RX_DATA_BUF_IN_SRAM
 };
 
@@ -1391,13 +1391,13 @@ struct DWC_ETH_QOS_prv_data {
 	struct DWC_ETH_QOS_tx_dma_ch *tx_dma_ch;
 	UCHAR tx_dma_ch_cnt;
 	UCHAR tx_q_for_host[NTN_TX_Q_CNT];
-	UCHAR tx_dma_ch_for_host[NTN_DMA_TX_CH_CNT];	
+	UCHAR tx_dma_ch_for_host[NTN_DMA_TX_CH_CNT];
 
 	/* RX Queue */
 	struct DWC_ETH_QOS_rx_dma_ch *rx_dma_ch;
 	UCHAR rx_dma_ch_cnt;
 	UCHAR rx_q_for_host[NTN_RX_Q_CNT];
-	UCHAR rx_dma_ch_for_host[NTN_DMA_RX_CH_CNT];	
+	UCHAR rx_dma_ch_for_host[NTN_DMA_RX_CH_CNT];
 
 	struct mii_bus *mii;
 	struct phy_device *phydev;

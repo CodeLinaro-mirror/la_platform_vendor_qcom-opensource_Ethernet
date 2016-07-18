@@ -14,14 +14,14 @@
 * to the following conditions:
 *
 *
-* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND, 
+* EXAMPLE PROGRAMS ARE PROVIDED AS-IS WITH NO WARRANTY OF ANY KIND,
 * EITHER EXPRESS OR IMPLIED.
 *
 * TOSHIBA ASSUMES NO LIABILITY FOR CUSTOMERS' PRODUCT DESIGN OR APPLICATIONS.
-* 
+*
 * THIS SOFTWARE IS PROVIDED AS-IS AND HAS NOT BEEN FULLY TESTED.  IT IS
 * INTENDED FOR REFERENCE USE ONLY.
-* 
+*
 * TOSHIBA DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES AND ALL LIABILITY OR
 * ANY DAMAGES ASSOCIATED WITH YOUR USE OF THIS SOFTWARE.
 *
@@ -70,9 +70,9 @@
 * DAMAGE.
 * ========================================================================= */
 
-/*! History:   
- *      2-March-2016 : Initial 
- *     21-March-2016 : Modified "pdev->msi_cap + PCI_MSI_MASK_64" register 
+/*! History:
+ *      2-March-2016 : Initial
+ *     21-March-2016 : Modified "pdev->msi_cap + PCI_MSI_MASK_64" register
  *                     read as "pci_write_config_dword"
  *      3-Jun-2016   : Removed Extra TX/RX Queue/DMA Channel initialization.
  */
@@ -84,7 +84,7 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_pci.h"
 
-static UCHAR dev_addr[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8};   
+static UCHAR dev_addr[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8};
 typedef struct
 {
 	char key[32];
@@ -100,18 +100,18 @@ const config_param_list_t config_param_list[] = {
 #define CONFIG_PARAM_NUM (sizeof(config_param_list)/sizeof(config_param_list[0]))
 /* Holds virtual address for BAR0 for register access,
    BAR1 for SRAM memory and BAR2 for Flash memory */
-ULONG dwc_eth_ntn_reg_pci_base_addr;    
-ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;    
-ULONG dwc_eth_ntn_SRAM_pci_base_addr_virt;    
+ULONG dwc_eth_ntn_reg_pci_base_addr;
+ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;
+ULONG dwc_eth_ntn_SRAM_pci_base_addr_virt;
 #if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
-ULONG cur_virt;    
+ULONG cur_virt;
 #endif
-ULONG dwc_eth_ntn_FLASH_pci_base_addr;    
-ULONG dwc_eth_ntn_reg_len;    
-ULONG dwc_eth_ntn_SRAM_len;    
-ULONG dwc_eth_ntn_FLASH_len;    
+ULONG dwc_eth_ntn_FLASH_pci_base_addr;
+ULONG dwc_eth_ntn_reg_len;
+ULONG dwc_eth_ntn_SRAM_len;
+ULONG dwc_eth_ntn_FLASH_len;
 
-dma_addr_t dwc_eth_ntn_hostmem_pci_base_addr_phy;    
+dma_addr_t dwc_eth_ntn_hostmem_pci_base_addr_phy;
 ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
 
 CHARP fw_filename = "";
@@ -164,7 +164,7 @@ static int file_read(struct file* file, unsigned long long offset, unsigned char
  * \brief API to validate MAC ID
  *
  * \param[in] pdev - pointer to MAC ID string
- * 
+ *
  * \return boolean
  *
  * \retval true on success and false on failure.
@@ -187,7 +187,7 @@ bool isMAC(char *s) {
  * \brief API to extract MAC ID from given string
  *
  * \param[in] pdev - pointer to MAC ID string
- * 
+ *
  * \return None
  */
 void extract_macid(char *string)
@@ -212,7 +212,7 @@ void extract_macid(char *string)
  *
  * \return boolean
  *
- * \return - True on Success and False in failure 
+ * \return - True on Success and False in failure
  */
 static bool lookfor_macid(char *file_buf)
 {
@@ -220,7 +220,7 @@ static bool lookfor_macid(char *file_buf)
 	bool status = false;
 
 	string = file_buf;
-	/* Parse Line-0 */	
+	/* Parse Line-0 */
 	token_n = strsep(&string, "\n");
 	while (token_n != NULL) {
 
@@ -253,7 +253,7 @@ static bool lookfor_macid(char *file_buf)
 		/* Read next lile */
                 if ((token_n = strsep(&string, "\n")) == NULL)
 			break;
-		
+
 	}
 	return status;
 }
@@ -332,7 +332,7 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	if (request_firmware(&fw_entry, fw_filename, &pdev->dev) != 0 ||
 	    fw_entry == NULL)
 	{
-		NMSGPR_ALERT("Failed to get %s. The firmware is loaded from flash.\n", 
+		NMSGPR_ALERT("Failed to get %s. The firmware is loaded from flash.\n",
 			fw_filename);
 		return -EINVAL;
 	}
@@ -411,7 +411,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		goto err_out_enb_failed;
 	}
 
-    /* Query and set the appropriate masks for DMA operations. */   
+    /* Query and set the appropriate masks for DMA operations. */
     if ( (ret = pci_set_dma_mask (pdev, DMA_BIT_MASK(64))) &&
          (ret = pci_set_consistent_dma_mask (pdev, DMA_BIT_MASK(64))))
     {
@@ -420,7 +420,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
                pci_name(pdev));
 		goto err_out_dma_mask_failed;
     }
-	
+
 	if (pci_request_regions(pdev, DEV_NAME)) {
 		NMSGPR_ALERT( "%s:Failed to get PCI regions\n", DEV_NAME);
 		ret = -ENODEV;
@@ -428,36 +428,36 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	}
 	pci_set_master(pdev);
 
-    /* Read BAR0 and map the Neutrino register base address 
-       Read BAR1 and map the Neutrino SRAM memory address 
+    /* Read BAR0 and map the Neutrino register base address
+       Read BAR1 and map the Neutrino SRAM memory address
        Read BAR2 and map the Neutrino Flash memory address */
     dwc_eth_ntn_reg_len = pci_resource_len(pdev, 0);
-    dwc_eth_ntn_SRAM_len = pci_resource_len(pdev, 2);  
-    dwc_eth_ntn_FLASH_len = pci_resource_len(pdev, 4); 
+    dwc_eth_ntn_SRAM_len = pci_resource_len(pdev, 2);
+    dwc_eth_ntn_FLASH_len = pci_resource_len(pdev, 4);
 
     NDBGPR_L1( "BAR0 length = %ld kb\n", dwc_eth_ntn_reg_len);
     NDBGPR_L1( "BAR2 length = %ld kb\n", dwc_eth_ntn_SRAM_len);
     NDBGPR_L1( "BAR4 length = %ld kb\n", dwc_eth_ntn_FLASH_len);
-    
-    dwc_eth_ntn_reg_pci_base_addr = pci_resource_start(pdev, 0);    
-    dwc_eth_ntn_SRAM_pci_base_addr_phy = pci_resource_start(pdev, 2);    
-    dwc_eth_ntn_FLASH_pci_base_addr = pci_resource_start(pdev, 4);    
-    
+
+    dwc_eth_ntn_reg_pci_base_addr = pci_resource_start(pdev, 0);
+    dwc_eth_ntn_SRAM_pci_base_addr_phy = pci_resource_start(pdev, 2);
+    dwc_eth_ntn_FLASH_pci_base_addr = pci_resource_start(pdev, 4);
+
     NDBGPR_L1( "BAR0 iommu address = 0x%lx\n", dwc_eth_ntn_reg_pci_base_addr);
     NDBGPR_L1( "BAR2 iommu address = 0x%lx\n", dwc_eth_ntn_SRAM_pci_base_addr_phy);
     NDBGPR_L1( "BAR4 iommu address = 0x%lx\n", dwc_eth_ntn_FLASH_pci_base_addr);
-    
-    dwc_eth_ntn_reg_pci_base_addr = (ULONG)ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));    
-    dwc_eth_ntn_SRAM_pci_base_addr_virt = (ULONG)ioremap(pci_resource_start(pdev, 2), pci_resource_len(pdev, 2));    
+
+    dwc_eth_ntn_reg_pci_base_addr = (ULONG)ioremap(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
+    dwc_eth_ntn_SRAM_pci_base_addr_virt = (ULONG)ioremap(pci_resource_start(pdev, 2), pci_resource_len(pdev, 2));
 #if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
-    cur_virt = dwc_eth_ntn_SRAM_pci_base_addr_virt + NTN_DMAAPI_MEM_OFFSET;    
+    cur_virt = dwc_eth_ntn_SRAM_pci_base_addr_virt + NTN_DMAAPI_MEM_OFFSET;
 #endif
-    dwc_eth_ntn_FLASH_pci_base_addr = (ULONG)ioremap(pci_resource_start(pdev, 4), pci_resource_len(pdev, 4));    
+    dwc_eth_ntn_FLASH_pci_base_addr = (ULONG)ioremap(pci_resource_start(pdev, 4), pci_resource_len(pdev, 4));
 
     NDBGPR_L1( "BAR0 virtual address = 0x%lx\n", dwc_eth_ntn_reg_pci_base_addr);
     NDBGPR_L1( "BAR2 virtual address = 0x%lx\n", dwc_eth_ntn_SRAM_pci_base_addr_virt);
     NDBGPR_L1( "BAR4 virtual address = 0x%lx\n", dwc_eth_ntn_FLASH_pci_base_addr);
-   
+
     if (((void __iomem *)dwc_eth_ntn_reg_pci_base_addr == NULL)  ||
         ((void __iomem *)dwc_eth_ntn_SRAM_pci_base_addr_virt == NULL) ||
         ((void __iomem *)dwc_eth_ntn_FLASH_pci_base_addr == NULL) )
@@ -474,10 +474,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
        rd_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1004);
        *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1004) = (rd_val | 0x80); //Enable MAC Clock
-       
+
        rd_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008);
        *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008) = (rd_val & ~0x80); //Deassert MAC Reset
-   
+
        NDBGPR_L1( "HFR0 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA11C));
        NDBGPR_L1( "HFR1 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA120));
        NDBGPR_L1( "HFR2 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA124));
@@ -505,7 +505,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NMSGPR_ALERT( "Not found valid mac address\n");
 		NMSGPR_ALERT( "Using Default MAC Address\n");
 	}
-	NMSGPR_INFO( "MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+	NMSGPR_INFO( "MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
 		dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
 	dev->dev_addr[0] = dev_addr[0];
 	dev->dev_addr[1] = dev_addr[1];
@@ -527,31 +527,31 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->dev = dev;
 	pdata->tx_dma_ch_cnt = tx_q_count + 2;
 	pdata->rx_dma_ch_cnt = rx_q_count + 2;
-	
-	/* 	Host: TX DMA CH : 0,2,3,4, 
-		Host: RX DMA CH : 0,2,3,4,5 */	
+
+	/* 	Host: TX DMA CH : 0,2,3,4,
+		Host: RX DMA CH : 0,2,3,4,5 */
 	for(i=0; i<pdata->rx_dma_ch_cnt; i++)
 		pdata->rx_dma_ch_for_host[i] = 1;
 	for(i=0; i<pdata->tx_dma_ch_cnt; i++)
 		pdata->tx_dma_ch_for_host[i] = 1;
 
-	/* 	Host: TX Q : 0,1,2 
-		Host: RX Q : 0,1,2,3 */	
+	/* 	Host: TX Q : 0,1,2
+		Host: RX Q : 0,1,2,3 */
 	for(i=0; i<rx_q_count; i++)
 		pdata->rx_q_for_host[i] = 1;
 	for(i=0; i<tx_q_count; i++)
 		pdata->tx_q_for_host[i] = 1;
 
 	/* 	M3: TX DMA CH : 1
-		M3: RX DMA CH : 1 */	
+		M3: RX DMA CH : 1 */
 	pdata->tx_dma_ch_for_host[1] = 0;
 	pdata->rx_dma_ch_for_host[1] = 0;
 
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
 	phy_mem_adrs = dwc_eth_ntn_SRAM_pci_base_addr_phy;
 	ret = dma_declare_coherent_memory(&pdata->pdev->dev, phy_mem_adrs + NTN_DMAAPI_MEM_OFFSET,
-              NTN_DMAAPI_MEM_BASE + NTN_DMAAPI_MEM_OFFSET, 
-              NTN_DMAAPI_MEM_LENGTH, 
+              NTN_DMAAPI_MEM_BASE + NTN_DMAAPI_MEM_OFFSET,
+              NTN_DMAAPI_MEM_LENGTH,
               DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
         if(ret == 0){
                 NMSGPR_ALERT( "Coherent memory declaration error!!\n");
@@ -594,14 +594,14 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
     hw_if->ntn_mac_clock_config(0x1);
     /* issue software reset to GMAC device */
     hw_if->exit();
-  	
-	//Assert TDM reset, in case if it is on.	
-	reg_val = hw_if->ntn_reg_rd(0x1008, 0);		
+
+	//Assert TDM reset, in case if it is on.
+	reg_val = hw_if->ntn_reg_rd(0x1008, 0);
 	reg_val |= (0x1<<6);
-	hw_if->ntn_reg_wr(0x1008, reg_val, 0);		
+	hw_if->ntn_reg_wr(0x1008, reg_val, 0);
 
 	/* Enable MSI support: following commneted code just enables the one MSI interrupt. This is only kept for debugging purpose.*/
-#if 1 
+#if 1
     ret = pci_enable_msi(pdev);
     if(ret)
     {
@@ -617,16 +617,16 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
             goto err_out_msi_failed;
         } else if (ret > 0) {   //This is the possible number that device can allocate
             pdata->max_irq = ret;
-    	    NMSGPR_ALERT( "Changing max no of MSI to = %d\n", pdata->max_irq); 
+    	    NMSGPR_ALERT( "Changing max no of MSI to = %d\n", pdata->max_irq);
         }
-    NMSGPR_ALERT( "Allocated MSI = %d\n", pdata->max_irq); 
+    NMSGPR_ALERT( "Allocated MSI = %d\n", pdata->max_irq);
 #endif
 
     pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
 
-    //  Only one MSI supported for now.   
+    //  Only one MSI supported for now.
 	dev->irq = pdev->irq;
-        NDBGPR_L1( "Allocated IRQ Number = %d\n", dev->irq); 
+        NDBGPR_L1( "Allocated IRQ Number = %d\n", dev->irq);
 
 	DWC_ETH_QOS_load_fw(pdev);
 
@@ -768,7 +768,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 #endif
     /* issue clock disable to GMAC device */
     hw_if->ntn_mac_clock_config(0x0);
-    
+
 	free_netdev(dev);
 	pci_set_drvdata(pdev, NULL);
 
