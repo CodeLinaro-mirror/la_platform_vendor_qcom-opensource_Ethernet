@@ -2637,16 +2637,10 @@ static INT set_promiscuous_mode(void)
 
 static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data)
 {
-#if 0
 	ULONG retryCount = 1000;
 	ULONG vy_count;
 	volatile ULONG varMAC_GMIIAR;
 
-	if(phy_reg == 0)
-	{
-		printk(KERN_ALERT"PHY reset and power down not supported = %lx\n", (ULONG)phy_reg_data);
-		phy_reg_data &= 0x77FF;
-	}
 	/* wait for any previous MII read/write operation to complete */
 
 	/*Poll Until Poll Condition */
@@ -2696,7 +2690,6 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data)
 			break;
 		}
 	}
-#endif
 
 	return Y_SUCCESS;
 }

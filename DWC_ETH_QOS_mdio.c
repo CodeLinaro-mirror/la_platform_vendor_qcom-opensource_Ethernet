@@ -525,10 +525,10 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_init_phy\n");
 
-        if (!enable_phy) {
-                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
-                return -ENODEV;
-        }
+	if (!enable_phy) {
+		NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		return -ENODEV;
+	}
 
 	pdata->oldlink = 0;
 	pdata->speed = 0;
@@ -554,21 +554,18 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 		return -ENODEV;
 	}
 
-
-	if( (pdata->interface == PHY_INTERFACE_MODE_GMII) ||
-	    (pdata->interface == PHY_INTERFACE_MODE_RGMII) ) {
-		phydev->supported = PHY_GBIT_FEATURES;
+	if ((pdata->interface == PHY_INTERFACE_MODE_GMII) ||
+		(pdata->interface == PHY_INTERFACE_MODE_RGMII)) {
+		phydev->supported |= PHY_GBIT_FEATURES;
 #ifdef DWC_ETH_QOS_CERTIFICATION_PKTBURSTCNT_HALFDUPLEX
 		phydev->supported &= ~SUPPORTED_1000baseT_Full;
 #endif
 	} else if ((pdata->interface == PHY_INTERFACE_MODE_MII) ||
-		(pdata->interface == PHY_INTERFACE_MODE_RMII)) {
-		phydev->supported = PHY_BASIC_FEATURES;
+			   (pdata->interface == PHY_INTERFACE_MODE_RMII)) {
+		phydev->supported |= PHY_BASIC_FEATURES;
 	} else {
-        NMSGPR_ALERT( "%s : %d: Check me\n", __FUNCTION__,__LINE__);
+		NMSGPR_ALERT("%s : %d: Check me\n", __FUNCTION__,__LINE__);
 	}
-
-	phydev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
 
 	phydev->advertising = phydev->supported;
 
