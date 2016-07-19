@@ -1689,6 +1689,9 @@ struct DWC_ETH_QOS_prv_data {
 
 	/* Delay before de-asserting M3 reset after FW load */
 	unsigned int fw_load_delay;
+
+	/* Used for hardware where the PCIe reset and RESX lines are merged */
+	bool pcierst_resx;
 };
 
 struct DWC_ETH_QOS_plt_data {

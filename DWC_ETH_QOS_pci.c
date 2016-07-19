@@ -809,6 +809,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NDBGPR_L1("%s: fw_load_delay = %d msec\n", __func__, pdata->fw_load_delay);
 	}
 
+	pdata->pcierst_resx = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-pcierst-resx");
+	NDBGPR_L1("%s: pcierst_resx = %d\n", __func__, pdata->pcierst_resx);
+
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	/* Configure TMAP 0 to access full range of host memory */
 	tmap_no = 0;
@@ -1305,6 +1308,12 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	INT ret;
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+#ifdef NTN_ENABLE_PCIE_MEM_ACCESS
+	ULONG_LONG adrs_to_be_replaced, adrs_for_replacement;
+	UINT tmap_no, no_of_bits;
+#endif
 
 	DBGPR("-->DWC_ETH_QOS_resume\n");
 
@@ -1315,6 +1324,23 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+
+	/* Recover NTN in case whole chip was in reset */
+	if (pdata->pcierst_resx) {
+		if (hw_if->ntn_boot_host_initiated()) {
+			DWC_ETH_QOS_load_fw(pdev);
+		}
+#ifdef NTN_ENABLE_PCIE_MEM_ACCESS
+		/* Restore NTN access to host memory */
+		/* Configure TMAP 0 to access full range of host memory */
+		tmap_no = 0;
+		adrs_to_be_replaced = ( (unsigned long long)0x00000010 << 32);
+		adrs_for_replacement = ( (unsigned long long)0x00000000 << 32);
+		no_of_bits = 28;
+		hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
+					adrs_for_replacement, no_of_bits);
+#endif
+	}
 
 	ret = DWC_ETH_QOS_powerup(dev, DWC_ETH_QOS_DRIVER_CONTEXT);
 

@@ -1701,6 +1701,54 @@ static INT DWC_ETH_QOS_config_phy_aneg (struct DWC_ETH_QOS_prv_data *pdata, unsi
 	return Y_SUCCESS;
 }
 
+/*!
+* \brief Common init function used on interface up and also resume
+*
+* \details Initializes common structures and queues during network
+* initialization
+*
+* \param[in] dev - pointer to net_device structure
+*
+* \return void
+*/
+static void DWC_ETH_QOS_init_common(struct net_device *dev)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	struct desc_if_struct *desc_if = &(pdata->desc_if);
+
+	DBGPR("-->DWC_ETH_QOS_init_common\n");
+
+	/* default configuration */
+	DWC_ETH_QOS_default_common_confs(pdata);
+	DWC_ETH_QOS_default_tx_confs(pdata);
+	DWC_ETH_QOS_default_rx_confs(pdata);
+	DWC_ETH_QOS_configure_rx_fun_ptr(pdata);
+
+	DWC_ETH_QOS_set_rx_mode(dev);
+
+	DWC_ETH_QOS_config_phy_aneg(pdata, 0, 0);
+
+	desc_if->wrapper_tx_desc_init(pdata);
+	desc_if->wrapper_rx_desc_init(pdata);
+
+	DWC_ETH_QOS_tx_desc_mang_ds_dump(pdata);
+	DWC_ETH_QOS_rx_desc_mang_ds_dump(pdata);
+
+	DWC_ETH_QOS_mmc_setup(pdata);
+
+	/* initializes MAC and DMA */
+	hw_if->init(pdata);
+
+	DWC_ETH_QOS_config_phy_aneg(pdata, 1, 0);
+
+	if (enable_phy && pdata->phydev)
+		phy_start(pdata->phydev);
+
+	pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
+
+	DBGPR("<--DWC_ETH_QOS_init_common\n");
+}
 
 /*!
 * \brief API to open a deivce for data transmission & reception.
@@ -1721,8 +1769,10 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	int ret = Y_SUCCESS;
-	struct hw_if_struct *hw_if = &pdata->hw_if;
 	struct desc_if_struct *desc_if = &pdata->desc_if;
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+#endif
 
 	DBGPR("-->DWC_ETH_QOS_open\n");
 
@@ -1753,39 +1803,11 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		goto err_out_desc_buf_alloc_failed;
 	}
 
-	/* default configuration */
-	DWC_ETH_QOS_default_common_confs(pdata);
-	DWC_ETH_QOS_default_tx_confs(pdata);
-	DWC_ETH_QOS_default_rx_confs(pdata);
-	DWC_ETH_QOS_configure_rx_fun_ptr(pdata);
+	DWC_ETH_QOS_init_common(dev);
 
 	DWC_ETH_QOS_napi_enable_mq(pdata);
 
-	DWC_ETH_QOS_set_rx_mode(dev);
-
-	DWC_ETH_QOS_config_phy_aneg(pdata, 0, 0);
-
-	desc_if->wrapper_tx_desc_init(pdata);
-	desc_if->wrapper_rx_desc_init(pdata);
-
-	DWC_ETH_QOS_tx_desc_mang_ds_dump(pdata);
-	DWC_ETH_QOS_rx_desc_mang_ds_dump(pdata);
-
-	DWC_ETH_QOS_mmc_setup(pdata);
-
-	/* initializes MAC and DMA */
-	hw_if->init(pdata);
-
-
-    DWC_ETH_QOS_config_phy_aneg(pdata, 1, 0);
-
-	if (enable_phy && pdata->phydev)
-		phy_start(pdata->phydev);
-
-	pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
-
-	if (enable_phy && pdata->phydev)
-		netif_tx_start_all_queues(dev);
+	netif_tx_start_all_queues(dev);
 
 #ifdef DWC_ETH_QOS_ENABLE_IPA
 	/* Helper flag for IPA Ready CB */
@@ -5576,8 +5598,12 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 
 	pdata->power_down = 0;
 
-	if (enable_phy && pdata->phydev)
-		phy_start(pdata->phydev);
+	if (pdata->pcierst_resx) {
+		DWC_ETH_QOS_init_common(dev);
+	} else {
+		if (enable_phy && pdata->phydev)
+			phy_start(pdata->phydev);
+	}
 
 	/* enable MAC TX/RX */
 	hw_if->start_mac_tx_rx();
