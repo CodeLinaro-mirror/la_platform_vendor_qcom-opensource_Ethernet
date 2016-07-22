@@ -5095,6 +5095,10 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 
 	DBGPR("-->DWC_ETH_QOS_select_queue\n");
 
+	/* Linearize the skb in case it is in fragments */
+	if (skb_linearize(skb) != 0) {
+		return NTN_TX_PKT_HOST;
+	}
 
 	/* TX Channel assignment based on Vlan tag and protocol type */
 	eth_or_vlan_tag = htons(((skb->data[13]<<8) | skb->data[12]));
