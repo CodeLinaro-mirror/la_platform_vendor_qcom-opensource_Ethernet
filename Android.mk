@@ -5,10 +5,6 @@ include $(CLEAR_VARS)
 
 commonSources :=
 
-LOCAL_COPY_HEADERS_TO := neutrino
-LOCAL_COPY_HEADERS += DWC_ETH_QOS_desc.h DWC_ETH_QOS_drv.h DWC_ETH_QOS_ethtool.h DWC_ETH_QOS_pci.h DWC_ETH_QOS_yapphdr.h DWC_ETH_QOS_yheader.h DWC_ETH_QOS_yregacc.h
-include $(BUILD_COPY_HEADERS)
-
 # the dlkm
 DLKM_DIR   := device/qcom/common/dlkm
 
