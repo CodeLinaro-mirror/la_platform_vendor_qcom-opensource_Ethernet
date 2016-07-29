@@ -3735,6 +3735,12 @@ static INT configure_dma_tx_channel(UINT chInx,
 
 	enable_dma_tx_interrupts(chInx);
 
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	if (chInx == NTN_TX_DMA_CH_2)
+		DMA_TXCHCTL_TXPBL_UdfWr(chInx, 32);
+	else
+#endif
 	/* set TX PBL = 128 bytes */
   	DMA_TXCHCTL_TXPBL_UdfWr(chInx, 16);
 
