@@ -57,14 +57,18 @@ extern int DWC_ETH_QOS_init_module(void);
 extern void DWC_ETH_QOS_exit_module(void);
 
 extern BOOL disable_platform_init;
+int gpio_num=-1;
+struct regulator *ntn_reg_hsic = NULL;
+struct regulator *ntn_reg_pci = NULL;
+struct regulator *ntn_reg_io = NULL;
+struct regulator *ntn_reg_core = NULL;
+struct regulator *ntn_reg_phy = NULL;
 
 static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	unsigned int ntn_rst_delay=100,rc_num=1;
 	struct device *idev = &pdev->dev;
-	struct regulator *ntn_reg = NULL;
-	int gpio_num=-1;
 
 	NMSGPR_ALERT( "Entry:%s.\n", __func__);
 
@@ -74,10 +78,10 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	if (of_get_property(idev->of_node,NTN_VREG_HSIC_NAME"-supply", NULL))
 	{
-		ntn_reg = regulator_get(idev, NTN_VREG_HSIC_NAME);
-		if (IS_ERR(ntn_reg))
+		ntn_reg_hsic = regulator_get(idev, NTN_VREG_HSIC_NAME);
+		if (IS_ERR(ntn_reg_hsic))
 		{
-			ret = PTR_ERR(ntn_reg);
+			ret = PTR_ERR(ntn_reg_hsic);
 
 			if (ret == -EPROBE_DEFER)
 			{
@@ -91,19 +95,19 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 		}
 		else
 		{
-			ret = regulator_set_voltage(ntn_reg, NTN_VREG_HSIC_MIN, NTN_VREG_HSIC_MAX);
+			ret = regulator_set_voltage(ntn_reg_hsic, NTN_VREG_HSIC_MIN, NTN_VREG_HSIC_MAX);
 			if (ret)
 			{
 				NMSGPR_ALERT( "%s: Set ntn_reg_hsic failed!\n", __func__);
-				goto DWC_ETH_QOS_pcie_probe_exit;
+				goto DWC_ETH_QOS_err_enable_hsic_regulator;
 			}
 			else
 			{
-				ret = regulator_enable(ntn_reg);
+				ret = regulator_enable(ntn_reg_hsic);
 				if (ret)
 				{
 					NMSGPR_ALERT( "%s: Enable ntn_reg_hsic failed!\n", __func__);
-					goto DWC_ETH_QOS_pcie_probe_exit;
+					goto DWC_ETH_QOS_err_enable_hsic_regulator;
 				}
 			}
 		}
@@ -115,10 +119,10 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	if (of_get_property(idev->of_node,NTN_VREG_PCI_NAME"-supply", NULL))
 	{
-		ntn_reg = regulator_get(idev, NTN_VREG_PCI_NAME);
-		if (IS_ERR(ntn_reg))
+		ntn_reg_pci = regulator_get(idev, NTN_VREG_PCI_NAME);
+		if (IS_ERR(ntn_reg_pci))
 		{
-			ret = PTR_ERR(ntn_reg);
+			ret = PTR_ERR(ntn_reg_pci);
 
 			if (ret == -EPROBE_DEFER)
 			{
@@ -128,23 +132,23 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 			{
 				NMSGPR_ALERT( "%s: Get ntn_reg_pci failed!\n", __func__);
 			}
-			goto DWC_ETH_QOS_pcie_probe_exit;
+			goto DWC_ETH_QOS_err_enable_hsic_regulator;
 		}
 		else
 		{
-			ret = regulator_set_voltage(ntn_reg, NTN_VREG_PCI_MIN, NTN_VREG_PCI_MAX);
+			ret = regulator_set_voltage(ntn_reg_pci, NTN_VREG_PCI_MIN, NTN_VREG_PCI_MAX);
 			if (ret)
 			{
 				NMSGPR_ALERT( "%s: Set ntn_reg_pci failed!\n", __func__);
-				goto DWC_ETH_QOS_pcie_probe_exit;
+				goto DWC_ETH_QOS_err_enable_pci_regulator;
 			}
 			else
 			{
-				ret = regulator_enable(ntn_reg);
+				ret = regulator_enable(ntn_reg_pci);
 				if (ret)
 				{
 					NMSGPR_ALERT( "%s: Enable ntn_reg_pci failed!\n", __func__);
-					goto DWC_ETH_QOS_pcie_probe_exit;
+					goto DWC_ETH_QOS_err_enable_pci_regulator;
 				}
 			}
 		}
@@ -156,10 +160,10 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	if (of_get_property(idev->of_node,NTN_VREG_IO_NAME"-supply", NULL))
 	{
-		ntn_reg = regulator_get(idev, NTN_VREG_IO_NAME);
-		if (IS_ERR(ntn_reg))
+		ntn_reg_io = regulator_get(idev, NTN_VREG_IO_NAME);
+		if (IS_ERR(ntn_reg_io))
 		{
-			ret = PTR_ERR(ntn_reg);
+			ret = PTR_ERR(ntn_reg_io);
 
 			if (ret == -EPROBE_DEFER)
 			{
@@ -169,23 +173,23 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 			{
 				NMSGPR_ALERT( "%s: Get ntn_reg_io failed!\n", __func__);
 			}
-			goto DWC_ETH_QOS_pcie_probe_exit;
+			goto DWC_ETH_QOS_err_enable_pci_regulator;
 		}
 		else
 		{
-			ret = regulator_set_voltage(ntn_reg, NTN_VREG_IO_MIN, NTN_VREG_IO_MAX);
+			ret = regulator_set_voltage(ntn_reg_io, NTN_VREG_IO_MIN, NTN_VREG_IO_MAX);
 			if (ret)
 			{
 				NMSGPR_ALERT( "%s: Set ntn_reg_io failed!\n", __func__);
-				goto DWC_ETH_QOS_pcie_probe_exit;
+				goto DWC_ETH_QOS_err_enable_io_regulator;
 			}
 			else
 			{
-				ret = regulator_enable(ntn_reg);
+				ret = regulator_enable(ntn_reg_io);
 				if (ret)
 				{
 					NMSGPR_ALERT( "%s: Enable ntn_reg_io failed!\n", __func__);
-					goto DWC_ETH_QOS_pcie_probe_exit;
+					goto DWC_ETH_QOS_err_enable_io_regulator;
 				}
 			}
 		}
@@ -199,10 +203,10 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	if (of_get_property(idev->of_node,NTN_VREG_CORE_NAME"-supply", NULL))
 	{
-		ntn_reg = regulator_get(idev, NTN_VREG_CORE_NAME);
-		if (IS_ERR(ntn_reg))
+		ntn_reg_core = regulator_get(idev, NTN_VREG_CORE_NAME);
+		if (IS_ERR(ntn_reg_core))
 		{
-			ret = PTR_ERR(ntn_reg);
+			ret = PTR_ERR(ntn_reg_core);
 
 			if (ret == -EPROBE_DEFER)
 			{
@@ -212,23 +216,23 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 			{
 				NMSGPR_ALERT( "%s: Get ntn_reg_core failed!\n", __func__);
 			}
-			goto DWC_ETH_QOS_pcie_probe_exit;
+			goto DWC_ETH_QOS_err_enable_io_regulator;
 		}
 		else
 		{
-			ret = regulator_set_voltage(ntn_reg, NTN_VREG_CORE_MIN, NTN_VREG_CORE_MAX);
+			ret = regulator_set_voltage(ntn_reg_core, NTN_VREG_CORE_MIN, NTN_VREG_CORE_MAX);
 			if (ret)
 			{
 				NMSGPR_ALERT( "%s: Set ntn_reg_core failed!\n", __func__);
-				goto DWC_ETH_QOS_pcie_probe_exit;
+				goto DWC_ETH_QOS_err_enable_core_regulator;
 			}
 			else
 			{
-				ret = regulator_enable(ntn_reg);
+				ret = regulator_enable(ntn_reg_core);
 				if (ret)
 				{
 					NMSGPR_ALERT( "%s: Enable ntn_reg_core failed!\n", __func__);
-					goto DWC_ETH_QOS_pcie_probe_exit;
+					goto DWC_ETH_QOS_err_enable_core_regulator;
 				}
 			}
 		}
@@ -241,10 +245,10 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	if (of_get_property(idev->of_node,NTN_VREG_PHY_NAME"-supply", NULL))
 	{
-		ntn_reg = regulator_get(idev, NTN_VREG_PHY_NAME);
-		if (IS_ERR(ntn_reg))
+		ntn_reg_phy = regulator_get(idev, NTN_VREG_PHY_NAME);
+		if (IS_ERR(ntn_reg_phy))
 		{
-			ret = PTR_ERR(ntn_reg);
+			ret = PTR_ERR(ntn_reg_phy);
 
 			if (ret == -EPROBE_DEFER)
 			{
@@ -254,23 +258,23 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 			{
 				NMSGPR_ALERT( "%s: Get ntn_reg_phy failed!\n", __func__);
 			}
-			goto DWC_ETH_QOS_pcie_probe_exit;
+			goto DWC_ETH_QOS_err_enable_core_regulator;
 		}
 		else
 		{
-			ret = regulator_set_voltage(ntn_reg, NTN_VREG_PHY_MIN, NTN_VREG_PHY_MAX);
+			ret = regulator_set_voltage(ntn_reg_phy, NTN_VREG_PHY_MIN, NTN_VREG_PHY_MAX);
 			if (ret)
 			{
 				NMSGPR_ALERT( "%s: Set ntn_reg_phy failed!\n", __func__);
-				goto DWC_ETH_QOS_pcie_probe_exit;
+				goto DWC_ETH_QOS_err_enable_phy_regulator;
 			}
 			else
 			{
-				ret = regulator_enable(ntn_reg);
+				ret = regulator_enable(ntn_reg_phy);
 				if (ret)
 				{
 					NMSGPR_ALERT( "%s: Enable ntn_reg_phy failed!\n", __func__);
-					goto DWC_ETH_QOS_pcie_probe_exit;
+					goto DWC_ETH_QOS_err_enable_phy_regulator;
 				}
 			}
 		}
@@ -284,7 +288,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	if ( !of_find_property(idev->of_node, NTN_RESET_GPIO_NAME, NULL) )
 	{
 		NMSGPR_ALERT( "can't find gpio %s",NTN_RESET_GPIO_NAME);
-		goto DWC_ETH_QOS_pcie_probe_exit;
+		goto DWC_ETH_QOS_err_enable_phy_regulator;
 	}
 
 	gpio_num = ret = of_get_named_gpio(idev->of_node, NTN_RESET_GPIO_NAME, 0);
@@ -296,7 +300,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 		if (ret)
 		{
 			NMSGPR_ALERT( "%s: Can't get GPIO %s, ret = %d\n", __func__, NTN_RESET_GPIO_NAME, gpio_num);
-			goto DWC_ETH_QOS_pcie_probe_exit;
+			goto DWC_ETH_QOS_err_enable_phy_regulator;
 		}
 		else
 		{
@@ -307,8 +311,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 		if (ret)
 		{
 			NMSGPR_ALERT( "%s: Can't set GPIO %s direction, ret = %d\n",__func__, NTN_RESET_GPIO_NAME, ret);
-			gpio_free(gpio_num);
-			goto DWC_ETH_QOS_pcie_probe_exit;
+			goto DWC_ETH_QOS_err_gpio_request;
 		}
 		else
 		{
@@ -323,7 +326,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 			NMSGPR_ALERT( "get NTN_RESET_GPIO_NAME probe defer\n");
 		else
 			NMSGPR_ALERT( "can't get gpio %s ret %d",NTN_RESET_GPIO_NAME, ret);
-		goto DWC_ETH_QOS_pcie_probe_exit;
+		goto DWC_ETH_QOS_err_enable_phy_regulator;
 	}
 
 	/* add delay for neutrino reset propagation*/
@@ -342,14 +345,14 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(idev->of_node, "qcom,ntn-rc-num", &rc_num);
 	if (ret) {
 		NMSGPR_ALERT( "%s: Failed to find PCIe RC number!, RC=%d\n", __func__,rc_num);
-		goto DWC_ETH_QOS_pcie_probe_exit;
+		goto DWC_ETH_QOS_err_gpio_request;
 	}
 	else {
 		NMSGPR_ALERT( "%s: Found PCIe RC number! %d\n", __func__,rc_num);
 		ret = msm_pcie_enumerate(rc_num);
 		if (ret) {
 			NMSGPR_ALERT( "%s: Failed to enable PCIe RC%x!\n", __func__, rc_num);
-			goto DWC_ETH_QOS_pcie_probe_exit;
+			goto DWC_ETH_QOS_err_gpio_request;
 		}
 		else {
 			NMSGPR_ALERT( "%s: PCIe enumeration for RC number %d successful!\n", __func__,rc_num);
@@ -358,7 +361,21 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	/* register Ethernet modules */
 	DWC_ETH_QOS_init_module();
+	NMSGPR_ALERT( "Exit:%s success.\n", __func__);
+	return ret;
 
+DWC_ETH_QOS_err_gpio_request:
+	gpio_free(gpio_num);
+DWC_ETH_QOS_err_enable_phy_regulator:
+	regulator_put(ntn_reg_phy);
+DWC_ETH_QOS_err_enable_core_regulator:
+	regulator_put(ntn_reg_core);
+DWC_ETH_QOS_err_enable_io_regulator:
+	regulator_put(ntn_reg_io);
+DWC_ETH_QOS_err_enable_pci_regulator:
+	regulator_put(ntn_reg_pci);
+DWC_ETH_QOS_err_enable_hsic_regulator:
+	regulator_put(ntn_reg_hsic);
 DWC_ETH_QOS_pcie_probe_exit:
 
 	NMSGPR_ALERT( "Exit:%s.\n", __func__);
@@ -371,6 +388,24 @@ static int DWC_ETH_QOS_pcie_remove(struct platform_device *pdev)
 	NMSGPR_ALERT( "Entry:%s.\n", __func__);
 
 	DWC_ETH_QOS_exit_module();
+
+	NMSGPR_ALERT( "%s: release gpio = %d\n", __func__, gpio_num);
+	gpio_free(gpio_num);
+
+	NMSGPR_ALERT( "%s: drop PHY regulator\n", __func__);
+	regulator_put(ntn_reg_phy);
+
+	NMSGPR_ALERT( "%s: drop CORE regulator\n", __func__);
+	regulator_put(ntn_reg_core);
+
+	NMSGPR_ALERT( "%s: drop IO regulator\n", __func__);
+	regulator_put(ntn_reg_io);
+
+	NMSGPR_ALERT( "%s: drop PCI regulator\n", __func__);
+	regulator_put(ntn_reg_pci);
+
+	NMSGPR_ALERT( "%s: drop HSIC regulator\n", __func__);
+	regulator_put(ntn_reg_hsic);
 
 	NMSGPR_ALERT( "Exit:%s.\n", __func__);
 	return ret;
