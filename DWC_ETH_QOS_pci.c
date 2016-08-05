@@ -115,11 +115,7 @@ dma_addr_t dwc_eth_ntn_hostmem_pci_base_addr_phy;
 ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
 
 CHARP fw_filename = "";
-BOOL disable_platform_init = 0;
 BOOL enable_phy = 1;
-
-module_param(disable_platform_init, ushort, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-MODULE_PARM_DESC(disable_platform_init, "Disable device tree initialization");
 
 module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(fw_filename, "Firmware filename");
