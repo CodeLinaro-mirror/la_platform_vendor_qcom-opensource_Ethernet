@@ -368,6 +368,22 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	return 0;
 }
 
+static int DWC_ETH_QOS_panic_notifier(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	if (gDWC_ETH_QOS_prv_data) {
+		NMSGPR_ALERT("DWC_ETH_QOS: 0x%pK\n", gDWC_ETH_QOS_prv_data);
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+		update_dma_stats(gDWC_ETH_QOS_prv_data);
+#endif
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block DWC_ETH_QOS_panic_blk = {
+	.notifier_call  = DWC_ETH_QOS_panic_notifier,
+};
+
 /*!
 * \brief API to initialize the device.
 *
@@ -524,7 +540,11 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	dev->base_addr = dwc_eth_ntn_reg_pci_base_addr;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	pdata = netdev_priv(dev);
-	pr_info("gDWC_ETH_QOS_prv_data %p \n", pdata);
+	gDWC_ETH_QOS_prv_data = pdata;
+	pr_info("gDWC_ETH_QOS_prv_data 0x%pK \n", gDWC_ETH_QOS_prv_data);
+
+	atomic_notifier_chain_register(&panic_notifier_list,
+			&DWC_ETH_QOS_panic_blk);
 	DWC_ETH_QOS_init_all_fptrs(pdata);
 	hw_if = &(pdata->hw_if);
 	desc_if = &(pdata->desc_if);

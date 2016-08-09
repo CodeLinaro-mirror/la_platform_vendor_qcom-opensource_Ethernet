@@ -3224,11 +3224,10 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 			continue;
 
 #ifdef DWC_ETH_QOS_ENABLE_IPA
-		if (chInx == NTN_RX_DMA_CH_0)
-                {
-                   NMSGPR_INFO("RX pkts are recieved by IPA uC..so skip for the host \n");
-		   continue;
-                }
+		if (chInx == NTN_RX_DMA_CH_0) {
+			pr_debug("RX pkts are recieved by IPA uC..so skip for the host \n");
+			continue;
+		}
 #endif
 
 		rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
