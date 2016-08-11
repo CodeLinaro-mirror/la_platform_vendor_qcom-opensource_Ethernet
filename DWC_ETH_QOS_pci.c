@@ -538,16 +538,16 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	/* 	Host: TX DMA CH : 0,2,3,4,
 		Host: RX DMA CH : 0,2,3,4,5 */
-	for(i=0; i<pdata->rx_dma_ch_cnt; i++)
+	for(i=0; i<pdata->rx_dma_ch_cnt && i<NTN_DMA_RX_CH_CNT; i++)
 		pdata->rx_dma_ch_for_host[i] = 1;
-	for(i=0; i<pdata->tx_dma_ch_cnt; i++)
+	for(i=0; i<pdata->tx_dma_ch_cnt && i<NTN_DMA_TX_CH_CNT; i++)
 		pdata->tx_dma_ch_for_host[i] = 1;
 
 	/* 	Host: TX Q : 0,1,2
 		Host: RX Q : 0,1,2,3 */
-	for(i=0; i<rx_q_count; i++)
+	for(i=0; i<rx_q_count && i<NTN_RX_Q_CNT; i++)
 		pdata->rx_q_for_host[i] = 1;
-	for(i=0; i<tx_q_count; i++)
+	for(i=0; i<tx_q_count && i<NTN_TX_Q_CNT; i++)
 		pdata->tx_q_for_host[i] = 1;
 
 	/* 	M3: TX DMA CH : 1
