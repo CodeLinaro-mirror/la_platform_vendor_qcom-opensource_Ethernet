@@ -1686,6 +1686,9 @@ struct DWC_ETH_QOS_prv_data {
 	struct msm_pcie_register_event msm_pci_event;
 	struct work_struct pci_recovery_work;
 #endif
+
+	/* Delay before de-asserting M3 reset after FW load */
+	unsigned int fw_load_delay;
 };
 
 struct DWC_ETH_QOS_plt_data {

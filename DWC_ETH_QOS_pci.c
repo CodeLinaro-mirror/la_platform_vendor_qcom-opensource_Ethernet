@@ -84,6 +84,8 @@
 #ifdef CONFIG_PCI_MSM
 #include <linux/msm_pcie.h>
 #endif
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_pci.h"
 
@@ -92,6 +94,8 @@
 #endif
 
 struct DWC_ETH_QOS_prv_data *gDWC_ETH_QOS_prv_data;
+
+extern struct DWC_ETH_QOS_plt_data *plt_data;
 
 static UCHAR dev_addr[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8};
 typedef struct
@@ -327,6 +331,8 @@ static void parse_config_file(void)
 */
 static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 {
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	const struct firmware *fw_entry = NULL;
 	unsigned int reg_val;
 
@@ -360,7 +366,7 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	release_firmware(fw_entry);
 
 	/* Wait a moment for the Neutrino to boot */
-	msleep(200);
+	msleep(pdata->fw_load_delay);
 
 	NMSGPR_ALERT("Firmware loaded");
 
@@ -589,6 +595,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	struct DWC_ETH_QOS_prv_data *pdata = NULL;
 	struct net_device *dev = NULL;
+	struct platform_device *pldev = plt_data->pldev;
 	int i, ret = 0;
 	struct hw_if_struct *hw_if = NULL;
 	struct desc_if_struct *desc_if = NULL;
@@ -793,6 +800,14 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		goto err_rx_mem_pool_creation;
 	}
 #endif
+
+	ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-fw-load-delay-msec", &pdata->fw_load_delay);
+	if (ret) {
+		NMSGPR_ALERT("%s: Failed to find fw_load_delay value, hardcoding to 200 msec\n", __func__);
+		pdata->fw_load_delay = 200;
+	} else {
+		NDBGPR_L1("%s: fw_load_delay = %d msec\n", __func__, pdata->fw_load_delay);
+	}
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	/* Configure TMAP 0 to access full range of host memory */
