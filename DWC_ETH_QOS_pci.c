@@ -81,6 +81,9 @@
  * @brief: Driver functions.
  */
 #include <linux/firmware.h>
+#ifdef CONFIG_PCI_MSM
+#include <linux/msm_pcie.h>
+#endif
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_pci.h"
 
@@ -380,6 +383,186 @@ static struct notifier_block DWC_ETH_QOS_panic_blk = {
 	.notifier_call  = DWC_ETH_QOS_panic_notifier,
 };
 
+#ifdef CONFIG_PCI_MSM
+
+/*!
+* \brief Handle the PCI link down event
+*
+* \details Worker function that stops the phy and brings down the
+* ethernet interface to avoid system. Dynamic recovery of the PCI link
+* is not supported yet. Call using schedule_work() API.
+*
+* \param[in] recovert - work_struct. Must be a child of DWC_ETH_QOS_prv_data
+*
+* \return None
+*/
+static void DWC_ETH_QOS_pci_recovery_work_handler(struct work_struct *recovery)
+{
+	struct DWC_ETH_QOS_prv_data *pdata =
+		container_of(recovery, struct DWC_ETH_QOS_prv_data, pci_recovery_work);
+	if (!pdata) {
+		NMSGPR_ALERT("%s: pdata is NULL. Failed to recover PCI link\n", __func__);
+		return;
+	}
+
+	/* Stop phy interrutps and bring the ethernet interface down.
+	   This avoids PCI writes which timeout since the link is down
+	   and cause the system to hang */
+	NMSGPR_ALERT("%s: Stopping phy and detaching net device\n", __func__);
+	phy_stop(pdata->phydev);
+	netif_device_detach(pdata->dev);
+}
+
+/*!
+* \brief Callback function for PCI events.
+*
+* \details This callback function receives PCI link status changes registered
+* from msm_pcie_register_event(). During a PCI link down event this fuction
+* stores the error state in the pci_dev which persists in the kernel after a
+* driver unload. The driver will attemtp to re-enumerate the device on the next
+* module load.
+*
+* \param[in] notify - pointer to msm_pcie_notify containing PCI status
+*
+* \return None
+*/
+static void DWC_ETH_QOS_pci_event(struct msm_pcie_notify *notify)
+{
+	struct DWC_ETH_QOS_prv_data *pdata;
+	struct pci_dev *pdev;
+
+	if (!notify || !notify->data) {
+		NMSGPR_ALERT("%s: notify is NULL. Failed to handle PCI event\n",
+					 __func__);
+		return;
+	}
+	pdata = notify->data;
+	pdev = pdata->pdev;
+
+	switch (notify->event) {
+		case MSM_PCIE_EVENT_LINKDOWN:
+			NMSGPR_ALERT("%s: PCI link down\n", __func__);
+			schedule_work(&pdata->pci_recovery_work);
+			break;
+	default:
+		NMSGPR_ALERT("cnss: invalid event from PCIe callback %d\n",
+					 notify->event);
+	}
+}
+
+/*!
+* \brief Resume PCI link on module init
+*
+* \details Recover the PCI link when the module is initialized. PCI link could
+* be in suspend state if module was removed while system was running.
+*
+* \param[in] pdev - the PCIe device
+*
+* \return integer
+*
+* \retval 0 on success & -ve number on failure.
+*/
+static int DWC_ETH_QOS_pci_resume(struct pci_dev *pdev)
+{
+	int ret = 0;
+	int pm_opts = MSM_PCIE_CONFIG_NO_CFG_RESTORE;
+
+	/* Resume PCI device to allow device */
+	ret = msm_pcie_pm_control(
+			MSM_PCIE_RESUME,
+			pdev->bus->number,
+			pdev, NULL, pm_opts);
+
+	if (ret) {
+		NMSGPR_ALERT("%s: Failed to resume PCIe link\n", __func__);
+		goto exit;
+	}
+
+	ret = msm_pcie_recover_config(pdev);
+	if (ret) {
+		NMSGPR_ALERT("%s: Failed to restore PCI config\n", __func__);
+		goto exit;
+	}
+
+
+exit:
+	return ret;
+}
+
+/*!
+* \brief Register for PCI link status change events
+*
+* \details The MSM PCI driver sends link status change events. Register for
+* these events so that the link can be recovered in case it fails or when it
+* has to be resumed.
+*
+* \param[in] pdev - the PCIe device
+*
+* \return None
+*/
+static void DWC_ETH_QOS_pci_event_register(struct pci_dev *pdev)
+{
+	int ret;
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+
+	/* Setup PCI link recovery handler */
+	INIT_WORK(&pdata->pci_recovery_work, DWC_ETH_QOS_pci_recovery_work_handler);
+	pdata->msm_pci_event.events = MSM_PCIE_EVENT_LINKDOWN;
+
+	/* Register PCI status changes.
+	'user' must be of type struct pci_dev */
+	pdata->msm_pci_event.user = pdev;
+	pdata->msm_pci_event.notify.data = pdata;
+	pdata->msm_pci_event.mode = MSM_PCIE_TRIGGER_CALLBACK;
+	pdata->msm_pci_event.callback = DWC_ETH_QOS_pci_event;
+	pdata->msm_pci_event.options = MSM_PCIE_CONFIG_NO_RECOVERY;
+	ret = msm_pcie_register_event(&pdata->msm_pci_event);
+	if (ret) {
+		NMSGPR_ALERT("%s: PCIe event register failed! %d\n", __func__, ret);
+	}
+}
+
+/*!
+* \brief Save the PCI link status and suspend it on module exit
+*
+* \details Save the state of the PCI link so that it can be recovered when the
+* module is loaded again and suspend the bus power.
+*
+* \param[in] pdev - the PCIe device
+*
+* \return None
+*/
+static void DWC_ETH_QOS_pci_suspend(struct pci_dev *pdev)
+{
+	int pm_opts = (MSM_PCIE_CONFIG_NO_CFG_RESTORE | MSM_PCIE_CONFIG_LINKDOWN);
+
+	/* Suspend PCI device to allow device power off */
+	if (msm_pcie_pm_control(MSM_PCIE_SUSPEND, pdev->bus->number,
+				pdev, NULL, pm_opts)) {
+		NMSGPR_ALERT("%s: Failed to shutdown PCIe link\n", __func__);
+	}
+}
+
+#else /* !CONFIG_PCI_MSM */
+
+static int DWC_ETH_QOS_pci_resume(struct pci_dev *pdev)
+{
+	return 0;
+}
+
+static void DWC_ETH_QOS_pci_event_register(struct pci_dev *pdev)
+{
+	return;
+}
+
+static void DWC_ETH_QOS_pci_suspend(struct pci_dev *pdev)
+{
+	return;
+}
+
+#endif /* CONFIG_PCI_MSM */
+
 /*!
 * \brief API to initialize the device.
 *
@@ -423,6 +606,12 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	NDBGPR_L1("Debug version\n");
 
 	DBGPR("--> DWC_ETH_QOS_probe\n");
+
+	/* Resume PCI link and restore the state */
+	ret = DWC_ETH_QOS_pci_resume(pdev);
+	if (ret) {
+		goto err_pci_restore_failed;
+	}
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -778,6 +967,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		goto err_out_netdev_failed;
 	}
 
+	/* Initialize PCI link status and register for status changes */
+	DWC_ETH_QOS_pci_event_register(pdev);
+
 	DBGPR("<-- DWC_ETH_QOS_probe\n");
 
 	if (pdata->hw_feat.pcs_sel) {
@@ -852,6 +1044,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pci_disable_device(pdev);
 
  err_out_enb_failed:
+ err_pci_restore_failed:
 
 	return ret;
 }
@@ -918,6 +1111,10 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	desc_if->free_queue_struct(pdata);
 
 	free_netdev(dev);
+
+	/* Save the PCI link status and suspend it */
+	DWC_ETH_QOS_pci_suspend(pdev);
+
     pci_disable_msi(pdev);
 	pci_set_drvdata(pdev, NULL);
 

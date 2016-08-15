@@ -422,6 +422,13 @@ static void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 	DBGPR_MDIO("-->DWC_ETH_QOS_adjust_link. address %d link %d\n", phydev->addr,
 	      phydev->link);
 
+	/* Ignore adjust_link interrupts if PCI link is down. PCI
+	 * link down event will eventually stop the phy state machine */
+	if (pdata->pdev->error_state != pci_channel_io_normal) {
+		DBGPR_MDIO("%s: PCI link is down returning.\n");
+		return;
+	}
+
 	//spin_lock_irqsave(&pdata->lock, flags);
 
 	if (phydev->link) {

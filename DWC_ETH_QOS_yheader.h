@@ -84,6 +84,9 @@
 #define __DWC_ETH_QOS__YHEADER__
 /****************************** Includes ******************************/
 #include <linux/device.h>
+#ifdef CONFIG_PCI_MSM
+#include <linux/msm_pcie.h>
+#endif
 #ifdef DESC_SRAM_BUF_SRAM
 #include <linux/dmapool.h>
 #endif
@@ -1677,6 +1680,12 @@ struct DWC_ETH_QOS_prv_data {
 
 	struct DWC_ETH_QOS_avb_algorithm_params cbsSpeed100Cfg[2];
 	struct DWC_ETH_QOS_avb_algorithm_params cbsSpeed1000Cfg[2];
+
+#ifdef CONFIG_PCI_MSM
+	/* PCIe link recovery */
+	struct msm_pcie_register_event msm_pci_event;
+	struct work_struct pci_recovery_work;
+#endif
 };
 
 typedef enum {
