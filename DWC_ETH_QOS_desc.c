@@ -796,7 +796,6 @@ static void DWC_ETH_QOS_tx_buf_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 	UINT chInx;
 #ifdef DWC_ETH_QOS_ENABLE_IPA
 	UINT i = 0;
-	struct DWC_ETH_QOS_tx_wrapper_descriptor *desc_data = NULL;
 	struct sk_buff *skb = NULL;
 #endif
 

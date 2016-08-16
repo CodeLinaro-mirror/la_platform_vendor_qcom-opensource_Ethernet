@@ -136,6 +136,8 @@
 #define NTN_TX_PKT_VLAN_NOT_AVB		(NTN_TX_DMA_CH_0)
 #define NTN_TX_PKT_M3			(NTN_TX_DMA_CH_1)
 #ifdef DWC_ETH_QOS_ENABLE_IPA
+/* Currently all the Neturino Debug register start a location 0xC800 */
+#define NTN_DBG_START_ADDRESS   0xc800
 #define NTN_TX_PKT_HOST			(NTN_TX_DMA_CH_0) /*Use TX DMA Channel 0 for Embedded TX traffic */
 #else                                                     /*and avoid TX CHannel 2 which is used for IPA only*/
 #define NTN_TX_PKT_HOST			(NTN_TX_DMA_CH_2)
@@ -1422,6 +1424,51 @@ struct DWC_ETH_QOS_extra_stats {
 };
 
 #ifdef DWC_ETH_QOS_ENABLE_IPA
+void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata);
+struct DWC_ETH_QOS_ipa_dma_stats {
+	UINT RX0_Desc_Ring_Base;
+	INT RX0_Desc_Ring_Size;
+	UINT RX0_Buff_Ring_Base;
+	INT RX0_Buff_Ring_Size;
+	UINT RX0_Db_Int_Raised;
+	UINT RX0_Cur_Desc_Ptr_Indx;
+	UINT RX0_Tail_Ptr_Indx;
+
+	UINT RX0_DMA_Status;
+	UINT RX0_DMA_Ch_Status;
+	UINT RX0_DMA_Ch_underflow;
+	UINT RX0_DMA_Ch_stopped;
+	UINT RX0_DMA_Ch_complete;
+
+	UINT RX0_Int_Mask;
+	ULONG RX0_Transfer_Complete_irq;
+	ULONG RX0_Transfer_Stopped_irq;
+	ULONG RX0_Underflow_irq;
+	ULONG RX0_Early_Transmit_Complete_irq;
+
+	UINT TX2_Desc_Ring_Base;
+	INT TX2_Desc_Ring_Size;
+	UINT TX2_Buff_Ring_Base;
+	INT TX2_Buff_Ring_Size;
+	UINT TX2_Db_Int_Raised;
+	ULONG TX2_Curr_Desc_Ptr_Indx;
+	ULONG TX2_Tail_Ptr_Indx;
+
+	UINT TX2_DMA_Status;
+	UINT TX2_DMA_Ch_Status;
+	UINT TX2_DMA_Ch_underflow;
+	UINT TX2_DMA_Transfer_stopped;
+	UINT TX2_DMA_Transfer_complete;
+
+	UINT TX2_Int_Mask;
+	ULONG TX2_Transfer_Complete_irq;
+	ULONG TX2_Transfer_Stopped_irq;
+	ULONG TX2_Underflow_irq;
+	ULONG TX2_Early_Trans_Cmp_irq;
+	ULONG TX2_Fatal_err_irq;
+	ULONG TX2_Desc_Err_irq;
+};
+
 struct DWC_ETH_QOS_prv_ipa_data {
         phys_addr_t uc_db_rx_addr;
         phys_addr_t uc_db_tx_addr;
@@ -1438,6 +1485,7 @@ struct DWC_ETH_QOS_prv_ipa_data {
 
 	/* IPA Stats */
 	unsigned long long ipa_ul_exception;
+	struct DWC_ETH_QOS_ipa_dma_stats dma_stats;
 };
 #endif
 
