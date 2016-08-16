@@ -1024,6 +1024,10 @@ struct hw_if_struct {
 	INT(*ntn_set_tx_clk_125MHz)(void);
 	INT(*ntn_set_tx_clk_25MHz)(void);
 	INT(*ntn_set_tx_clk_2_5MHz)(void);
+
+	/* Read host initiated boot option */
+	UINT(*ntn_boot_host_initiated)(void);
+	UINT(*ntn_boot_from_flash_done)(void);
 };
 
 /* wrapper buffer structure to hold transmit pkt details */

@@ -4221,6 +4221,24 @@ static INT ntn_set_tx_clk_2_5MHz(void)
 	return Y_SUCCESS;
 }
 
+static UINT ntn_boot_host_initiated(void)
+{
+  UINT rd_val;
+  NTN_NMODESTS_RgRd(rd_val);
+  /* Per datasheet bit0=1 indicates secure boot and overrides boot option
+   * from MODE02 bit. */
+  return !(rd_val & NTN_NMODESTS_SECURE_BOOT_MASK) &&
+          (rd_val & NTN_NMODESTS_HOST_BOOT_MASK);
+}
+
+static UINT ntn_boot_from_flash_done(void)
+{
+  UINT rd_val;
+  NTN_NCTLSTS_RgRd(rd_val);
+  /* Per datasheet bit0=1 indicates that HW sequencer is idle/complete. */
+  return rd_val & NTN_NCTLSTS_HW_SEQ_COMPLETE_MASK;
+}
+
 #ifdef DWC_ETH_QOS_ENABLE_IPA
 static int DWC_ETH_QOS_yinit_offload(struct DWC_ETH_QOS_prv_data *pdata)
 {
@@ -4560,6 +4578,10 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 	hw_if->ntn_set_tx_clk_125MHz = ntn_set_tx_clk_125MHz;
 	hw_if->ntn_set_tx_clk_25MHz = ntn_set_tx_clk_25MHz;
 	hw_if->ntn_set_tx_clk_2_5MHz = ntn_set_tx_clk_2_5MHz;
+
+	/* Determine if boot mode is host initiated */
+	hw_if->ntn_boot_host_initiated = ntn_boot_host_initiated;
+	hw_if->ntn_boot_from_flash_done = ntn_boot_from_flash_done;
 
 	DBGPR("<--DWC_ETH_QOS_init_function_ptrs_dev\n");
 }

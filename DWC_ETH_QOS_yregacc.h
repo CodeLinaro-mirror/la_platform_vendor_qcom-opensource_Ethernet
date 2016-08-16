@@ -29264,6 +29264,20 @@
         iowrite32(data, (void *)NTN_NEMACCTL_RgOffAddr);\
 } while(0)
 
+#define NTN_NMODESTS_HOST_BOOT_MASK      (0x1<<6)
+#define NTN_NMODESTS_SECURE_BOOT_MASK    (0x1)
+#define NTN_NCTLSTS_HW_SEQ_COMPLETE_MASK (0x1)
+
+/* Neutrino boot mode option */
+#define NTN_NMODESTS_RgRd(data) do {\
+        (data) = ioread32((void *)NTN_NMODESTS_RgOffAddr);\
+} while(0)
+
+/* Neutrino control and status */
+#define NTN_NCTLSTS_RgRd(data) do {\
+        (data) = ioread32((void *)NTN_NCTLSTS_RgOffAddr);\
+} while(0)
+
 #define NTN_NEMACCTL_TX_CLK_MASK     	   (~0x7)
 #define NTN_NEMACCTL_TX_CLK_125MHz  	   (0x0)
 #define NTN_NEMACCTL_TX_CLK_25MHz   	   (0x2)

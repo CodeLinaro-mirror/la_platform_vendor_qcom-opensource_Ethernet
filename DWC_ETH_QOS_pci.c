@@ -328,14 +328,14 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	unsigned int reg_val;
 
         if (fw_filename[0] == '\0') {
-                NMSGPR_INFO("Firmware filename not given. Skipping firmware loading.\n");
+                NMSGPR_INFO("Firmware filename not given.\n");
                 return -EINVAL;
         }
 
 	if (request_firmware(&fw_entry, fw_filename, &pdev->dev) != 0 ||
 	    fw_entry == NULL)
 	{
-		NMSGPR_ALERT("Failed to get %s. The firmware is loaded from flash.\n",
+		NMSGPR_ALERT("Failed to get %s.\n",
 			fw_filename);
 		return -EINVAL;
 	}
@@ -665,7 +665,19 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
         NDBGPR_L1( "Allocated IRQ Number = %d\n", dev->irq);
 
-	DWC_ETH_QOS_load_fw(pdev);
+	if (hw_if->ntn_boot_host_initiated()) {
+		ret = DWC_ETH_QOS_load_fw(pdev);
+		if (ret) {
+			NMSGPR_ALERT("ERROR: Unable to load firmware\n");
+			goto err_load_fw_failed;
+		}
+	} else if (!hw_if->ntn_boot_from_flash_done()) {
+		NMSGPR_ALERT("ERROR: Boot from flash failed\n");
+		ret = -EINVAL;
+		goto err_load_fw_failed;
+	} else {
+		NMSGPR_INFO("Boot from flash complete\n");
+	}
 
 	DWC_ETH_QOS_get_all_hw_features(pdata);
 	DWC_ETH_QOS_print_all_hw_features(pdata);
@@ -804,6 +816,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
  err_out_mdio_reg:
 	desc_if->free_queue_struct(pdata);
 
+ err_load_fw_failed:
  err_out_q_alloc_failed:
     pci_disable_msi(pdev);
  err_out_msi_failed:
