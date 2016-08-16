@@ -129,13 +129,9 @@ dma_addr_t dwc_eth_ntn_hostmem_pci_base_addr_phy;
 ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
 
 CHARP fw_filename = "";
-BOOL enable_phy = 1;
 
 module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(fw_filename, "Firmware filename");
-
-module_param(enable_phy, ushort, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-MODULE_PARM_DESC(enable_phy, "Enable Ethernet PHY support");
 
 void DWC_ETH_QOS_init_all_fptrs(struct DWC_ETH_QOS_prv_data *pdata)
 {
@@ -812,6 +808,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->pcierst_resx = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-pcierst-resx");
 	NDBGPR_L1("%s: pcierst_resx = %d\n", __func__, pdata->pcierst_resx);
 
+	pdata->enable_phy = !of_property_read_bool(pldev->dev.of_node, "qcom,ntn-disable-phy");
+	NDBGPR_L1("%s: enable_phy = %d\n", __func__, pdata->enable_phy);
+
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	/* Configure TMAP 0 to access full range of host memory */
 	tmap_no = 0;
@@ -899,7 +898,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	pdata->interface = DWC_ETH_QOS_get_phy_interface(pdata);
 	/* Bypass PHYLIB for TBI, RTBI and SGMII interface */
-	if (enable_phy && 1 == pdata->hw_feat.sma_sel) {
+	if (pdata->enable_phy && 1 == pdata->hw_feat.sma_sel) {
 		ret = DWC_ETH_QOS_mdio_register(dev);
 		if (ret < 0) {
 			NMSGPR_ALERT( "MDIO bus (id %d) registration failed\n",

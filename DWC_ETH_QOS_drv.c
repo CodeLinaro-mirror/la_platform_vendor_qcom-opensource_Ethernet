@@ -96,8 +96,6 @@ extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;
 extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_virt;
 extern ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
 
-extern BOOL enable_phy;
-
 #include "DWC_ETH_QOS_yregacc.h"
 
 #define AVB_QUEUE_CLASS_A 1
@@ -428,7 +426,7 @@ static void DWC_ETH_QOS_restart_phy(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	DBGPR("-->DWC_ETH_QOS_restart_phy\n");
 
-        if (!enable_phy) {
+        if (!pdata->enable_phy) {
                 NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
                 return;
         }
@@ -1742,7 +1740,7 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 
 	DWC_ETH_QOS_config_phy_aneg(pdata, 1, 0);
 
-	if (enable_phy && pdata->phydev)
+	if (pdata->enable_phy && pdata->phydev)
 		phy_start(pdata->phydev);
 
 	pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
@@ -1894,7 +1892,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	if (pdata->eee_enabled)
 		del_timer_sync(&pdata->eee_ctrl_timer);
 
-	if (enable_phy && pdata->phydev)
+	if (pdata->enable_phy && pdata->phydev)
 		phy_stop(pdata->phydev);
 
 	netif_tx_disable(dev);
@@ -5208,7 +5206,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	DBGPR("-->DWC_ETH_QOS_ioctl\n");
 
-	if (!netif_running(dev) || (enable_phy && !pdata->phydev)) {
+	if (!netif_running(dev) || (pdata->enable_phy && !pdata->phydev)) {
 		DBGPR("<--DWC_ETH_QOS_ioctl - error\n");
 		return -EINVAL;
 	}
@@ -5516,7 +5514,7 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 		return -EINVAL;
 	}
 
-	if (enable_phy && pdata->phydev)
+	if (pdata->enable_phy && pdata->phydev)
 		phy_stop(pdata->phydev);
 
 	spin_lock_irqsave(&pdata->pmt_lock, flags);
@@ -5601,7 +5599,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	if (pdata->pcierst_resx) {
 		DWC_ETH_QOS_init_common(dev);
 	} else {
-		if (enable_phy && pdata->phydev)
+		if (pdata->enable_phy && pdata->phydev)
 			phy_start(pdata->phydev);
 	}
 

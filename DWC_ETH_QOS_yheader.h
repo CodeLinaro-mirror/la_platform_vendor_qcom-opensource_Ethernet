@@ -1692,6 +1692,9 @@ struct DWC_ETH_QOS_prv_data {
 
 	/* Used for hardware where the PCIe reset and RESX lines are merged */
 	bool pcierst_resx;
+
+	/* Decide if PHY is enabled or not */
+	bool enable_phy;
 };
 
 struct DWC_ETH_QOS_plt_data {
