@@ -1132,6 +1132,9 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	/* Save the PCI link status and suspend it */
 	DWC_ETH_QOS_pci_suspend(pdev);
 
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &DWC_ETH_QOS_panic_blk);
+
     pci_disable_msi(pdev);
 	pci_set_drvdata(pdev, NULL);
 
