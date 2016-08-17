@@ -265,7 +265,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct device *dev = &pdev->dev;
 
-	NMSGPR_ALERT("Entry: %s\n", __func__);
+	DBGPR("Entry: %s\n", __func__);
 
 	if (plt_data)
 		return -ENODEV;
@@ -295,7 +295,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 		NMSGPR_ALERT("%s: Failed to find ntn_rst_delay value, hardcoding to 100 msec\n", __func__);
 		plt_data->ntn_rst_delay = 500;
 	} else {
-		NMSGPR_ALERT("%s: ntn_rst_delay = %d msec\n", __func__, plt_data->ntn_rst_delay);
+		NDBGPR_L1("%s: ntn_rst_delay = %d msec\n", __func__, plt_data->ntn_rst_delay);
 	}
 	msleep(plt_data->ntn_rst_delay);
 
@@ -305,7 +305,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 		NMSGPR_ALERT( "%s: Failed to find PCIe RC number!, RC=%d\n", __func__, plt_data->rc_num);
 		goto DWC_ETH_QOS_err_pcie_probe;
 	} else {
-		NMSGPR_ALERT( "%s: Found PCIe RC number! %d\n", __func__, plt_data->rc_num);
+		NDBGPR_L1( "%s: Found PCIe RC number! %d\n", __func__, plt_data->rc_num);
 		ret = msm_pcie_enumerate(plt_data->rc_num);
 		if (ret) {
 			NMSGPR_ALERT( "%s: Failed to enable PCIe RC%x!\n", __func__, plt_data->rc_num);
@@ -320,25 +320,25 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		goto DWC_ETH_QOS_err_pcie_probe;
 
-	NMSGPR_ALERT( "Exit:%s success.\n", __func__);
+	dev_info(dev, "probe success");
 	return ret;
 
 DWC_ETH_QOS_err_pcie_probe:
 	DWC_ETH_QOS_free_regs_and_gpios();
-	NMSGPR_ALERT( "Exit:%s.\n", __func__);
+	dev_info(dev, "probe failed");
 	return ret;
 }
 
 static int DWC_ETH_QOS_pcie_remove(struct platform_device *pdev)
 {
 	int ret = 0;
-	NMSGPR_ALERT( "Entry:%s.\n", __func__);
+	DBGPR( "Entry:%s.\n", __func__);
 
 	DWC_ETH_QOS_exit_module();
 
 	DWC_ETH_QOS_free_regs_and_gpios();
 
-	NMSGPR_ALERT( "Exit:%s.\n", __func__);
+	DBGPR( "Exit:%s.\n", __func__);
 	return ret;
 }
 
@@ -362,17 +362,17 @@ static int __init DWC_ETH_QOS_pcie_init(void)
 {
 	int ret = 0;
 
-	NMSGPR_ALERT("Entry:%s.\n", __func__);
+	DBGPR("Entry:%s.\n", __func__);
 	ret = platform_driver_register(&DWC_ETH_QOS_pcie_driver);
-	NMSGPR_ALERT( "Exit:%s.\n", __func__);
+	DBGPR( "Exit:%s.\n", __func__);
 	return ret;
 }
 
 static void __exit DWC_ETH_QOS_pcie_exit(void)
 {
-	NMSGPR_ALERT( "Entry:%s.\n", __func__);
+	DBGPR( "Entry:%s.\n", __func__);
 	platform_driver_unregister(&DWC_ETH_QOS_pcie_driver);
-	NMSGPR_ALERT( "Exit:%s.\n", __func__);
+	DBGPR( "Exit:%s.\n", __func__);
 }
 
 module_init(DWC_ETH_QOS_pcie_init);

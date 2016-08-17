@@ -333,7 +333,7 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	unsigned int reg_val;
 
         if (fw_filename[0] == '\0') {
-                NMSGPR_INFO("Firmware filename not given.\n");
+                NMSGPR_ALERT("Firmware filename not given.\n");
                 return -EINVAL;
         }
 
@@ -364,7 +364,7 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	/* Wait a moment for the Neutrino to boot */
 	msleep(pdata->fw_load_delay);
 
-	NMSGPR_ALERT("Firmware loaded");
+	NMSGPR_INFO("Firmware loaded\n");
 
 	return 0;
 }
@@ -373,7 +373,7 @@ static int DWC_ETH_QOS_panic_notifier(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
 	if (gDWC_ETH_QOS_prv_data) {
-		NMSGPR_ALERT("DWC_ETH_QOS: 0x%pK\n", gDWC_ETH_QOS_prv_data);
+		DBGPR("DWC_ETH_QOS: 0x%pK\n", gDWC_ETH_QOS_prv_data);
 #ifdef DWC_ETH_QOS_ENABLE_IPA
 		update_dma_stats(gDWC_ETH_QOS_prv_data);
 #endif
@@ -729,7 +729,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	pdata = netdev_priv(dev);
 	gDWC_ETH_QOS_prv_data = pdata;
-	pr_info("gDWC_ETH_QOS_prv_data 0x%pK \n", gDWC_ETH_QOS_prv_data);
+	NDBGPR_L1("gDWC_ETH_QOS_prv_data 0x%pK \n", gDWC_ETH_QOS_prv_data);
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 			&DWC_ETH_QOS_panic_blk);
@@ -825,7 +825,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	adrs_to_be_replaced = NTN_PCIE_REGION_MEM_MAP_BASE;
 	adrs_for_replacement = IPA_UC_REG_BASE;
 	NTN_GET_TAMAP_MASK_BITS(NTN_HOST_TAMAP_MEM_LENGTH, no_of_bits);
-	NMSGPR_ALERT("TAMAP %d, adrs_to_be_replaced %llx adrs_for_replacement "
+	NDBGPR_L1("TAMAP %d, adrs_to_be_replaced %llx adrs_for_replacement "
 		"%llx no_of_bits %d \n",tmap_no, adrs_to_be_replaced,
 		adrs_for_replacement, no_of_bits);
 	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
@@ -1175,27 +1175,27 @@ static struct pci_driver DWC_ETH_QOS_pci_driver = {
 
 static void DWC_ETH_QOS_shutdown(struct pci_dev *pdev)
 {
-	NMSGPR_ALERT( "-->DWC_ETH_QOS_shutdown\n");
-	NMSGPR_ALERT( "Handle the shutdown\n");
-	NMSGPR_ALERT( ">--DWC_ETH_QOS_shutdown\n");
+	DBGPR( "-->DWC_ETH_QOS_shutdown\n");
+	DBGPR( "Handle the shutdown\n");
+	DBGPR( ">--DWC_ETH_QOS_shutdown\n");
 
 	return;
 }
 
 static INT DWC_ETH_QOS_suspend_late(struct pci_dev *pdev, pm_message_t state)
 {
-	NMSGPR_ALERT( "-->DWC_ETH_QOS_suspend_late\n");
-	NMSGPR_ALERT( "Handle the suspend_late\n");
-	NMSGPR_ALERT( "<--DWC_ETH_QOS_suspend_late\n");
+	DBGPR( "-->DWC_ETH_QOS_suspend_late\n");
+	DBGPR( "Handle the suspend_late\n");
+	DBGPR( "<--DWC_ETH_QOS_suspend_late\n");
 
 	return 0;
 }
 
 static INT DWC_ETH_QOS_resume_early(struct pci_dev *pdev)
 {
-	NMSGPR_ALERT( "-->DWC_ETH_QOS_resume_early\n");
-	NMSGPR_ALERT( "Handle the resume_early\n");
-	NMSGPR_ALERT( "<--DWC_ETH_QOS_resume_early\n");
+	DBGPR( "-->DWC_ETH_QOS_resume_early\n");
+	DBGPR( "Handle the resume_early\n");
+	DBGPR( "<--DWC_ETH_QOS_resume_early\n");
 
 	return 0;
 }
@@ -1365,7 +1365,7 @@ int DWC_ETH_QOS_init_module(void)
 {
 	INT ret = 0;
 
-	NMSGPR_ALERT( "-->DWC_ETH_QOS_init_module\n");
+	DBGPR( "-->DWC_ETH_QOS_init_module\n");
 
 	ret = pci_register_driver(&DWC_ETH_QOS_pci_driver);
 	if (ret < 0) {
@@ -1373,7 +1373,7 @@ int DWC_ETH_QOS_init_module(void)
 		return ret;
 	}
 
-	NMSGPR_ALERT( "<--DWC_ETH_QOS_init_module\n");
+	DBGPR( "<--DWC_ETH_QOS_init_module\n");
 
 	return ret;
 }
@@ -1388,11 +1388,11 @@ int DWC_ETH_QOS_init_module(void)
 */
 void DWC_ETH_QOS_exit_module(void)
 {
-	NMSGPR_ALERT("-->DWC_ETH_QOS_exit_module\n");
+	DBGPR("-->DWC_ETH_QOS_exit_module\n");
 
 	pci_unregister_driver(&DWC_ETH_QOS_pci_driver);
 
-	NMSGPR_ALERT( "<--DWC_ETH_QOS_exit_module\n");
+	DBGPR( "<--DWC_ETH_QOS_exit_module\n");
 }
 
 /*!

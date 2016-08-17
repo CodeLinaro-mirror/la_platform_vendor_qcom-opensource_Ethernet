@@ -105,7 +105,7 @@
 #define NTN_MAX_MSI         (1)
 
 //Neutrino Debugging
-#define NTN_DEBUG_L1
+//#define NTN_DEBUG_L1
 //#define NTN_DEBUG_L2
 //#define NTN_DEBUG_TS1
 //#define NTN_DEBUG_TS2

@@ -1109,46 +1109,46 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 
 	DBGPR("-->DWC_ETH_QOS_print_all_hw_features\n");
 
-	NMSGPR_ALERT( "\n");
-	NMSGPR_ALERT( "=====================================================/\n");
-	NMSGPR_ALERT( "\n");
-	NMSGPR_ALERT( "10/100 Mbps Support                         : %s\n",
+	DBGPR( "\n");
+	DBGPR( "=====================================================/\n");
+	DBGPR( "\n");
+	DBGPR( "10/100 Mbps Support                         : %s\n",
 		pdata->hw_feat.mii_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "1000 Mbps Support                           : %s\n",
+	DBGPR( "1000 Mbps Support                           : %s\n",
 		pdata->hw_feat.gmii_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "Half-duplex Support                         : %s\n",
+	DBGPR( "Half-duplex Support                         : %s\n",
 		pdata->hw_feat.hd_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "PCS Registers(TBI/SGMII/RTBI PHY interface) : %s\n",
+	DBGPR( "PCS Registers(TBI/SGMII/RTBI PHY interface) : %s\n",
 		pdata->hw_feat.pcs_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "VLAN Hash Filter Selected                   : %s\n",
+	DBGPR( "VLAN Hash Filter Selected                   : %s\n",
 		pdata->hw_feat.vlan_hash_en ? "YES" : "NO");
 	pdata->vlan_hash_filtering = pdata->hw_feat.vlan_hash_en;
-	NMSGPR_ALERT( "SMA (MDIO) Interface                        : %s\n",
+	DBGPR( "SMA (MDIO) Interface                        : %s\n",
 		pdata->hw_feat.sma_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "PMT Remote Wake-up Packet Enable            : %s\n",
+	DBGPR( "PMT Remote Wake-up Packet Enable            : %s\n",
 		pdata->hw_feat.rwk_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "PMT Magic Packet Enable                     : %s\n",
+	DBGPR( "PMT Magic Packet Enable                     : %s\n",
 		pdata->hw_feat.mgk_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "RMON/MMC Module Enable                      : %s\n",
+	DBGPR( "RMON/MMC Module Enable                      : %s\n",
 		pdata->hw_feat.mmc_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "ARP Offload Enabled                         : %s\n",
+	DBGPR( "ARP Offload Enabled                         : %s\n",
 		pdata->hw_feat.arp_offld_en ? "YES" : "NO");
-	NMSGPR_ALERT( "IEEE 1588-2008 Timestamp Enabled            : %s\n",
+	DBGPR( "IEEE 1588-2008 Timestamp Enabled            : %s\n",
 		pdata->hw_feat.ts_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "Energy Efficient Ethernet Enabled           : %s\n",
+	DBGPR( "Energy Efficient Ethernet Enabled           : %s\n",
 		pdata->hw_feat.eee_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "Transmit Checksum Offload Enabled           : %s\n",
+	DBGPR( "Transmit Checksum Offload Enabled           : %s\n",
 		pdata->hw_feat.tx_coe_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "Receive Checksum Offload Enabled            : %s\n",
+	DBGPR( "Receive Checksum Offload Enabled            : %s\n",
 		pdata->hw_feat.rx_coe_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "MAC Addresses 16–31 Selected                : %s\n",
+	DBGPR( "MAC Addresses 16–31 Selected                : %s\n",
 		pdata->hw_feat.mac_addr16_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "MAC Addresses 32–63 Selected                : %s\n",
+	DBGPR( "MAC Addresses 32–63 Selected                : %s\n",
 		pdata->hw_feat.mac_addr32_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "MAC Addresses 64–127 Selected               : %s\n",
+	DBGPR( "MAC Addresses 64–127 Selected               : %s\n",
 		pdata->hw_feat.mac_addr64_sel ? "YES" : "NO");
 #ifdef DWC_ETH_QOS_ENABLE_IPA
-	NMSGPR_ALERT( "IPA Feature Enabled                          : %s\n",
+	DBGPR( "IPA Feature Enabled                          : %s\n",
 		pdata->prv_ipa.ipa_ready ? "YES" : "NO");
 #endif
 	if (pdata->hw_feat.mac_addr64_sel)
@@ -1174,9 +1174,9 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 		str = "BOTH";
 		break;
 	}
-	NMSGPR_ALERT( "Timestamp System Time Source                : %s\n",
+	DBGPR( "Timestamp System Time Source                : %s\n",
 		str);
-	NMSGPR_ALERT( "Source Address or VLAN Insertion Enable     : %s\n",
+	DBGPR( "Source Address or VLAN Insertion Enable     : %s\n",
 		pdata->hw_feat.sa_vlan_ins ? "YES" : "NO");
 
 	switch (pdata->hw_feat.act_phy_sel) {
@@ -1207,7 +1207,7 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 	default:
 		str = "RESERVED";
 	}
-	NMSGPR_ALERT( "Active PHY Selected                         : %s\n",
+	DBGPR( "Active PHY Selected                         : %s\n",
 		str);
 
 	switch(pdata->hw_feat.rx_fifo_size) {
@@ -1250,7 +1250,7 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 	default:
 		str = "RESERVED";
 	}
-	NMSGPR_ALERT( "MTL Receive FIFO Size                       : %s\n",
+	DBGPR( "MTL Receive FIFO Size                       : %s\n",
 		str);
 
 	switch(pdata->hw_feat.tx_fifo_size) {
@@ -1293,21 +1293,21 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 	default:
 		str = "RESERVED";
 	}
-	NMSGPR_ALERT( "MTL Transmit FIFO Size                       : %s\n",
+	DBGPR( "MTL Transmit FIFO Size                       : %s\n",
 		str);
-	NMSGPR_ALERT( "IEEE 1588 High Word Register Enable          : %s\n",
+	DBGPR( "IEEE 1588 High Word Register Enable          : %s\n",
 		pdata->hw_feat.adv_ts_hword ? "YES" : "NO");
-	NMSGPR_ALERT( "DCB Feature Enable                           : %s\n",
+	DBGPR( "DCB Feature Enable                           : %s\n",
 		pdata->hw_feat.dcb_en ? "YES" : "NO");
-	NMSGPR_ALERT( "Split Header Feature Enable                  : %s\n",
+	DBGPR( "Split Header Feature Enable                  : %s\n",
 		pdata->hw_feat.sph_en ? "YES" : "NO");
-	NMSGPR_ALERT( "TCP Segmentation Offload Enable              : %s\n",
+	DBGPR( "TCP Segmentation Offload Enable              : %s\n",
 		pdata->hw_feat.tso_en ? "YES" : "NO");
-	NMSGPR_ALERT( "DMA Debug Registers Enabled                  : %s\n",
+	DBGPR( "DMA Debug Registers Enabled                  : %s\n",
 		pdata->hw_feat.dma_debug_gen ? "YES" : "NO");
-	NMSGPR_ALERT( "AV Feature Enabled                           : %s\n",
+	DBGPR( "AV Feature Enabled                           : %s\n",
 		pdata->hw_feat.av_sel ? "YES" : "NO");
-	NMSGPR_ALERT( "Low Power Mode Enabled                       : %s\n",
+	DBGPR( "Low Power Mode Enabled                       : %s\n",
 		pdata->hw_feat.lp_mode_en ? "YES" : "NO");
 
 	switch(pdata->hw_feat.hash_tbl_sz) {
@@ -1320,17 +1320,17 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 		pdata->max_hash_table_size = 0;
 		break;
 	}
-	NMSGPR_ALERT( "Hash Table Size                              : %s\n",
+	DBGPR( "Hash Table Size                              : %s\n",
 		str);
-	NMSGPR_ALERT( "Total number of L3 or L4 Filters             : %d L3/L4 Filter\n",
+	DBGPR( "Total number of L3 or L4 Filters             : %d L3/L4 Filter\n",
 		pdata->hw_feat.l3l4_filter_num);
-	NMSGPR_ALERT( "Number of MTL Receive Queues                 : %d\n",
+	DBGPR( "Number of MTL Receive Queues                 : %d\n",
 		(pdata->hw_feat.rx_q_cnt + 1));
-	NMSGPR_ALERT( "Number of MTL Transmit Queues                : %d\n",
+	DBGPR( "Number of MTL Transmit Queues                : %d\n",
 		(pdata->hw_feat.tx_q_cnt + 1));
-	NMSGPR_ALERT( "Number of DMA Receive Channels               : %d\n",
+	DBGPR( "Number of DMA Receive Channels               : %d\n",
 		(pdata->hw_feat.rx_ch_cnt + 1));
-	NMSGPR_ALERT( "Number of DMA Transmit Channels              : %d\n",
+	DBGPR( "Number of DMA Transmit Channels              : %d\n",
 		(pdata->hw_feat.tx_ch_cnt + 1));
 
 	switch(pdata->hw_feat.pps_out_num) {
@@ -1352,7 +1352,7 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 	default:
 		str = "RESERVED";
 	}
-	NMSGPR_ALERT( "Number of PPS Outputs                        : %s\n",
+	DBGPR( "Number of PPS Outputs                        : %s\n",
 		str);
 
 	switch(pdata->hw_feat.aux_snap_num) {
@@ -1374,11 +1374,11 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 	default:
 		str = "RESERVED";
 	}
-	NMSGPR_ALERT( "Number of Auxiliary Snapshot Inputs          : %s",
+	DBGPR( "Number of Auxiliary Snapshot Inputs          : %s",
 		str);
 
-	NMSGPR_ALERT( "\n");
-	NMSGPR_ALERT( "=====================================================/\n");
+	DBGPR( "\n");
+	DBGPR( "=====================================================/\n");
 
 	DBGPR("<--DWC_ETH_QOS_print_all_hw_features\n");
 }
@@ -1821,7 +1821,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		NMSGPR_ERR("IPA Offload Init Failed \n");
 		return  ret;
 	}
-	NMSGPR_ALERT("IPA Offload Initialized Successfully \n");
+	NDBGPR_L1("IPA Offload Initialized Successfully \n");
 	pdata->prv_ipa.ipa_offload_init = true;
 
 	ret = DWC_ETH_QOS_ipa_offload_connect(pdata);
@@ -1829,7 +1829,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		NMSGPR_ERR("IPA Offload Connect Failed \n");
 		pdata->prv_ipa.ipa_offload_ready = false;
 	}
-	NMSGPR_ALERT("IPA Offload Connect Successfully\n");
+	NMSGPR_INFO("IPA Offload Connect Successfully\n");
 	pdata->prv_ipa.ipa_offload_ready = true;
 
 	/*Initialize DMA CHs for offload*/
@@ -1840,7 +1840,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	}
 
 	if (!DWC_ETH_QOS_ipa_create_debugfs(pdata))
-		NMSGPR_ALERT("NTN Debugfs created  \n");
+		NDBGPR_L1("NTN Debugfs created  \n");
 	else
 		NMSGPR_ALERT("NTN Debugfs failed \n");
 #endif
@@ -1907,7 +1907,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 			return ret;
 		}
 		pdata->prv_ipa.ipa_offload_ready = false;
-		NMSGPR_ALERT("IPA Offload Disconnect Successfully \n");
+		NMSGPR_INFO("IPA Offload Disconnect Successfully \n");
 	}
 
 	if (pdata->prv_ipa.ipa_offload_init) {
@@ -1916,7 +1916,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 			NMSGPR_ALERT("IPA Offload Cleanup Failed, err: %d\n", ret);
 			return ret;
 		}
-		NMSGPR_ALERT("IPA Offload Cleanup Success \n");
+		NMSGPR_INFO("IPA Offload Cleanup Success \n");
 		pdata->prv_ipa.ipa_offload_init = false;
 	}
 
@@ -2298,7 +2298,7 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if ((pdata->eee_enabled) && (pdata->tx_path_in_lpi_mode) &&
 		(!pdata->use_lpi_tx_automate)){
-		NMSGPR_ALERT( "DWC_ETH_QOS_disable_eee_mode for chInx = %d\n", chInx);
+		DBGPR( "DWC_ETH_QOS_disable_eee_mode for chInx = %d\n", chInx);
 		DWC_ETH_QOS_disable_eee_mode(pdata);
 	}
 
