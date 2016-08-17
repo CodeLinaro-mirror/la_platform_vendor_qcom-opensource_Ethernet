@@ -1688,6 +1688,19 @@ struct DWC_ETH_QOS_prv_data {
 #endif
 };
 
+struct DWC_ETH_QOS_plt_data {
+	struct platform_device *pldev;
+	int resx_gpio_num;
+	int supply_gpio_num;
+	struct regulator *ntn_reg_hsic;
+	struct regulator *ntn_reg_pci;
+	struct regulator *ntn_reg_io;
+	struct regulator *ntn_reg_core;
+	struct regulator *ntn_reg_phy;
+	unsigned int ntn_rst_delay;
+	unsigned int rc_num;
+};
+
 typedef enum {
 	eSAVE,
 	eRESTORE
