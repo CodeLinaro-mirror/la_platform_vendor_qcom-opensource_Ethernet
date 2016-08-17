@@ -4260,8 +4260,8 @@ static int DWC_ETH_QOS_config_pfc(struct net_device *dev,
  *     	req->flags = 3: PCIe config Register Write
  *
  *		req->bar_num = 0: Use BAR0 for Register access
- *		req->bar_num = 1: Use BAR1 for SRAM access
- *		req->bar_num = 2: Use BAR2 for Flash access
+ *		req->bar_num = 2: Use BAR2 for SRAM access
+ *		req->bar_num = 4: Use BAR4 for Flash access
  *
  *	req->adrs : register address
  *	req->ptr : pointer to data

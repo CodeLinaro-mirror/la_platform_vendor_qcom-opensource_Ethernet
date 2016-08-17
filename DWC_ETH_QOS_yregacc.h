@@ -139,6 +139,12 @@
 #define  M3STAT_BASE_ADDRESS        (NTN_SRAM_BASE_ADRS + M3_SRAM_DEBUG_OFFSET)
 #define  DMA_TX_CH_PHY_BASE_ADDRESS (NTN_REG_PHY_BASE_ADRS + WRAPPER_DMA_TX_CH_OFFSET)
 #define  DMA_RX_CH_PHY_BASE_ADDRESS (NTN_REG_PHY_BASE_ADRS + WRAPPER_DMA_RX_CH_OFFSET)
+
+#define NTN_M3_DBG_CNT_START   0x0000C800
+#define NTN_M3_DBG_DMA_TXCH2_DB_OFST  (2 * 4)
+#define NTN_M3_DBG_DMA_RXCH0_DB_OFST  (6 * 4)
+#define NTN_M3_DBG_RSVD_OFST   (4*14)
+#define PCIE_SRAM_BAR_NUM 2
 /******************************************************************************/
 
 /* virtual_registers Low Bit Macro Name's */

@@ -82,6 +82,7 @@
  */
 #include <linux/firmware.h>
 #include "DWC_ETH_QOS_yheader.h"
+#include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
 
 #ifdef DWC_ETH_QOS_ENABLE_IPA
@@ -410,7 +411,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	struct hw_if_struct *hw_if = NULL;
 	struct desc_if_struct *desc_if = NULL;
 	UCHAR tx_q_count = 0, rx_q_count = 0;
-	unsigned int reg_val;
+	unsigned int reg_val, fw_ver_cap=0;
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
 	ULONG phy_mem_adrs;
 #endif
@@ -666,6 +667,13 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
         NDBGPR_L1( "Allocated IRQ Number = %d\n", dev->irq);
 
 	DWC_ETH_QOS_load_fw(pdev);
+
+	fw_ver_cap =
+	   hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+						 PCIE_SRAM_BAR_NUM);
+	NMSGPR_INFO("DBG Resvd area: 0x%x\n", fw_ver_cap);
+	NMSGPR_INFO("NTN FW Version: %d.%d\n", (fw_ver_cap >> 12),
+				((fw_ver_cap >> 8) & 0xF));
 
 	DWC_ETH_QOS_get_all_hw_features(pdata);
 	DWC_ETH_QOS_print_all_hw_features(pdata);

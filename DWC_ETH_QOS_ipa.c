@@ -424,7 +424,8 @@ void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata)
 		virt_to_phys(GET_RX_BUFF_POOL_BASE_ADRR(NTN_RX_DMA_CH_0));
 	dma_stats->RX0_Buff_Ring_Size = RX_DESC_CNT - 1;
 	dma_stats->RX0_Db_Int_Raised =
-		hw_if->ntn_reg_rd((NTN_DBG_START_ADDRESS + 0x18), 2);
+		hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_DMA_RXCH0_DB_OFST),
+						 PCIE_SRAM_BAR_NUM);
 
 	DMA_RXCH_CUR_DESC_RgRd(NTN_RX_DMA_CH_0, data);
 	dma_stats->RX0_Cur_Desc_Ptr_Indx = GET_RX_DESC_IDX(NTN_RX_DMA_CH_0, data);
@@ -457,7 +458,8 @@ void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata)
 		virt_to_phys(GET_TX_BUFF_DMA_POOL_BASE_ADRR(NTN_TX_DMA_CH_2));
 	dma_stats->TX2_Buff_Ring_Size = TX_DESC_CNT - 1;
 	dma_stats->TX2_Db_Int_Raised =
-		hw_if->ntn_reg_rd((NTN_DBG_START_ADDRESS + 0x8), 2);
+		hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_DMA_TXCH2_DB_OFST),
+						  PCIE_SRAM_BAR_NUM);
 	DMA_TXCH_CUR_DESC_RgRd(NTN_TX_DMA_CH_2, data);
 	dma_stats->TX2_Curr_Desc_Ptr_Indx = GET_TX_DESC_IDX(NTN_TX_DMA_CH_2, data);
 	DMA_TXCH_DESC_TAILPTR_RgRd(NTN_TX_DMA_CH_2, data);
@@ -583,6 +585,8 @@ static ssize_t read_ntn_dma_stats(struct file *file,
 		"TX Tail Pointer Index: ", dma_stats->TX2_Tail_Ptr_Indx);
 	len += scnprintf(buf + len, buf_len - len, "%-50s 0x%x\n",
 		"TX Doorbell Address: ", ntn_ipa->uc_db_tx_addr);
+	len += scnprintf(buf + len, buf_len - len, "\n");
+
 	len += scnprintf(buf + len, buf_len - len, "%-50s 0x%x\n",
 		"TX DMA Status: ", dma_stats->TX2_DMA_Status);
 
@@ -598,6 +602,7 @@ static ssize_t read_ntn_dma_stats(struct file *file,
 	len += scnprintf(buf + len, buf_len - len, "%-50s %10s\n",
 		"TX DMA Status - TX DMA Transfer Complete : ",
 				bit_status_string[dma_stats->TX2_DMA_Transfer_complete]);
+	len += scnprintf(buf + len, buf_len - len, "\n");
 
 	len += scnprintf(buf + len, buf_len - len, "%-50s 0x%x\n",
 		"TX DMA CH2 INT Mask: ", dma_stats->TX2_Int_Mask);
