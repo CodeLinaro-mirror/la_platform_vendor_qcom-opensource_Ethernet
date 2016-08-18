@@ -1815,34 +1815,9 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	if (!pdata->prv_ipa.ipa_ready)
 		return ret;
 
-	ret = DWC_ETH_QOS_ipa_offload_init(pdata);
-	if (ret) {
-		pdata->prv_ipa.ipa_offload_init = false;
-		NMSGPR_ERR("IPA Offload Init Failed \n");
-		return  ret;
-	}
-	NDBGPR_L1("IPA Offload Initialized Successfully \n");
-	pdata->prv_ipa.ipa_offload_init = true;
-
-	ret = DWC_ETH_QOS_ipa_offload_connect(pdata);
-	if (ret) {
-		NMSGPR_ERR("IPA Offload Connect Failed \n");
-		pdata->prv_ipa.ipa_offload_ready = false;
-	}
-	NMSGPR_INFO("IPA Offload Connect Successfully\n");
-	pdata->prv_ipa.ipa_offload_ready = true;
-
-	/*Initialize DMA CHs for offload*/
-	ret = hw_if->init_offload(pdata);
-	if(ret) {
-		NMSGPR_ERR("Offload channel Init Failed \n");
+	ret = DWC_ETH_QOS_enable_ipa_offload(pdata);
+	if (ret)
 		return ret;
-	}
-
-	if (!DWC_ETH_QOS_ipa_create_debugfs(pdata))
-		NDBGPR_L1("NTN Debugfs created  \n");
-	else
-		NMSGPR_ALERT("NTN Debugfs failed \n");
 #endif
 
 #ifdef NTN_POLLING_METHOD
@@ -1899,32 +1874,9 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	DWC_ETH_QOS_all_ch_napi_disable(pdata);
 
 #ifdef DWC_ETH_QOS_ENABLE_IPA
-	/* De-configure IPA Related Stuff */
-	if (pdata->prv_ipa.ipa_offload_ready) {
-		ret = DWC_ETH_QOS_ipa_offload_disconnect(pdata);
-		if (ret) {
-			NMSGPR_ERR("IPA Offload Disconnect Failed, err:%d\n", ret);
-			return ret;
-		}
-		pdata->prv_ipa.ipa_offload_ready = false;
-		NMSGPR_INFO("IPA Offload Disconnect Successfully \n");
-	}
-
-	if (pdata->prv_ipa.ipa_offload_init) {
-		ret = DWC_ETH_QOS_ipa_offload_cleanup(pdata);
-		if (ret) {
-			NMSGPR_ALERT("IPA Offload Cleanup Failed, err: %d\n", ret);
-			return ret;
-		}
-		NMSGPR_INFO("IPA Offload Cleanup Success \n");
-		pdata->prv_ipa.ipa_offload_init = false;
-	}
-
-	ret = DWC_ETH_QOS_ipa_cleanup_debugfs(pdata);
-	if (ret) {
-		NMSGPR_ERR("Unable to delete IPA debugfs\n");
+	ret = DWC_ETH_QOS_disable_ipa_offload(pdata);
+	if (ret)
 		return ret;
-	}
 #endif
 	/* issue software reset to device */
 	hw_if->exit();
