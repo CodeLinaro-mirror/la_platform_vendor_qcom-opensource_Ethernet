@@ -84,6 +84,9 @@
 #define __DWC_ETH_QOS__YHEADER__
 /****************************** Includes ******************************/
 #include <linux/device.h>
+#ifdef CONFIG_PCI_MSM
+#include <linux/msm_pcie.h>
+#endif
 #ifdef DESC_SRAM_BUF_SRAM
 #include <linux/dmapool.h>
 #endif
@@ -102,7 +105,7 @@
 #define NTN_MAX_MSI         (1)
 
 //Neutrino Debugging
-#define NTN_DEBUG_L1
+//#define NTN_DEBUG_L1
 //#define NTN_DEBUG_L2
 //#define NTN_DEBUG_TS1
 //#define NTN_DEBUG_TS2
@@ -1024,6 +1027,10 @@ struct hw_if_struct {
 	INT(*ntn_set_tx_clk_125MHz)(void);
 	INT(*ntn_set_tx_clk_25MHz)(void);
 	INT(*ntn_set_tx_clk_2_5MHz)(void);
+
+	/* Read host initiated boot option */
+	UINT(*ntn_boot_host_initiated)(void);
+	UINT(*ntn_boot_from_flash_done)(void);
 };
 
 /* wrapper buffer structure to hold transmit pkt details */
@@ -1673,6 +1680,34 @@ struct DWC_ETH_QOS_prv_data {
 
 	struct DWC_ETH_QOS_avb_algorithm_params cbsSpeed100Cfg[2];
 	struct DWC_ETH_QOS_avb_algorithm_params cbsSpeed1000Cfg[2];
+
+#ifdef CONFIG_PCI_MSM
+	/* PCIe link recovery */
+	struct msm_pcie_register_event msm_pci_event;
+	struct work_struct pci_recovery_work;
+#endif
+
+	/* Delay before de-asserting M3 reset after FW load */
+	unsigned int fw_load_delay;
+
+	/* Used for hardware where the PCIe reset and RESX lines are merged */
+	bool pcierst_resx;
+
+	/* Decide if PHY is enabled or not */
+	bool enable_phy;
+};
+
+struct DWC_ETH_QOS_plt_data {
+	struct platform_device *pldev;
+	int resx_gpio_num;
+	int supply_gpio_num;
+	struct regulator *ntn_reg_hsic;
+	struct regulator *ntn_reg_pci;
+	struct regulator *ntn_reg_io;
+	struct regulator *ntn_reg_core;
+	struct regulator *ntn_reg_phy;
+	unsigned int ntn_rst_delay;
+	unsigned int rc_num;
 };
 
 typedef enum {
