@@ -1124,7 +1124,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 	DBGPR("-->DWC_ETH_QOS_map_page_buffs\n");
 
 	if (size > DWC_ETH_QOS_MAX_DATA_PER_TX_BUF) {
-		if (!prev_buffer->dma2) {
+		if (prev_buffer && !prev_buffer->dma2) {
 			DBGPR("prev_buffer->dma2 is empty\n");
 			/* fill the first buffer pointer in pre_buffer->dma2 */
             NMSGPR_ERR("dma_map_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
@@ -1190,7 +1190,7 @@ static int DWC_ETH_QOS_map_page_buffs(struct DWC_ETH_QOS_prv_data *pdata,
 			buffer->buf2_mapped_as_page = Y_TRUE;
 		}
 	} else {
-		if (!prev_buffer->dma2) {
+		if (prev_buffer && !prev_buffer->dma2) {
 			DBGPR("prev_buffer->dma2 is empty\n");
 			/* fill the first buffer pointer in pre_buffer->dma2 */
             NMSGPR_ERR("dma_map_page: %s: %s: %d\n", __FILE__, __FUNCTION__, __LINE__);
