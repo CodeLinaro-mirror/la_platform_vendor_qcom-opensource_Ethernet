@@ -526,6 +526,25 @@ static void DWC_ETH_QOS_pci_event_register(struct pci_dev *pdev)
 }
 
 /*!
+* \brief Deregister for PCI link status change events
+*
+* \param[in] pdev - the PCIe device
+*
+* \return None
+*/
+static void DWC_ETH_QOS_pci_event_deregister(struct pci_dev *pdev)
+{
+	int ret;
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+
+	ret = msm_pcie_deregister_event(&pdata->msm_pci_event);
+	if (ret) {
+		NMSGPR_ALERT("%s: PCIe event deregister failed! %d\n", __func__, ret);
+	}
+}
+
+/*!
 * \brief Save the PCI link status and suspend it on module exit
 *
 * \details Save the state of the PCI link so that it can be recovered when the
@@ -556,6 +575,11 @@ static int DWC_ETH_QOS_pci_resume(struct pci_dev *pdev)
 static void DWC_ETH_QOS_pci_event_register(struct pci_dev *pdev)
 {
 	return;
+}
+
+static void DWC_ETH_QOS_pci_event_deregister(struct pci_dev *pdev)
+{
+	return 0;
 }
 
 static void DWC_ETH_QOS_pci_suspend(struct pci_dev *pdev)
@@ -1043,6 +1067,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
  err_coherent_mem_declaration:
 #endif
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &DWC_ETH_QOS_panic_blk);
     /* issue clock disable to GMAC device */
     hw_if->ntn_mac_clock_config(0x0);
 
@@ -1128,6 +1154,9 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	desc_if->free_queue_struct(pdata);
 
 	free_netdev(dev);
+
+	/* Deregister from PCI link events */
+	DWC_ETH_QOS_pci_event_deregister(pdev);
 
 	/* Save the PCI link status and suspend it */
 	DWC_ETH_QOS_pci_suspend(pdev);
