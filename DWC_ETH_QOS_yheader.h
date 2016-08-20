@@ -139,8 +139,6 @@
 #define NTN_TX_PKT_VLAN_NOT_AVB		(NTN_TX_DMA_CH_0)
 #define NTN_TX_PKT_M3			(NTN_TX_DMA_CH_1)
 #ifdef DWC_ETH_QOS_ENABLE_IPA
-/* Currently all the Neturino Debug register start a location 0xC800 */
-#define NTN_DBG_START_ADDRESS   0xc800
 #define NTN_TX_PKT_HOST			(NTN_TX_DMA_CH_0) /*Use TX DMA Channel 0 for Embedded TX traffic */
 #else                                                     /*and avoid TX CHannel 2 which is used for IPA only*/
 #define NTN_TX_PKT_HOST			(NTN_TX_DMA_CH_2)
