@@ -1313,6 +1313,9 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 		pmt_flags |= DWC_ETH_QOS_MAGIC_WAKEUP;
 
 	ret = DWC_ETH_QOS_powerdown(dev, pmt_flags, DWC_ETH_QOS_DRIVER_CONTEXT);
+#ifdef CONFIG_PCI_MSM
+	msm_pcie_shadow_control(pdev, false);
+#endif
 	pci_save_state(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
@@ -1363,6 +1366,9 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+#ifdef CONFIG_PCI_MSM
+	msm_pcie_shadow_control(pdev, true);
+#endif
 
 	/* Recover NTN in case whole chip was in reset */
 	if (pdata->pcierst_resx) {
