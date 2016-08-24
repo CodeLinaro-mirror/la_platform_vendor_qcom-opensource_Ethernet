@@ -129,7 +129,6 @@ module_param_array(q_op_mode, int, NULL, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(q_op_mode,
 	"MTL queue operation mode [0-DISABLED, 1-AVB, 2-DCB, 3-GENERIC]");
 
-
 #ifdef NTN_POLLING_METHOD
 static void polling_task(void)
 {
@@ -1768,9 +1767,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	int ret = Y_SUCCESS;
 	struct desc_if_struct *desc_if = &pdata->desc_if;
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 	struct hw_if_struct *hw_if = &pdata->hw_if;
-#endif
 
 	DBGPR("-->DWC_ETH_QOS_open\n");
 
@@ -1826,6 +1823,8 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	NMSGPR_INFO("Jiffies : %ld\n", usecs_to_jiffies(NTN_POLL_DELAY_US));
 	schedule_delayed_work(&task, usecs_to_jiffies(NTN_POLL_DELAY_US));
 #endif //NTN_POLLING_METHOD
+
+	hw_if->ntn_wrap_ts_valid_window_config(pdata->ntn_timestamp_valid_window);
 
 	DBGPR("<--DWC_ETH_QOS_open\n");
 

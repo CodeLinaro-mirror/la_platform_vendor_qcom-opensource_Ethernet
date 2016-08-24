@@ -1021,6 +1021,7 @@ struct hw_if_struct {
 	    void (*ntn_reg_wr)(UINT, UINT, INT);
 	/* Neutrino Wrapper Timestamp Ignore logic enable disable*/
 	INT(*ntn_wrap_ts_ignore_config)(UINT);
+	INT(*ntn_wrap_ts_valid_window_config)(UINT);
 	/* Set TX CLK for EMAC based on negotiated speed */
 	INT(*ntn_set_tx_clk_125MHz)(void);
 	INT(*ntn_set_tx_clk_25MHz)(void);
@@ -1693,6 +1694,10 @@ struct DWC_ETH_QOS_prv_data {
 
 	/* Decide if PHY is enabled or not */
 	bool enable_phy;
+
+	/* Timestamp valid window. AVTP packets are held
+	 * if the timestamp is within the window */
+	unsigned int ntn_timestamp_valid_window;
 };
 
 struct DWC_ETH_QOS_plt_data {
