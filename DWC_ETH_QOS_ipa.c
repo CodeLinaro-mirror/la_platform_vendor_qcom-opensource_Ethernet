@@ -50,6 +50,105 @@ static const char *bit_mask_string[] = {
 
 #define IPA_ETH_RX_SOFTIRQ_THRESH	16
 
+int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int ret;
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	unsigned int reg_val = 0;
+
+	reg_val =
+	   hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+						 PCIE_SRAM_BAR_NUM);
+	reg_val = (reg_val | IPA_ENABLE_OFFLOAD_MASK);
+	hw_if->ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+				reg_val, PCIE_SRAM_BAR_NUM);
+	NDBGPR_L1("Enabled FW ipa offload, 0x%x\n", reg_val);
+
+	ret = DWC_ETH_QOS_ipa_offload_init(pdata);
+	if (ret) {
+		pdata->prv_ipa.ipa_offload_init = false;
+		NMSGPR_ERR("IPA Offload Init Failed \n");
+		goto fail;
+	}
+	NDBGPR_L1("IPA Offload Initialized Successfully \n");
+	pdata->prv_ipa.ipa_offload_init = true;
+
+	ret = DWC_ETH_QOS_ipa_offload_connect(pdata);
+	if (ret) {
+		NMSGPR_ERR("IPA Offload Connect Failed \n");
+		pdata->prv_ipa.ipa_offload_ready = false;
+		goto fail;
+	}
+	NDBGPR_L1("IPA Offload Connect Successfully\n");
+	pdata->prv_ipa.ipa_offload_ready = true;
+
+	/*Initialize DMA CHs for offload*/
+	ret = hw_if->init_offload(pdata);
+	if (ret) {
+		NMSGPR_ERR("Offload channel Init Failed \n");
+		goto fail;
+	}
+
+	if (!DWC_ETH_QOS_ipa_create_debugfs(pdata))
+		NDBGPR_L1("NTN Debugfs created  \n");
+	else
+		NMSGPR_ERR("NTN Debugfs failed \n");
+
+	NMSGPR_INFO("IPA Offload Enabled successfully\n");
+	return ret;
+
+fail:
+	pdata->prv_ipa.ipa_offload_ready = false;
+	reg_val = reg_val & IPA_DISABLE_OFFLOAD_MASK;
+	hw_if->ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+			reg_val, PCIE_SRAM_BAR_NUM);
+
+	NDBGPR_L1("Disabled FW ipa offload, 0x%x\n", reg_val);
+	return ret;
+}
+
+int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int ret;
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	unsigned int reg_val = 0;
+
+	/* De-configure IPA Related Stuff */
+	if (pdata->prv_ipa.ipa_offload_ready) {
+		ret = DWC_ETH_QOS_ipa_offload_disconnect(pdata);
+		if (ret) {
+			NMSGPR_ERR("IPA Offload Disconnect Failed, err:%d\n", ret);
+			return ret;
+		}
+		pdata->prv_ipa.ipa_offload_ready = false;
+		NDBGPR_L1("IPA Offload Disconnect Successfully \n");
+	}
+
+	if (pdata->prv_ipa.ipa_offload_init) {
+		ret = DWC_ETH_QOS_ipa_offload_cleanup(pdata);
+		if (ret) {
+			NMSGPR_ERR("IPA Offload Cleanup Failed, err: %d\n", ret);
+			return ret;
+		}
+		NDBGPR_L1("IPA Offload Cleanup Success \n");
+		pdata->prv_ipa.ipa_offload_init = false;
+	}
+	NMSGPR_INFO("IPA Offload Disabled successfully\n");
+
+	if(DWC_ETH_QOS_ipa_cleanup_debugfs(pdata))
+		NMSGPR_ERR("Unable to delete IPA debugfs\n");
+
+	reg_val =
+	   hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+						 PCIE_SRAM_BAR_NUM);
+	reg_val = (reg_val & IPA_DISABLE_OFFLOAD_MASK);
+	hw_if->ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+				reg_val, PCIE_SRAM_BAR_NUM);
+	NDBGPR_L1("Disabled FW ipa offload, 0x%x\n", reg_val);
+
+	return ret;
+}
+
 /**
  * DWC_ETH_QOS_ipa_ready_cb() - Callback register with IPA to indicate
  * if IPA (and IPA uC) is ready to receive configuration commands.
@@ -62,40 +161,18 @@ void DWC_ETH_QOS_ipa_ready_cb(void *user_data)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = (struct DWC_ETH_QOS_prv_data *)user_data;
 	struct DWC_ETH_QOS_prv_ipa_data *ntn_ipa = &pdata->prv_ipa;
-	struct hw_if_struct *hw_if = &pdata->hw_if;
 
 	if(!pdata) {
-		NMSGPR_ALERT( "Null Param %s pdata %p \n", __func__, pdata);
+		NMSGPR_ERR("%s Null Param pdata %p \n", __func__, pdata);
 		return;
 	}
 
-	NMSGPR_INFO("Received IPA ready callback %s \n",__func__);
-
+	NDBGPR_L1("%s Received IPA ready callback\n",__func__);
 	pdata->prv_ipa.ipa_ready = true;
 
 	/* Dev is ready to configure offload data path*/
-	if (ntn_ipa->is_dev_ready) {
-		if (!DWC_ETH_QOS_ipa_offload_init(pdata)) {
-			NMSGPR_ALERT("IPA Offload Initialized Successfully \n");
-			pdata->prv_ipa.ipa_offload_init = true;
-			if (!DWC_ETH_QOS_ipa_offload_connect(pdata)) {
-				NMSGPR_ALERT("IPA Offload Connect Successfully\n");
-				pdata->prv_ipa.ipa_offload_ready = true;
-				/*Initialize DMA CHs for offload*/
-				hw_if->init_offload(pdata);
-			} else {
-				NMSGPR_ERR("IPA Offload Connect Failed \n");
-				pdata->prv_ipa.ipa_offload_ready = false;
-			}
-		} else {
-			NMSGPR_ERR("IPA Offload Init Failed \n");
-			pdata->prv_ipa.ipa_offload_init = false;
-		}
-		if (!DWC_ETH_QOS_ipa_create_debugfs(pdata))
-			NMSGPR_ALERT("NTN Debugfs created  \n");
-		else
-			NMSGPR_ALERT("NTN Debugfs failed \n");
-	}
+	if (ntn_ipa->is_dev_ready)
+		DWC_ETH_QOS_enable_ipa_offload(pdata);
 
 	return;
 }
@@ -117,7 +194,7 @@ static void ntn_ipa_notify_cb(void *priv, enum ipa_dp_evt_type evt,
 	struct iphdr *ip_hdr = NULL;
 
 	if(!pdata || !skb) {
-		NMSGPR_ALERT( "Null Param %s pdata %p skb %p \n", __func__, pdata, skb);
+		NMSGPR_ERR("Null Param %s pdata %p skb %p \n", __func__, pdata, skb);
 		return;
 	}
 
@@ -130,7 +207,7 @@ static void ntn_ipa_notify_cb(void *priv, enum ipa_dp_evt_type evt,
 	NDBGPR_L2("%s %d EVT Rcvd %d \n", __func__, __LINE__, evt);
 
 	if (!ntn_ipa->ipa_offload_ready) {
-		NMSGPR_ALERT( "ipa_cb before offload is ready %s ipa_offload_ready %d  \n", __func__, ntn_ipa->ipa_offload_ready);
+		NMSGPR_ERR("ipa_cb before offload is ready %s ipa_offload_ready %d  \n", __func__, ntn_ipa->ipa_offload_ready);
 		return;
 	}
 
@@ -158,7 +235,7 @@ static void ntn_ipa_notify_cb(void *priv, enum ipa_dp_evt_type evt,
 		pdata->dev->stats.rx_packets++;
 		pdata->dev->stats.rx_bytes += skb->len;
 	} else {
-		NMSGPR_ALERT("Unhandled Evt %d ",evt);
+		NMSGPR_ERR("Unhandled Evt %d ",evt);
 		dev_kfree_skb_any(skb);
 		pdata->dev->stats.tx_dropped++;
 	}
@@ -234,7 +311,7 @@ int DWC_ETH_QOS_ipa_offload_cleanup(struct DWC_ETH_QOS_prv_data *pdata)
 	int ret = 0;
 
 	if(!pdata) {
-		NMSGPR_ALERT( "Null Param %s \n", __func__);
+		NMSGPR_ERR( "Null Param %s \n", __func__);
 		return -1;
 	}
 
@@ -357,7 +434,7 @@ int DWC_ETH_QOS_ipa_offload_disconnect(struct DWC_ETH_QOS_prv_data *pdata)
 	int ret = 0;
 
 	if(!pdata) {
-		NMSGPR_ALERT( "Null Param %s \n", __func__);
+		NMSGPR_ERR( "Null Param %s \n", __func__);
 		return -1;
 	}
 
@@ -709,6 +786,6 @@ int DWC_ETH_QOS_ipa_cleanup_debugfs(struct DWC_ETH_QOS_prv_data *pdata)
 	if (ntn_ipa->debugfs_dir)
 		debugfs_remove_recursive(ntn_ipa->debugfs_dir);
 
-	NMSGPR_ALERT("IPA debugfs Deleted Successfully \n");
+	NDBGPR_L1("IPA debugfs Deleted Successfully \n");
 	return 0;
 }

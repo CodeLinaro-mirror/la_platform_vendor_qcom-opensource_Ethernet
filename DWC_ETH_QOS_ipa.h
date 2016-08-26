@@ -23,6 +23,9 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 
+#define IPA_ENABLE_OFFLOAD_MASK 0x1
+#define IPA_DISABLE_OFFLOAD_MASK 0xFFFFFFFE
+
 extern ULONG dwc_eth_ntn_reg_pci_base_addr;
 extern ULONG dwc_eth_ntn_reg_pci_base_addr_phy;
 extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;
@@ -31,6 +34,9 @@ extern ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
 
 /* IPA Ready client callback. Called by IPA when its ready */
 void DWC_ETH_QOS_ipa_ready_cb(void *user_data);
+
+int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata);
+int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata);
 
 /* Initialize Offload data path and add partial headers */
 int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata);
