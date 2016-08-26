@@ -1007,17 +1007,33 @@ static INT config_sub_second_increment(ULONG ptp_clock)
 
 static ULONG_LONG get_systime(void)
 {
-  ULONG_LONG ns;
+  ULONG ns1, ns2;
   ULONG varmac_stnsr;
   ULONG varmac_stsr;
 
+  /* Read the nanoseconds once */
   MAC_STNSR_RgRd(varmac_stnsr);
-  ns = GET_VALUE(varmac_stnsr, MAC_STNSR_TSSS_LPOS, MAC_STNSR_TSSS_HPOS);
-  /* convert sec/high time value to nanosecond */
-  MAC_STSR_RgRd(varmac_stsr);
-  ns = ns + (varmac_stsr * 1000000000ull);
+  ns1 = GET_VALUE(varmac_stnsr, MAC_STNSR_TSSS_LPOS, MAC_STNSR_TSSS_HPOS);
 
-  return ns;
+  while (1) {
+    /* Read the seconds */
+    MAC_STSR_RgRd(varmac_stsr);
+
+    /* Read the nanoseconds again */
+    MAC_STNSR_RgRd(varmac_stnsr);
+    ns2 = GET_VALUE(varmac_stnsr, MAC_STNSR_TSSS_LPOS, MAC_STNSR_TSSS_HPOS);
+
+    /* If the nanoseconds didn't roll over, break and return the time */
+    if (ns2 > ns1) {
+      break;
+    }
+
+    /* If the nanoseconds did roll over, read the time again */
+    ns1 = ns2;
+  }
+
+  /* convert sec/high time value to nanosecond */
+  return ((ULONG_LONG) ns2) + (varmac_stsr * 1000000000ull);
 }
 
 
