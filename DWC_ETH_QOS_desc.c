@@ -429,7 +429,7 @@ static void DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q(
 
 #ifdef	DWC_ETH_QOS_ENABLE_IPA
 	/* Allocate TX Buffer Pool Structure */
-	if (chInx == NTN_TX_DMA_CH_2) {
+	if (chInx == NTN_TX_DMA_CH_2 && !GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx)) {
 		GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) =
 			kzalloc(sizeof(dma_addr_t) * TX_DESC_CNT, GFP_KERNEL);
 		if (GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) == NULL)
@@ -450,13 +450,13 @@ static void DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q(
 #ifdef DWC_ETH_QOS_ENABLE_IPA
 	        /* Create a memory pool for TX offload path */
 	        /* Currently only CH2 is supported */
-		if (chInx == NTN_TX_DMA_CH_2) {
+		if (chInx == NTN_TX_DMA_CH_2 && !GET_TX_BUFF_LOGICAL_ADDR(chInx, i)) {
 			skb = __netdev_alloc_skb_ip_align(pdata->dev, DWC_ETH_QOS_ETH_FRAME_LEN_IPA, GFP_KERNEL);
 			if (skb == NULL) {
 				NMSGPR_ALERT( "Failed to allocate skb for IPA\n");
 				return;
 			}
-                        GET_TX_BUFF_LOGICAL_ADDR(chInx, i) = skb;
+			GET_TX_BUFF_LOGICAL_ADDR(chInx, i) = skb;
 			GET_TX_BUFF_DMA_ADDR(chInx, i) = dma_map_single(&pdata->pdev->dev,
 				skb->data, DWC_ETH_QOS_ETH_FRAME_LEN_IPA,
 				DMA_TO_DEVICE);
@@ -519,7 +519,7 @@ static void DWC_ETH_QOS_wrapper_rx_descriptor_init_single_q(
 
 #ifdef	DWC_ETH_QOS_ENABLE_IPA
 	/* Allocate RX Buffer Pool Structure */
-	if (chInx == NTN_RX_DMA_CH_0) {
+	if (chInx == NTN_RX_DMA_CH_0 && !desc_data->rx_buff_addrs) {
 		desc_data->rx_buff_addrs =
 			kzalloc(sizeof(dma_addr_t) * RX_DESC_CNT, GFP_KERNEL);
 		if (desc_data->rx_buff_addrs == NULL)
@@ -823,6 +823,7 @@ static void DWC_ETH_QOS_tx_buf_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 				skb = GET_TX_BUFF_LOGICAL_ADDR(chInx, i);
 				if (skb) {
 					dev_kfree_skb_any(skb);
+					GET_TX_BUFF_LOGICAL_ADDR(chInx, i) = NULL;
 				} else {
 					NMSGPR_ALERT( "Failed to de-allocate skb \n");
 					return;
@@ -832,7 +833,8 @@ static void DWC_ETH_QOS_tx_buf_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 			/* De-Allocate TX DMA Buffer Pool Structure */
 			if (GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx)) {
 				kfree(GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx));
-                                NMSGPR_INFO("Freed the TX Buffer Pool Structure for TX CH 2 for IPA \n");
+				GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) = NULL;
+				NMSGPR_INFO("Freed the TX Buffer Pool Structure for TX CH 2 for IPA \n");
 			} else {
 				NMSGPR_ALERT("Unable to DeAlloc TX Buff structure\n");
 			}
@@ -876,6 +878,7 @@ static void DWC_ETH_QOS_rx_buf_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 			desc_data = GET_RX_WRAPPER_DESC(chInx);
 			if (desc_data->rx_buff_addrs) {
 				kfree(desc_data->rx_buff_addrs);
+				desc_data->rx_buff_addrs = NULL;
 			} else {
 				NMSGPR_ALERT( "Unable to De-allocate "
 						" RX Buff structure\n");
