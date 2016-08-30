@@ -590,6 +590,37 @@ static void DWC_ETH_QOS_pci_suspend(struct pci_dev *pdev)
 
 #endif /* CONFIG_PCI_MSM */
 
+#ifdef NTN_ENABLE_PCIE_MEM_ACCESS
+static void DWC_ETH_QOS_config_tamap(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	ULONG_LONG adrs_to_be_replaced, adrs_for_replacement;
+	UINT tmap_no, no_of_bits;
+
+	/* Configure TMAP 0 to access full range of host memory */
+	tmap_no = 0;
+	adrs_to_be_replaced = ( (unsigned long long)0x00000010 << 32);
+	adrs_for_replacement = ( (unsigned long long)0x00000000 << 32);
+	no_of_bits = 28;
+	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced, adrs_for_replacement, no_of_bits);
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+	/* Configure TMAP 1 to access IPA uC Register in host memory */
+	tmap_no = 1;
+	adrs_to_be_replaced = NTN_PCIE_REGION_MEM_MAP_BASE;
+	adrs_for_replacement = IPA_UC_REG_BASE;
+	NTN_GET_TAMAP_MASK_BITS(NTN_HOST_TAMAP_MEM_LENGTH, no_of_bits);
+	NDBGPR_L1("TAMAP %d, adrs_to_be_replaced %llx adrs_for_replacement "
+		"%llx no_of_bits %d \n",tmap_no, adrs_to_be_replaced,
+		adrs_for_replacement, no_of_bits);
+	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
+				adrs_for_replacement, no_of_bits);
+#endif
+}
+#endif
+
 /*!
 * \brief API to initialize the device.
 *
@@ -624,11 +655,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	unsigned int reg_val, fw_ver_cap=0;
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
 	ULONG phy_mem_adrs;
-#endif
-
-#ifdef NTN_ENABLE_PCIE_MEM_ACCESS
-	ULONG_LONG adrs_to_be_replaced, adrs_for_replacement;
-	UINT tmap_no, no_of_bits;
 #endif
 
 	NDBGPR_L1("Debug version\n");
@@ -869,25 +895,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	}
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
-	/* Configure TMAP 0 to access full range of host memory */
-	tmap_no = 0;
-	adrs_to_be_replaced = ( (unsigned long long)0x00000010 << 32);
-	adrs_for_replacement = ( (unsigned long long)0x00000000 << 32);
-	no_of_bits = 28;
-	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced, adrs_for_replacement, no_of_bits);
-
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	/* Configure TMAP 1 to access IPA uC Register in host memory */
-	tmap_no = 1;
-	adrs_to_be_replaced = NTN_PCIE_REGION_MEM_MAP_BASE;
-	adrs_for_replacement = IPA_UC_REG_BASE;
-	NTN_GET_TAMAP_MASK_BITS(NTN_HOST_TAMAP_MEM_LENGTH, no_of_bits);
-	NDBGPR_L1("TAMAP %d, adrs_to_be_replaced %llx adrs_for_replacement "
-		"%llx no_of_bits %d \n",tmap_no, adrs_to_be_replaced,
-		adrs_for_replacement, no_of_bits);
-	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
-				adrs_for_replacement, no_of_bits);
-#endif
+	DWC_ETH_QOS_config_tamap(pdev);
 #endif
 
     /* issue clock enable to GMAC device */
@@ -1384,10 +1392,6 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	INT ret;
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
-#ifdef NTN_ENABLE_PCIE_MEM_ACCESS
-	ULONG_LONG adrs_to_be_replaced, adrs_for_replacement;
-	UINT tmap_no, no_of_bits;
-#endif
 
 	DBGPR("-->DWC_ETH_QOS_resume\n");
 
@@ -1408,14 +1412,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 			DWC_ETH_QOS_load_fw(pdev);
 		}
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
-		/* Restore NTN access to host memory */
-		/* Configure TMAP 0 to access full range of host memory */
-		tmap_no = 0;
-		adrs_to_be_replaced = ( (unsigned long long)0x00000010 << 32);
-		adrs_for_replacement = ( (unsigned long long)0x00000000 << 32);
-		no_of_bits = 28;
-		hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
-					adrs_for_replacement, no_of_bits);
+		DWC_ETH_QOS_config_tamap(pdev);
 #endif
 	}
 
