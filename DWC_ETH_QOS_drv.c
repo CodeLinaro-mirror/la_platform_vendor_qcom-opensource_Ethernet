@@ -1726,6 +1726,9 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 
 	DWC_ETH_QOS_config_phy_aneg(pdata, 0, 0);
 
+	/* Clean old rx skbs to avoid leak */
+	desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
+
 	desc_if->wrapper_tx_desc_init(pdata);
 	desc_if->wrapper_rx_desc_init(pdata);
 

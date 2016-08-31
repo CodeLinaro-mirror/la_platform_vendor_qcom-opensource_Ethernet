@@ -1477,6 +1477,9 @@ static void DWC_ETH_QOS_unmap_rx_skb(struct DWC_ETH_QOS_prv_data *pdata,
 {
 	DBGPR("-->DWC_ETH_QOS_unmap_rx_skb\n");
 
+	if (!buffer)
+		return;
+
 	/* unmap the first buffer */
 	if (buffer->dma) {
 #ifdef NTN_RX_DATA_BUF_IN_SRAM
