@@ -4086,6 +4086,30 @@ static INT ntn_wrap_ts_ignore_config(UINT ena_dis)
     }
 }
 
+/*!
+* \brief This function is used to set the Neutrino Wrapper Timestamp Valid Window
+* \param[in] ts_window, the timestamp valid window in units of 2^24 ns.
+* \return Success or Failure
+* \retval  0 Success
+* \retval -1 Failure
+*/
+
+static INT ntn_wrap_ts_valid_window_config(UINT ts_window)
+{
+    UINT rd_val;
+
+    ETH_AVB_WRAPPER_TS_CTRL_TSTMP_WINDOW_Wr(ts_window);
+    ETH_AVB_WRAPPER_TS_CTRL_TSTMP_WINDOW_Rd(rd_val);
+
+    if(rd_val != ts_window)
+    {
+        NMSGPR_ALERT( "ERROR: NTN Wrapper Timestamp Valid Window wr_val:0x%x, rd_val:0x%x \n", ts_window, rd_val);
+        return -Y_FAILURE;
+    }else{
+        DBGPR("NTN Wrapper Timestamp Valid Window : wr_val:0x%x, rd_val:0x%x \n", ts_window, rd_val);
+        return Y_SUCCESS;
+    }
+}
 
 /*!
  * \brief This function is used to enable and configure PCIe TAMAP to access host memory from Neutrino
@@ -4582,6 +4606,7 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 
 	/* For Neutrino Wrapper Timestamp Feature disable Enbale */
 	hw_if->ntn_wrap_ts_ignore_config = ntn_wrap_ts_ignore_config;
+	hw_if->ntn_wrap_ts_valid_window_config = ntn_wrap_ts_valid_window_config;
 
 	/* Config EMAC Div and Control register */
 	hw_if->ntn_set_tx_clk_125MHz = ntn_set_tx_clk_125MHz;

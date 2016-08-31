@@ -836,6 +836,38 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->enable_phy = !of_property_read_bool(pldev->dev.of_node, "qcom,ntn-disable-phy");
 	NDBGPR_L1("%s: enable_phy = %d\n", __func__, pdata->enable_phy);
 
+	/*
+	 * Set the EAVB timestamp window according to the
+	 * ntn-timestamp-valid-window setting in the device tree.
+	 * If the timestamp in the AVTP packet is between the
+	 * current time and the current time plus the timestamp window,
+	 * Neutrino will hold the packet until the timestamp elapses.
+	 * Otherwise, the packet is sent immediately.
+	 * Each unit is 2^24 ns, or approx 16.8 ms.
+	 * If the setting is not in the device tree, set the value to
+	 * 4 (67 ms). Note: if this register is not set, Neutrino will default to
+	 * 0x80 (2.1 sec). 67 ms is chosen as a reasonable default because
+	 * trying to queue up more than 67 ms worth of packets would cause the
+	 * TX queue to overflow, and according to the AVB spec, Class B packets
+	 * should have no more than 50 ms of latency, and Class A packets should
+	 * have even less latency than that. Thus an application would not try to
+	 * send AVTP packets with timestamps more than 50 ms in the future.
+	 */
+	ret = of_property_read_u32(pldev->dev.of_node,
+							   "qcom,ntn-timestamp-valid-window",
+							   &pdata->ntn_timestamp_valid_window);
+	if (ret) {
+		NMSGPR_ALERT("%s: Failed to read ntn-timestamp-valid-window, hardcoding to 4 (67 msec)\n",
+					 __func__);
+		pdata->ntn_timestamp_valid_window = 4;
+		ret = 0; /* This is not a fatal error. */
+	} else {
+		NDBGPR_L1("%s: ntn-timestamp-valid-window = %d, (%u nsec)\n",
+				  __func__,
+				  pdata->ntn_timestamp_valid_window,
+				  pdata->ntn_timestamp_valid_window << 24);
+	}
+
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	/* Configure TMAP 0 to access full range of host memory */
 	tmap_no = 0;

@@ -29148,6 +29148,17 @@
         data = ((data >> 4) & ETH_AVB_WRAPPER_TS_CTRL_Mask);\
 } while(0)
 
+#define ETH_AVB_WRAPPER_TS_CTRL_TSTMP_WINDOW_Wr(data) do {\
+        ULONG v;\
+        ETH_AVB_WRAPPER_TS_CTRL_RgRd(v);\
+        v = ((v & 0xFF00FFFF) | ((data & 0xFF)<<16));\
+        ETH_AVB_WRAPPER_TS_CTRL_RgWr(v);\
+} while(0)
+
+#define ETH_AVB_WRAPPER_TS_CTRL_TSTMP_WINDOW_Rd(data) do {\
+        ETH_AVB_WRAPPER_TS_CTRL_RgRd(data);\
+        data = ((data >> 16) & 0xFF);\
+} while(0)
 
 /******************************************************************************/
 /**                         Neutrino Wrapper PTP  registers                  **/
