@@ -3855,10 +3855,6 @@ static int enable_mac_interrupts(void)
   reg_val = reg_val | NTN_INTC_GMAC_INT_MASK;
   NTN_INTC_INTMCUMASK1_RgWr(reg_val);
 
-  /* Mask PCIe controller interrupt */
-  reg_val = (0xF << 9);
-  NTN_INTC_INTMCUMASK2_RgWr(reg_val);
-
   return Y_SUCCESS;
 }
 #endif
