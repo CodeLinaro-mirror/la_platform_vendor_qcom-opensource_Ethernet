@@ -54,15 +54,9 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	int ret;
 	struct hw_if_struct *hw_if = &pdata->hw_if;
-	unsigned int reg_val = 0;
 
-	reg_val =
-	   hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
-						 PCIE_SRAM_BAR_NUM);
-	reg_val = (reg_val | IPA_ENABLE_OFFLOAD_MASK);
-	hw_if->ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
-				reg_val, PCIE_SRAM_BAR_NUM);
-	NDBGPR_L1("Enabled FW ipa offload, 0x%x\n", reg_val);
+	/* Enable offload flag in NTN HW */
+	hw_if->enable_offload();
 
 	ret = DWC_ETH_QOS_ipa_offload_init(pdata);
 	if (ret) {
@@ -99,11 +93,9 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 
 fail:
 	pdata->prv_ipa.ipa_offload_ready = false;
-	reg_val = reg_val & IPA_DISABLE_OFFLOAD_MASK;
-	hw_if->ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
-			reg_val, PCIE_SRAM_BAR_NUM);
+	/* Disable offload flag in NTN HW */
+	hw_if->disable_offload();
 
-	NDBGPR_L1("Disabled FW ipa offload, 0x%x\n", reg_val);
 	return ret;
 }
 
@@ -111,7 +103,6 @@ int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	int ret;
 	struct hw_if_struct *hw_if = &pdata->hw_if;
-	unsigned int reg_val = 0;
 
 	/* De-configure IPA Related Stuff */
 	if (pdata->prv_ipa.ipa_offload_ready) {
@@ -138,13 +129,9 @@ int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 	if(DWC_ETH_QOS_ipa_cleanup_debugfs(pdata))
 		NMSGPR_ERR("Unable to delete IPA debugfs\n");
 
-	reg_val =
-	   hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
-						 PCIE_SRAM_BAR_NUM);
-	reg_val = (reg_val & IPA_DISABLE_OFFLOAD_MASK);
-	hw_if->ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
-				reg_val, PCIE_SRAM_BAR_NUM);
-	NDBGPR_L1("Disabled FW ipa offload, 0x%x\n", reg_val);
+	pdata->prv_ipa.ipa_offload_ready = false;
+	/* Disable offload flag in NTN HW */
+	hw_if->disable_offload();
 
 	return ret;
 }

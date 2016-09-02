@@ -3035,48 +3035,43 @@ static void rx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
 		RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
 					   (0xc1000000));
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 		/* Don't Set the IOC bit for IPA controlled Desc */
-		if (chInx != NTN_RX_DMA_CH_0) {
-#endif
-		buffer->inte = (1 << 30);
+		if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
+			UINT varRDES3 = 0;
+			RX_NORMAL_DESC_RDES3_Ml_Rd(RX_NORMAL_DESC->RDES3,
+									   varRDES3);
+			/* reset IOC for all buffers */
+			RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
+									   (varRDES3 & ~(1 << 30)));
+		}
+		else {
+			buffer->inte = (1 << 30);
 
-		/* reconfigure INTE bit if RX watchdog timer is enabled */
-		if (rx_desc_data->use_riwt) {
-			if ((i % rx_desc_data->rx_coal_frames) != 0) {
-				UINT varRDES3 = 0;
-				RX_NORMAL_DESC_RDES3_Ml_Rd(RX_NORMAL_DESC->RDES3,
-					varRDES3);
-				/* reset INTE */
-				RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
-						(varRDES3 & ~(1 << 30)));
-				buffer->inte = 0;
+			/* reconfigure INTE bit if RX watchdog timer is enabled */
+			if (rx_desc_data->use_riwt) {
+				if ((i % rx_desc_data->rx_coal_frames) != 0) {
+					UINT varRDES3 = 0;
+					RX_NORMAL_DESC_RDES3_Ml_Rd(RX_NORMAL_DESC->RDES3,
+						varRDES3);
+					/* reset INTE */
+					RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
+							(varRDES3 & ~(1 << 30)));
+					buffer->inte = 0;
+				}
 			}
 		}
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-		} else {
-			UINT varRDES3 = 0;
-			RX_NORMAL_DESC_RDES3_Ml_Rd(RX_NORMAL_DESC->RDES3,
-					varRDES3);
-			/* reset IOC for all buffers */
-			RX_NORMAL_DESC_RDES3_Ml_Wr(RX_NORMAL_DESC->RDES3,
-						(varRDES3 & ~(1 << 30)));
-		}
-#endif
 		INCR_RX_DESC_INDEX(rx_desc_data->cur_rx, 1);
 		RX_NORMAL_DESC =
 			GET_RX_DESC_PTR(chInx, rx_desc_data->cur_rx);
 		buffer = GET_RX_BUF_PTR(chInx, rx_desc_data->cur_rx);
 	}
 
-#ifdef	DWC_ETH_QOS_ENABLE_IPA
 	/* Reset the OWN bit of last descriptor */
-	if (chInx == NTN_RX_DMA_CH_0) {
+	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
 		RX_NORMAL_DESC = GET_RX_DESC_PTR(chInx, RX_DESC_CNT - 1);
 		RX_CONTEXT_DESC_RDES3_OWN_Mlf_Wr(RX_NORMAL_DESC->RDES3, 0);
 	}
-#endif
 
 	/* update the total no of Rx descriptors count */
 	DMA_RXCH_DESC_RING_LENGTH_RgWr(chInx, (RX_DESC_CNT - 1));
@@ -4268,7 +4263,6 @@ static UINT ntn_boot_from_flash_done(void)
   return rd_val & NTN_NCTLSTS_HW_SEQ_COMPLETE_MASK;
 }
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 static int DWC_ETH_QOS_yinit_offload(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	DBGPR("-->DWC_ETH_QOS_yinit_offload\n");
@@ -4287,7 +4281,37 @@ static int DWC_ETH_QOS_yexit_offload(void)
 	DBGPR("-->DWC_ETH_QOS_yexit_offload\n");
 	return Y_SUCCESS;
 }
-#endif
+
+static bool ntn_fw_ipa_supported(void)
+{
+	UINT reg_val = ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+				  PCIE_SRAM_BAR_NUM);
+	return reg_val & NTN_M3_DBG_IPA_CAPABLE_MASK;
+}
+
+static void enable_offload(void)
+{
+  UINT reg_val;
+
+  reg_val = ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+                       PCIE_SRAM_BAR_NUM);
+  reg_val = (reg_val | IPA_ENABLE_OFFLOAD_MASK);
+  ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+             reg_val, PCIE_SRAM_BAR_NUM);
+  NDBGPR_L1("Enabled FW ipa offload, 0x%x\n", reg_val);
+}
+
+static void disable_offload(void)
+{
+  UINT reg_val;
+
+  reg_val = ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+                       PCIE_SRAM_BAR_NUM);
+  reg_val = reg_val & IPA_DISABLE_OFFLOAD_MASK;
+  ntn_reg_wr((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+             reg_val, PCIE_SRAM_BAR_NUM);
+  NDBGPR_L1("Disabled FW ipa offload, 0x%x\n", reg_val);
+}
 
 /*!
  * * \brief Initialises device registers.
@@ -4336,11 +4360,10 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
                 if(!pdata->tx_dma_ch_for_host[chInx])
                         continue;
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-		/* DMA CH to be enabled when IPA uC is ready */
-		if (chInx == NTN_TX_DMA_CH_2)
-			continue;
-#endif
+                /* DMA CH to be enabled when IPA uC is ready */
+                if (pdata->ipa_enabled && chInx == NTN_TX_DMA_CH_2)
+                        continue;
+
                 configure_dma_tx_channel(chInx, pdata);
         }
         for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++) {
@@ -4348,11 +4371,10 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
                 if(!pdata->rx_dma_ch_for_host[chInx])
                         continue;
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-		/* DMA CH to be enabled when IPA uC is ready */
-		if (chInx == NTN_RX_DMA_CH_0)
-			continue;
-#endif
+                /* DMA CH to be enabled when IPA uC is ready */
+                if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0)
+                        continue;
+
                 configure_dma_rx_channel(chInx, pdata);
         }
 
@@ -4422,10 +4444,11 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 	hw_if->dev_read = device_read;
 	hw_if->init = DWC_ETH_QOS_yinit;
 	hw_if->exit = DWC_ETH_QOS_yexit;
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 	hw_if->init_offload = DWC_ETH_QOS_yinit_offload;
 	hw_if->exit_offload = DWC_ETH_QOS_yexit_offload;
-#endif
+	hw_if->enable_offload = enable_offload;
+	hw_if->disable_offload = disable_offload;
+	hw_if->ntn_fw_ipa_supported = ntn_fw_ipa_supported;
 	/* Descriptor related Sequences have to be initialized here */
 	hw_if->tx_desc_init = tx_descriptor_init;
 	hw_if->rx_desc_init = rx_descriptor_init;
