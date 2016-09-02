@@ -1747,6 +1747,41 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 	DBGPR("<--DWC_ETH_QOS_init_common\n");
 }
 
+static int DWC_ETH_QOS_request_irq(struct net_device *dev)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+	int ret = Y_SUCCESS;
+
+	pdata->irq_number = dev->irq;
+
+#ifdef NTN_POLLING_METHOD
+	ret = request_irq(pdata->irq_number, DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS_DUMMY,
+					  IRQF_SHARED, DEV_NAME, pdata);
+#else
+	ret = request_irq(pdata->irq_number, DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS,
+					  IRQF_SHARED, DEV_NAME, pdata);
+	NDBGPR_L1("DWC_ETH_QOS IRQ %d requested\n", pdata->irq_number);
+#endif
+
+	if (ret != 0) {
+		NMSGPR_ALERT("DWC_ETH_QOS request_irq failed ret %d\n", ret);
+		ret = -EBUSY;
+	}
+
+	return ret;
+}
+
+static void DWC_ETH_QOS_free_irq(struct net_device *dev)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+
+	if (pdata->irq_number != 0) {
+		NDBGPR_L1("DWC_ETH_QOS IRQ %d freed\n", pdata->irq_number);
+		free_irq(pdata->irq_number, pdata);
+		pdata->irq_number = 0;
+	}
+}
+
 /*!
 * \brief API to open a deivce for data transmission & reception.
 *
@@ -1771,21 +1806,8 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 
 	DBGPR("-->DWC_ETH_QOS_open\n");
 
-	pdata->irq_number = dev->irq;
-
-#ifdef NTN_POLLING_METHOD
-	ret = request_irq(pdata->irq_number, DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS_DUMMY,
-			  IRQF_SHARED, DEV_NAME, pdata);
-#else
-	ret = request_irq(pdata->irq_number, DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS,
-			  IRQF_SHARED, DEV_NAME, pdata);
-	NDBGPR_L1( "DWC_ETH_QOS interrupt mode, IRQ requested\n");
-#endif
-
-	NDBGPR_L1( "request_IRQ ret value is %d\n",ret);
-	if (ret != 0) {
-		NMSGPR_ALERT( "Unable to register IRQ %d\n",
-		       pdata->irq_number);
+	if (DWC_ETH_QOS_request_irq(dev) != 0) {
+		NMSGPR_ALERT("Unable to register IRQ %d\n", pdata->irq_number);
 		ret = -EBUSY;
 		goto err_irq_0;
 	}
@@ -1831,8 +1853,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	return ret;
 
  err_out_desc_buf_alloc_failed:
-	free_irq(pdata->irq_number, pdata);
-	pdata->irq_number = 0;
+	DWC_ETH_QOS_free_irq(dev);
 
  err_irq_0:
 	DBGPR("<--DWC_ETH_QOS_open\n");
@@ -1881,10 +1902,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	hw_if->exit();
 	desc_if->tx_free_mem(pdata);
 	desc_if->rx_free_mem(pdata);
-	if (pdata->irq_number != 0) {
-		free_irq(pdata->irq_number, pdata);
-		pdata->irq_number = 0;
-	}
+	DWC_ETH_QOS_free_irq(dev);
 
 #ifdef NTN_POLLING_METHOD
 	cancel_delayed_work_sync(&task);
@@ -5480,6 +5498,8 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 	DWC_ETH_QOS_stop_all_ch_tx_dma(pdata);
 	DWC_ETH_QOS_stop_all_ch_rx_dma(pdata);
 
+	DWC_ETH_QOS_free_irq(dev);
+
 	/* enable power down mode by programming the PMT regs */
 	if (wakeup_type & DWC_ETH_QOS_REMOTE_WAKEUP)
 		hw_if->enable_remote_pmt();
@@ -5547,6 +5567,11 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	}
 
 	pdata->power_down = 0;
+
+	if (DWC_ETH_QOS_request_irq(dev) != 0) {
+		NMSGPR_ALERT("Unable to register IRQ %d\n", pdata->irq_number);
+		return -EBUSY;
+	}
 
 	if (pdata->pcierst_resx) {
 		/* Clean old rx skbs to avoid leak since they are allocated
