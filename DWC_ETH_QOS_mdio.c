@@ -714,6 +714,7 @@ void DWC_ETH_QOS_mdio_unregister(struct net_device *dev)
 	if (pdata->phydev) {
 		phy_stop(pdata->phydev);
 		phy_disconnect(pdata->phydev);
+		phy_device_free(pdata->phydev);
 		pdata->phydev = NULL;
 	}
 
