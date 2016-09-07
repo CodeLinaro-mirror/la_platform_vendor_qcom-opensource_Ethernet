@@ -332,7 +332,7 @@ static void DWC_ETH_QOS_tx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 			tx_desc_data->tx_pbl);
 
 		NMSGPR_ALERT( "\t[<desc_add> <index >] = <TDES0> : <TDES1> : <TDES2> : <TDES3>\n");
-		for (i = 0; i < TX_DESC_CNT; i++) {
+		for (i = 0; i < pdata->tx_dma_ch[chInx].desc_cnt; i++) {
 			tx_desc = GET_TX_DESC_PTR(chInx, i);
 			NMSGPR_ALERT( "\t[%4p %03d] = %#x : %#x : %#x : %#x\n",
 				tx_desc, i, tx_desc->TDES0, tx_desc->TDES1,
@@ -395,7 +395,7 @@ static void DWC_ETH_QOS_rx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 		}
 
 		NMSGPR_ALERT( "\t[<desc_add> <index >] = <RDES0> : <RDES1> : <RDES2> : <RDES3>\n");
-		for (i = 0; i < RX_DESC_CNT; i++) {
+		for (i = 0; i < pdata->rx_dma_ch[chInx].desc_cnt; i++) {
 			rx_desc = GET_RX_DESC_PTR(chInx, i);
 			NMSGPR_ALERT( "\t[%4p %03d] = %#x : %#x : %#x : %#x\n",
 				rx_desc, i, rx_desc->RDES0, rx_desc->RDES1,
@@ -2496,8 +2496,8 @@ static unsigned char DWC_ETH_QOS_get_rx_hwtstamp(
 	DWC_ETH_QOS_print_rx_tstamp_info(rx_normal_desc, chInx);
 
 	desc_data->dirty_rx++;
-	INCR_RX_DESC_INDEX(desc_data->cur_rx, 1);
-	rx_context_desc = GET_RX_DESC_PTR(chInx, desc_data->cur_rx);
+	INCR_RX_DESC_INDEX(desc_data->cur_rx, 1, pdata->rx_dma_ch[chInx].desc_cnt);
+	rx_context_desc = (void *)GET_RX_DESC_PTR(chInx, desc_data->cur_rx);
 
 	DBGPR_PTP("\nRX_CONTEX_DESC[%d %4p %d RECEIVED FROM DEVICE]"\
 			" = %#x:%#x:%#x:%#x",
@@ -2524,7 +2524,7 @@ static unsigned char DWC_ETH_QOS_get_rx_hwtstamp(
 			NMSGPR_ALERT( "Device has not yet updated the context "
 				"desc to hold Rx time stamp(retry = %d)\n", retry);
 			desc_data->dirty_rx--;
-			DECR_RX_DESC_INDEX(desc_data->cur_rx);
+			DECR_RX_DESC_INDEX(desc_data->cur_rx, pdata->rx_dma_ch[chInx].desc_cnt);
 			return 0;
 	}
 
@@ -2786,7 +2786,7 @@ static void DWC_ETH_QOS_tx_interrupt(struct net_device *dev,
 		/* reset the descriptor so that driver/host can reuse it */
 		hw_if->tx_desc_reset(desc_data->dirty_tx, pdata, chInx);
 
-		INCR_TX_DESC_INDEX(desc_data->dirty_tx, 1);
+		INCR_TX_DESC_INDEX(desc_data->dirty_tx, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		desc_data->free_desc_cnt++;
 		desc_data->tx_pkt_queued--;
 	}
@@ -3110,7 +3110,7 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 			if (desc_data->dirty_rx >= desc_data->skb_realloc_threshold)
 				desc_if->realloc_skb(pdata, chInx);
 
-			INCR_RX_DESC_INDEX(desc_data->cur_rx, 1);
+			INCR_RX_DESC_INDEX(desc_data->cur_rx, 1, pdata->rx_dma_ch[chInx].desc_cnt);
 		} else {
 			/* no more data to read */
 			break;
@@ -6690,7 +6690,7 @@ void dump_tx_desc(struct DWC_ETH_QOS_prv_data *pdata, int first_desc_idx,
 	} else {
 		int lp_cnt;
 		if (first_desc_idx > last_desc_idx)
-			lp_cnt = last_desc_idx + TX_DESC_CNT - first_desc_idx;
+			lp_cnt = last_desc_idx + pdata->tx_dma_ch[chInx].desc_cnt - first_desc_idx;
 		else
 			lp_cnt = last_desc_idx - first_desc_idx;
 
@@ -6705,7 +6705,7 @@ void dump_tx_desc(struct DWC_ETH_QOS_prv_data *pdata, int first_desc_idx,
 			       ((flag == 1) ? "QUEUED FOR TRANSMISSION" :
 				"FREED/FETCHED BY DEVICE"), desc->TDES0,
 			       desc->TDES1, desc->TDES2, desc->TDES3);
-			INCR_TX_DESC_INDEX(i, 1);
+			INCR_TX_DESC_INDEX(i, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		}
 	}
 }

@@ -999,17 +999,7 @@ static int DWC_ETH_QOS_set_coalesce(struct net_device *dev,
 		       rx_usec);
 		return -EINVAL;
 	}
-	if (ec->rx_max_coalesced_frames > RX_DESC_CNT) {
-		NMSGPR_ALERT( "RX Coalesing is limited to %d frames\n",
-		       DWC_ETH_QOS_RX_MAX_FRAMES);
-		return -EINVAL;
-	}
-	if (rx_desc_data->rx_coal_frames != ec->rx_max_coalesced_frames
-	    && netif_running(dev)) {
-		NMSGPR_ALERT(
-		 "Coalesce frame parameter can be changed only if interface is down\n");
-		return -EINVAL;
-	}
+
 	/* The selected parameters are applied to all the
 	 * receive queues equally, so all the queue configurations
 	 * are in sync */
@@ -1017,6 +1007,18 @@ static int DWC_ETH_QOS_set_coalesce(struct net_device *dev,
 
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
+
+		if (ec->rx_max_coalesced_frames > pdata->rx_dma_ch[chInx].desc_cnt) {
+			NMSGPR_ALERT("RX Coalescing is limited to %d frames for ch %d\n",
+						 DWC_ETH_QOS_RX_MAX_FRAMES, chInx);
+			return -EINVAL;
+		}
+		if (rx_desc_data->rx_coal_frames != ec->rx_max_coalesced_frames
+			&& netif_running(dev)) {
+			NMSGPR_ALERT(
+			   "Coalesce frame parameter can be changed only if interface is down\n");
+			return -EINVAL;
+		}
 
 		rx_desc_data = GET_RX_WRAPPER_DESC(chInx);
 		rx_desc_data->use_riwt = local_use_riwt;

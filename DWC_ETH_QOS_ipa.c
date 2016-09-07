@@ -351,18 +351,18 @@ int DWC_ETH_QOS_ipa_offload_connect(struct DWC_ETH_QOS_prv_data *pdata)
 	/* Uplink Setup */
 	ul.client = IPA_CLIENT_ODU_PROD;
 	ul.ring_base_pa = (phys_addr_t)GET_RX_DESC_DMA_ADDR(NTN_RX_DMA_CH_0, 0);
-	ul.ntn_ring_size = RX_DESC_CNT;
+	ul.ntn_ring_size = pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt;
 	ul.buff_pool_base_pa = virt_to_phys(GET_RX_BUFF_POOL_BASE_ADRR(NTN_RX_DMA_CH_0));
-	ul.num_buffers = RX_DESC_CNT - 1;
+	ul.num_buffers = pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt - 1;
 	ul.data_buff_size = DWC_ETH_QOS_ETH_FRAME_LEN_IPA;
 	ul.ntn_reg_base_ptr_pa = (phys_addr_t)NTN_REG_PHY_BASE_ADRS;
 
 	/* Downlink Setup */
 	dl.client = IPA_CLIENT_ODU_TETH_CONS;
 	dl.ring_base_pa = (phys_addr_t)GET_TX_DESC_DMA_ADDR(NTN_TX_DMA_CH_2, 0);
-	dl.ntn_ring_size = TX_DESC_CNT;
+	dl.ntn_ring_size = pdata->tx_dma_ch[NTN_TX_DMA_CH_2].desc_cnt;
 	dl.buff_pool_base_pa = virt_to_phys(GET_TX_BUFF_DMA_POOL_BASE_ADRR(NTN_TX_DMA_CH_2));
-	dl.num_buffers = TX_DESC_CNT - 1;
+	dl.num_buffers = pdata->tx_dma_ch[NTN_TX_DMA_CH_2].desc_cnt - 1;
 	dl.data_buff_size = DWC_ETH_QOS_ETH_FRAME_LEN_IPA;
 	dl.ntn_reg_base_ptr_pa = (phys_addr_t)NTN_REG_PHY_BASE_ADRS;
 
@@ -483,10 +483,10 @@ void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata)
 	UINT data;
 
 	dma_stats->RX0_Desc_Ring_Base = GET_RX_DESC_DMA_ADDR(NTN_RX_DMA_CH_0, 0);
-	dma_stats->RX0_Desc_Ring_Size = RX_DESC_CNT;
+	dma_stats->RX0_Desc_Ring_Size = pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt;
 	dma_stats->RX0_Buff_Ring_Base =
 		virt_to_phys(GET_RX_BUFF_POOL_BASE_ADRR(NTN_RX_DMA_CH_0));
-	dma_stats->RX0_Buff_Ring_Size = RX_DESC_CNT - 1;
+	dma_stats->RX0_Buff_Ring_Size = pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt - 1;
 	dma_stats->RX0_Db_Int_Raised =
 		hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_DMA_RXCH0_DB_OFST),
 						 PCIE_SRAM_BAR_NUM);
@@ -517,10 +517,10 @@ void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata)
 				dma_stats->RX0_Early_Transmit_Complete_irq);
 
 	dma_stats->TX2_Desc_Ring_Base = GET_TX_DESC_DMA_ADDR(NTN_TX_DMA_CH_2, 0);
-	dma_stats->TX2_Desc_Ring_Size = TX_DESC_CNT;
+	dma_stats->TX2_Desc_Ring_Size = pdata->tx_dma_ch[NTN_TX_DMA_CH_2].desc_cnt;
 	dma_stats->TX2_Buff_Ring_Base =
 		virt_to_phys(GET_TX_BUFF_DMA_POOL_BASE_ADRR(NTN_TX_DMA_CH_2));
-	dma_stats->TX2_Buff_Ring_Size = TX_DESC_CNT - 1;
+	dma_stats->TX2_Buff_Ring_Size = pdata->tx_dma_ch[NTN_TX_DMA_CH_2].desc_cnt - 1;
 	dma_stats->TX2_Db_Int_Raised =
 		hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_DMA_TXCH2_DB_OFST),
 						  PCIE_SRAM_BAR_NUM);
