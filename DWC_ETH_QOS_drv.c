@@ -1726,9 +1726,6 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 
 	DWC_ETH_QOS_config_phy_aneg(pdata, 0, 0);
 
-	/* Clean old rx skbs to avoid leak */
-	desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
-
 	desc_if->wrapper_tx_desc_init(pdata);
 	desc_if->wrapper_rx_desc_init(pdata);
 
@@ -5525,6 +5522,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	struct desc_if_struct *desc_if = &(pdata->desc_if);
 	ULONG flags;
 
 	DBGPR("-->DWC_ETH_QOS_powerup\n");
@@ -5551,6 +5549,9 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	pdata->power_down = 0;
 
 	if (pdata->pcierst_resx) {
+		/* Clean old rx skbs to avoid leak since they are allocated
+		 * again when initializing rx descriptors */
+		desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
 		DWC_ETH_QOS_init_common(dev);
 	} else {
 		if (pdata->enable_phy && pdata->phydev)
