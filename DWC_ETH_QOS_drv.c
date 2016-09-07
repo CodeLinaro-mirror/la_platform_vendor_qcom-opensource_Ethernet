@@ -880,7 +880,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 			DWC_ETH_QOS_GStatus = S_MAC_ISR_PMTIS;
 			MAC_PMTCSR_RgRd(varMAC_PMTCSR);
 			if (pdata->power_down)
-				DWC_ETH_QOS_powerup(pdata->dev, DWC_ETH_QOS_IOCTL_CONTEXT);
+				schedule_work(&pdata->powerup_work);
 		}
 
 		/* RGMII/SMII interrupt */
@@ -5470,7 +5470,6 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
-	ULONG flags;
 
 	DBGPR(KERN_ALERT "-->DWC_ETH_QOS_powerdown\n");
 
@@ -5483,10 +5482,10 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 		return -EINVAL;
 	}
 
+	mutex_lock(&pdata->pmt_lock);
+
 	if (pdata->enable_phy && pdata->phydev)
 		phy_stop(pdata->phydev);
-
-	spin_lock_irqsave(&pdata->pmt_lock, flags);
 
 	if (caller == DWC_ETH_QOS_DRIVER_CONTEXT)
 		netif_device_detach(dev);
@@ -5510,11 +5509,21 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 	if (caller == DWC_ETH_QOS_IOCTL_CONTEXT)
 		pdata->power_down = 1;
 
-	spin_unlock_irqrestore(&pdata->pmt_lock, flags);
+	mutex_unlock(&pdata->pmt_lock);
 
 	DBGPR("<--DWC_ETH_QOS_powerdown\n");
 
 	return 0;
+}
+
+/* Work function to call powerup as interruptible task */
+void DWC_ETH_QOS_powerup_handler(struct work_struct *work)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = container_of(work,
+		struct DWC_ETH_QOS_prv_data, powerup_work);
+	DBGPR("<--DWC_ETH_QOS_powerup_handler\n");
+	DWC_ETH_QOS_powerup(pdata->dev, DWC_ETH_QOS_IOCTL_CONTEXT);
+	DBGPR("-->DWC_ETH_QOS_powerup_handler\n");
 }
 
 /*!
@@ -5543,7 +5552,6 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	struct desc_if_struct *desc_if = &(pdata->desc_if);
-	ULONG flags;
 
 	DBGPR("-->DWC_ETH_QOS_powerup\n");
 
@@ -5554,7 +5562,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&pdata->pmt_lock, flags);
+	mutex_lock(&pdata->pmt_lock);
 
 	if (pdata->power_down_type & DWC_ETH_QOS_MAGIC_WAKEUP) {
 		hw_if->disable_magic_pmt();
@@ -5597,7 +5605,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 
 	netif_tx_start_all_queues(dev);
 
-	spin_unlock_irqrestore(&pdata->pmt_lock, flags);
+	mutex_unlock(&pdata->pmt_lock);
 
 	DBGPR("<--DWC_ETH_QOS_powerup\n");
 

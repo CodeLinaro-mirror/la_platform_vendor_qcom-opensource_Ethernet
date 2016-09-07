@@ -1504,7 +1504,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	spinlock_t lock;
 	spinlock_t tx_lock;
-	spinlock_t pmt_lock;
+	struct mutex pmt_lock;
 	spinlock_t fqtss_lock;
 	UINT mem_start_addr;
 	UINT mem_size;
@@ -1698,6 +1698,9 @@ struct DWC_ETH_QOS_prv_data {
 	/* Timestamp valid window. AVTP packets are held
 	 * if the timestamp is within the window */
 	unsigned int ntn_timestamp_valid_window;
+
+	/* Workqueue used in PMT interrupt handler */
+	struct work_struct powerup_work;
 };
 
 struct DWC_ETH_QOS_plt_data {
@@ -1747,6 +1750,7 @@ void DWC_ETH_QOS_get_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_configure_flow_ctrl(struct DWC_ETH_QOS_prv_data *pdata);
 INT DWC_ETH_QOS_powerup(struct net_device *, UINT);
+void DWC_ETH_QOS_powerup_handler(struct work_struct *work);
 INT DWC_ETH_QOS_powerdown(struct net_device *, UINT, UINT);
 u32 DWC_ETH_QOS_usec2riwt(u32 usec, struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_init_rx_coalesce(struct DWC_ETH_QOS_prv_data *pdata);

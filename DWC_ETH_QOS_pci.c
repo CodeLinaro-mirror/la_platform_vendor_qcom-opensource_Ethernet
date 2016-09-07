@@ -1046,8 +1046,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	spin_lock_init(&pdata->lock);
 	spin_lock_init(&pdata->tx_lock);
-	spin_lock_init(&pdata->pmt_lock);
+	mutex_init(&pdata->pmt_lock);
 	spin_lock_init(&pdata->fqtss_lock);
+
+	INIT_WORK(&pdata->powerup_work, DWC_ETH_QOS_powerup_handler);
 
 	ret = register_netdev(dev);
 	if (ret) {
