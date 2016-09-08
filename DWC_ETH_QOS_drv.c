@@ -5585,6 +5585,9 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 		/* Clean old rx skbs to avoid leak since they are allocated
 		 * again when initializing rx descriptors */
 		desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
+		/* Avoid leak of eee timer */
+		if (pdata->eee_enabled)
+			del_timer_sync(&pdata->eee_ctrl_timer);
 		DWC_ETH_QOS_init_common(dev);
 	} else {
 		if (pdata->enable_phy && pdata->phydev)
