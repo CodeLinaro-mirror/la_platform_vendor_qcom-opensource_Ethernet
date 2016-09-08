@@ -1212,11 +1212,15 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &DWC_ETH_QOS_panic_blk);
 
-    pci_disable_msi(pdev);
+	pci_disable_msi(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-    if((void __iomem*)dwc_eth_ntn_reg_pci_base_addr != NULL)
-        pci_iounmap(pdev, (void __iomem *)dwc_eth_ntn_reg_pci_base_addr);
+	if ((void __iomem*)dwc_eth_ntn_reg_pci_base_addr != NULL)
+		pci_iounmap(pdev, (void __iomem *)dwc_eth_ntn_reg_pci_base_addr);
+	if ((void __iomem*)dwc_eth_ntn_SRAM_pci_base_addr_virt != NULL)
+		pci_iounmap(pdev, (void __iomem *)dwc_eth_ntn_SRAM_pci_base_addr_virt);
+	if ((void __iomem*)dwc_eth_ntn_FLASH_pci_base_addr != NULL)
+		pci_iounmap(pdev, (void __iomem *)dwc_eth_ntn_FLASH_pci_base_addr);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
