@@ -23,14 +23,15 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 
-#define IPA_ENABLE_OFFLOAD_MASK 0x1
-#define IPA_DISABLE_OFFLOAD_MASK 0xFFFFFFFE
-
 extern ULONG dwc_eth_ntn_reg_pci_base_addr;
 extern ULONG dwc_eth_ntn_reg_pci_base_addr_phy;
 extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;
 extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_virt;
 extern ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
+
+#ifdef DWC_ETH_QOS_ENABLE_IPA
+
+#define NTN_HOST_IPA_CAPABLE	1
 
 /* IPA Ready client callback. Called by IPA when its ready */
 void DWC_ETH_QOS_ipa_ready_cb(void *user_data);
@@ -55,4 +56,33 @@ int DWC_ETH_QOS_ipa_create_debugfs(struct DWC_ETH_QOS_prv_data *pdata);
 
 /* Cleanup Debugfs Node */
 int DWC_ETH_QOS_ipa_cleanup_debugfs(struct DWC_ETH_QOS_prv_data *pdata);
+
+void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata);
+
+#else /* DWC_ETH_QOS_ENABLE_IPA */
+
+#define NTN_HOST_IPA_CAPABLE	0
+
+static inline void DWC_ETH_QOS_ipa_ready_cb(void *user_data)
+{
+	return;
+}
+
+static inline int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	return -EPERM;
+}
+
+static inline int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	return -EPERM;
+}
+
+static inline void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	return;
+}
+
+#endif /* DWC_ETH_QOS_ENABLE_IPA */
+
 #endif

@@ -144,6 +144,7 @@
 #define NTN_M3_DBG_DMA_TXCH2_DB_OFST  (2 * 4)
 #define NTN_M3_DBG_DMA_RXCH0_DB_OFST  (6 * 4)
 #define NTN_M3_DBG_RSVD_OFST   (4*14)
+#define NTN_M3_DBG_IPA_CAPABLE_MASK 0x2
 #define PCIE_SRAM_BAR_NUM 2
 /******************************************************************************/
 

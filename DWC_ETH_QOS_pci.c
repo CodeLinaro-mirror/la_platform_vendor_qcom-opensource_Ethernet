@@ -89,10 +89,7 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
-
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 #include "DWC_ETH_QOS_ipa.h"
-#endif
 
 struct DWC_ETH_QOS_prv_data *gDWC_ETH_QOS_prv_data;
 
@@ -375,9 +372,7 @@ static int DWC_ETH_QOS_panic_notifier(struct notifier_block *this,
 {
 	if (gDWC_ETH_QOS_prv_data) {
 		DBGPR("DWC_ETH_QOS: 0x%pK\n", gDWC_ETH_QOS_prv_data);
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 		update_dma_stats(gDWC_ETH_QOS_prv_data);
-#endif
 	}
 	return NOTIFY_DONE;
 }
@@ -606,7 +601,6 @@ static void DWC_ETH_QOS_config_tamap(struct pci_dev *pdev)
 	no_of_bits = 28;
 	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced, adrs_for_replacement, no_of_bits);
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 	/* Configure TMAP 1 to access IPA uC Register in host memory */
 	tmap_no = 1;
 	adrs_to_be_replaced = NTN_PCIE_REGION_MEM_MAP_BASE;
@@ -617,7 +611,6 @@ static void DWC_ETH_QOS_config_tamap(struct pci_dev *pdev)
 		adrs_for_replacement, no_of_bits);
 	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
 				adrs_for_replacement, no_of_bits);
-#endif
 }
 #endif
 
@@ -1068,23 +1061,27 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NMSGPR_ALERT( "carrier off till LINK is up\n");
 	}
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	/* Configure IPA Related Stuff */
-	ret = ipa_register_ipa_ready_cb(DWC_ETH_QOS_ipa_ready_cb,
-					(void *)pdata);
-	if (ret < 0) {
-		if (ret == -EEXIST) {
-			NMSGPR_ALERT("IPA is ready %d\n", ret);
-			pdata->prv_ipa.ipa_ready = true;
-		} else {
-			NMSGPR_ERR("IPA ready registration failed %d\n", ret);
+	/* Verify if IPA is supported in firmware */
+	pdata->ipa_enabled =
+		hw_if->ntn_fw_ipa_supported() && NTN_HOST_IPA_CAPABLE;
+
+	if (pdata->ipa_enabled) {
+		/* Configure IPA Related Stuff */
+		ret = ipa_register_ipa_ready_cb(DWC_ETH_QOS_ipa_ready_cb,
+						(void *)pdata);
+		if (ret < 0) {
+			if (ret == -EEXIST) {
+				NMSGPR_ALERT("IPA is ready %d\n", ret);
+				pdata->prv_ipa.ipa_ready = true;
+			} else {
+				NMSGPR_ERR("IPA ready registration failed %d\n", ret);
+				pdata->prv_ipa.ipa_ready = false;
+			}
+		} else if (ret == 0) {
+			NMSGPR_ALERT("IPA Not ready, cb registered successfully \n");
 			pdata->prv_ipa.ipa_ready = false;
 		}
-	} else if (ret == 0) {
-		NMSGPR_ALERT("IPA Not ready, cb registered successfully \n");
-		pdata->prv_ipa.ipa_ready = false;
 	}
-#endif
 
 	return 0;
 

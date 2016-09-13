@@ -86,10 +86,7 @@
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yapphdr.h"
 #include "DWC_ETH_QOS_drv.h"
-
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 #include "DWC_ETH_QOS_ipa.h"
-#endif
 
 extern ULONG dwc_eth_ntn_reg_pci_base_addr;
 extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;
@@ -352,10 +349,8 @@ static void DWC_ETH_QOS_rx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 	struct DWC_ETH_QOS_rx_wrapper_descriptor *rx_desc_data = NULL;
 	struct s_RX_NORMAL_DESC *rx_desc = NULL;
 	int chInx, i;
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	unsigned int *base_ptr = (unsigned int *)GET_RX_BUFF_POOL_BASE_ADRR(NTN_RX_DMA_CH_0);
+	dma_addr_t *base_ptr = GET_RX_BUFF_POOL_BASE_ADRR(NTN_RX_DMA_CH_0);
 	struct DWC_ETH_QOS_rx_buffer *rx_buf_ptrs = NULL;
-#endif
 
 #ifndef YDEBUG
 	return;
@@ -394,10 +389,10 @@ static void DWC_ETH_QOS_rx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 			rx_desc_data->rsf_on);
 		NMSGPR_ALERT( "\trx_pbl                = %d\n",
 			rx_desc_data->rx_pbl);
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-		NMSGPR_ALERT( "\tRX Base Ring     = %p\n",
-			&GET_RX_BUFF_POOL_BASE_ADRR(chInx));
-#endif
+		if (pdata->ipa_enabled) {
+			NMSGPR_ALERT("\tRX Base Ring     = %p\n",
+				     &GET_RX_BUFF_POOL_BASE_ADRR(chInx));
+		}
 
 		NMSGPR_ALERT( "\t[<desc_add> <index >] = <RDES0> : <RDES1> : <RDES2> : <RDES3>\n");
 		for (i = 0; i < RX_DESC_CNT; i++) {
@@ -405,15 +400,14 @@ static void DWC_ETH_QOS_rx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 			NMSGPR_ALERT( "\t[%4p %03d] = %#x : %#x : %#x : %#x\n",
 				rx_desc, i, rx_desc->RDES0, rx_desc->RDES1,
 				rx_desc->RDES2, rx_desc->RDES3);
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-			rx_buf_ptrs = GET_RX_BUF_PTR(chInx, i);
-			NMSGPR_ALERT("\t skb mempool %p skb rx buf %p ,"
-				"skb len %d skb dma %p base %p *base %p \n",
-			(void *)GET_RX_BUFF_DMA_ADDR(chInx, i),
-			rx_buf_ptrs->skb, rx_buf_ptrs->len,
-			(void *)rx_buf_ptrs->dma, (void *)(base_ptr + i),
-			(void *)(*(base_ptr + i)));
-#endif
+			if (pdata->ipa_enabled) {
+				rx_buf_ptrs = GET_RX_BUF_PTR(chInx, i);
+				NMSGPR_ALERT("\t skb mempool %p skb rx buf %p ,"
+					     "skb len %d skb dma %p base %p\n",
+					     (void *)GET_RX_BUFF_DMA_ADDR(chInx, i),
+					     rx_buf_ptrs->skb, rx_buf_ptrs->len,
+					     (void *)rx_buf_ptrs->dma, (void *)(base_ptr + i));
+			}
 		}
 	}
 
@@ -708,13 +702,11 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
         if(!pdata->rx_dma_ch_for_host[chInx])
             continue;
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	if (chInx == NTN_RX_DMA_CH_0)
-        {
-                pr_debug("ISR is routed to IPA uC for RXCH0. Skip for this channel \n");
-		continue;
-        }
-#endif
+		if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
+			pr_debug("ISR is routed to IPA uC for RXCH0. Skip for this channel \n");
+			continue;
+		}
+
 	    	rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
 
             	/* DMA RX Channel level status register */
@@ -792,13 +784,11 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 			if(!pdata->tx_dma_ch_for_host[chInx])
                         continue;
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	if (chInx == NTN_TX_DMA_CH_2)
-        {
-                pr_debug("TX interrupts are handled by IPA uc for TXCH2.skip for the host \n");
-		continue;
-        }
-#endif
+
+		if (pdata->ipa_enabled && chInx == NTN_TX_DMA_CH_2) {
+			pr_debug("TX interrupts are handled by IPA uc for TXCH2.skip for the host \n");
+			continue;
+		}
 
                 /* DMA TX Channel level status register */
                 DMA_TXCHSTS_RgRd(chInx, var_raw_DMA_TXCHSTS);
@@ -984,15 +974,17 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 	/* Read interrupt mask */
 	NTN_INTC_INTMCUMASK1_RgRd(varNTN_INTC_INTMCUMASK1);
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	/* Enable all GMAC interrupts apart from offload channels controlled by IPA*/
-	varNTN_INTC_INTMCUMASK1 &= (NTN_INTC_GMAC_INT_MASK |
-				(1 << NTN_INTC_GMAC_INT_TXCH2_BIT_POS) |
-				(1 << NTN_INTC_GMAC_INT_RXCH0_BIT_POS));
-#else
-	/* Enable interrupts again : Only TX & RX DMA channel interrupts */
-	varNTN_INTC_INTMCUMASK1 &= NTN_INTC_GMAC_INT_MASK;
-#endif
+
+	if (pdata->ipa_enabled) {
+		/* Enable all GMAC interrupts apart from offload channels controlled by IPA*/
+		varNTN_INTC_INTMCUMASK1 &= (NTN_INTC_GMAC_INT_MASK |
+					(1 << NTN_INTC_GMAC_INT_TXCH2_BIT_POS) |
+					(1 << NTN_INTC_GMAC_INT_RXCH0_BIT_POS));
+	} else {
+		/* Enable interrupts again : Only TX & RX DMA channel interrupts */
+		varNTN_INTC_INTMCUMASK1 &= NTN_INTC_GMAC_INT_MASK;
+	}
+
 	NTN_INTC_INTMCUMASK1_RgWr(varNTN_INTC_INTMCUMASK1);
 
 	DBGPR("<--DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS\n");
@@ -1146,10 +1138,8 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 		pdata->hw_feat.mac_addr32_sel ? "YES" : "NO");
 	DBGPR( "MAC Addresses 64–127 Selected               : %s\n",
 		pdata->hw_feat.mac_addr64_sel ? "YES" : "NO");
-#ifdef DWC_ETH_QOS_ENABLE_IPA
 	DBGPR( "IPA Feature Enabled                          : %s\n",
-		pdata->prv_ipa.ipa_ready ? "YES" : "NO");
-#endif
+		pdata->ipa_enabled ? "YES" : "NO");
 	if (pdata->hw_feat.mac_addr64_sel)
 		pdata->max_addr_reg_cnt = 128;
 	else if (pdata->hw_feat.mac_addr32_sel)
@@ -1436,28 +1426,20 @@ static int DWC_ETH_QOS_alloc_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pda
 		goto map_skb;
 	}
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	if (chInx == NTN_RX_DMA_CH_0)
+	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0)
 		skb = __netdev_alloc_skb_ip_align(pdata->dev, DWC_ETH_QOS_ETH_FRAME_LEN_IPA, gfp);
 	else
 		skb = __netdev_alloc_skb_ip_align(pdata->dev, pdata->rx_buffer_len, gfp);
-#else
-	skb = __netdev_alloc_skb_ip_align(pdata->dev, pdata->rx_buffer_len, gfp);
-#endif
 
 	if (skb == NULL) {
 		NMSGPR_ALERT( "Failed to allocate skb\n");
 		return -ENOMEM;
 	}
 	buffer->skb = skb;
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	if (chInx == NTN_RX_DMA_CH_0)
+	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0)
 		buffer->len = DWC_ETH_QOS_ETH_FRAME_LEN_IPA;
 	else
 		buffer->len = pdata->rx_buffer_len;
-#else
-	buffer->len = pdata->rx_buffer_len;
-#endif
 
  map_skb:
 
@@ -1481,17 +1463,13 @@ static int DWC_ETH_QOS_alloc_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pda
 	if (dma_mapping_error(&pdata->pdev->dev, buffer->dma_iommu))
 		NMSGPR_ALERT( "failed to do the RX dma map\n");
 #else
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	if (chInx == NTN_RX_DMA_CH_0)
+	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0)
 		buffer->dma = dma_map_single(&pdata->pdev->dev, skb->data,
 			DWC_ETH_QOS_ETH_FRAME_LEN_IPA, DMA_FROM_DEVICE);
 	else
 		buffer->dma = dma_map_single(&pdata->pdev->dev, skb->data,
 				pdata->rx_buffer_len, DMA_FROM_DEVICE);
-#else
-	buffer->dma = dma_map_single(&pdata->pdev->dev, skb->data,
-				pdata->rx_buffer_len, DMA_FROM_DEVICE);
-#endif
+
 	if (dma_mapping_error(&pdata->pdev->dev, buffer->dma))
 		NMSGPR_ALERT( "failed to do the RX dma map\n");
 
@@ -1826,18 +1804,18 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 
 	netif_tx_start_all_queues(dev);
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	/* Helper flag for IPA Ready CB */
-	pdata->prv_ipa.is_dev_ready = true;
+	if (pdata->ipa_enabled) {
+		/* Helper flag for IPA Ready CB */
+		pdata->prv_ipa.is_dev_ready = true;
 
-	/* Configure IPA Related Stuff */
-	if (!pdata->prv_ipa.ipa_ready)
-		return ret;
+		/* Configure IPA Related Stuff */
+		if (!pdata->prv_ipa.ipa_ready)
+			return ret;
 
-	ret = DWC_ETH_QOS_enable_ipa_offload(pdata);
-	if (ret)
-		return ret;
-#endif
+		ret = DWC_ETH_QOS_enable_ipa_offload(pdata);
+		if (ret)
+			return ret;
+	}
 
 #ifdef NTN_POLLING_METHOD
 	polling_task_data = (void*)pdata;
@@ -1878,9 +1856,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &pdata->hw_if;
 	struct desc_if_struct *desc_if = &pdata->desc_if;
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	int ret =0;
-#endif
+	int ret = 0;
 
 	DBGPR("-->DWC_ETH_QOS_close\n");
 
@@ -1893,11 +1869,12 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	netif_tx_disable(dev);
 	DWC_ETH_QOS_all_ch_napi_disable(pdata);
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	ret = DWC_ETH_QOS_disable_ipa_offload(pdata);
-	if (ret)
-		return ret;
-#endif
+	if (pdata->ipa_enabled) {
+		ret = DWC_ETH_QOS_disable_ipa_offload(pdata);
+		if (ret)
+			return ret;
+	}
+
 	/* issue software reset to device */
 	hw_if->exit();
 	desc_if->tx_free_mem(pdata);
@@ -2663,14 +2640,12 @@ static void DWC_ETH_QOS_tx_interrupt(struct net_device *dev,
 		" dirty_tx = %d, chInx = %u\n",
 		desc_data->tx_pkt_queued, desc_data->dirty_tx, chInx);
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	if (chInx == NTN_TX_DMA_CH_2)
-        {
-                NMSGPR_INFO("TX status interrupts are handled by IPA uc for TXCH2\
-                           skip for the host \n");
+	if (pdata->ipa_enabled && chInx == NTN_TX_DMA_CH_2) {
+		NMSGPR_INFO("TX status interrupts are handled by IPA uc for TXCH2 \
+					skip for the host \n");
 		return;
-        }
-#endif
+	}
+
 	spin_lock_irqsave(&pdata->tx_lock, flags);
 
 	pdata->xstats.tx_clean_n[chInx]++;
@@ -3212,12 +3187,10 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-		if (chInx == NTN_RX_DMA_CH_0) {
+		if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
 			pr_debug("RX pkts are recieved by IPA uC..so skip for the host \n");
 			continue;
 		}
-#endif
 
 		rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
 
@@ -5236,12 +5209,15 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 	UINT eth_or_vlan_tag;
 	UINT avb_priority;
 	UINT eth_type;
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+	UINT tx_ch_host = pdata->ipa_enabled ? NTN_TX_PKT_HOST_IPA : NTN_TX_PKT_HOST;
 
 	DBGPR("-->DWC_ETH_QOS_select_queue\n");
 
 	/* Linearize the skb in case it is in fragments */
 	if (skb_linearize(skb) != 0) {
-		return NTN_TX_PKT_HOST;
+
+		return tx_ch_host;
 	}
 
 	/* TX Channel assignment based on Vlan tag and protocol type */
@@ -5263,7 +5239,7 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 			}else if(avb_priority == NTN_AVB_PRIORITY_CLASS_B){
 				txqueue_select = NTN_TX_PKT_AVB_CLASS_B;
 			}else{
-				txqueue_select = NTN_TX_PKT_HOST;
+				txqueue_select = tx_ch_host;
 			}
 		}else{
 			/* VLAN but not AVB send it to Q0 */
@@ -5279,7 +5255,7 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 				txqueue_select = NTN_TX_PKT_GPTP;
 				break;
 			default:
-				txqueue_select = NTN_TX_PKT_HOST;
+				txqueue_select = tx_ch_host;
 				break;
 		}
 	}
@@ -6847,16 +6823,12 @@ void DWC_ETH_QOS_init_rx_coalesce(struct DWC_ETH_QOS_prv_data *pdata)
 
 		rx_desc_data->use_riwt = 1;
 		rx_desc_data->rx_coal_frames = DWC_ETH_QOS_RX_MAX_FRAMES;
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-	        if (chInx == NTN_RX_DMA_CH_0)
-		     rx_desc_data->rx_riwt = DWC_ETH_QOS_MAX_DMA_RIWT;
-	        else
-		     rx_desc_data->rx_riwt =
-		        DWC_ETH_QOS_usec2riwt(DWC_ETH_QOS_OPTIMAL_DMA_RIWT_USEC, pdata);
-#else
-		rx_desc_data->rx_riwt =
-	 	        DWC_ETH_QOS_usec2riwt(DWC_ETH_QOS_OPTIMAL_DMA_RIWT_USEC, pdata);
-#endif
+
+		if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0)
+			rx_desc_data->rx_riwt = DWC_ETH_QOS_MAX_DMA_RIWT;
+		else
+			rx_desc_data->rx_riwt =
+				DWC_ETH_QOS_usec2riwt(DWC_ETH_QOS_OPTIMAL_DMA_RIWT_USEC, pdata);
 	}
 
 	DBGPR("<--DWC_ETH_QOS_init_rx_coalesce\n");
