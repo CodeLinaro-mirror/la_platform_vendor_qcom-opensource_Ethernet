@@ -1007,33 +1007,32 @@ static INT config_sub_second_increment(ULONG ptp_clock)
 
 static ULONG_LONG get_systime(void)
 {
-  ULONG ns1, ns2;
+  ULONG ns;
   ULONG varmac_stnsr;
-  ULONG varmac_stsr;
+  ULONG varmac_stsr1, varmac_stsr2;
 
-  /* Read the nanoseconds once */
-  MAC_STNSR_RgRd(varmac_stnsr);
-  ns1 = GET_VALUE(varmac_stnsr, MAC_STNSR_TSSS_LPOS, MAC_STNSR_TSSS_HPOS);
+  /* Read the seconds once */
+  MAC_STSR_RgRd(varmac_stsr1);
 
   while (1) {
-    /* Read the seconds */
-    MAC_STSR_RgRd(varmac_stsr);
-
-    /* Read the nanoseconds again */
+    /* Read the nanoseconds */
     MAC_STNSR_RgRd(varmac_stnsr);
-    ns2 = GET_VALUE(varmac_stnsr, MAC_STNSR_TSSS_LPOS, MAC_STNSR_TSSS_HPOS);
+    ns = GET_VALUE(varmac_stnsr, MAC_STNSR_TSSS_LPOS, MAC_STNSR_TSSS_HPOS);
 
-    /* If the nanoseconds didn't roll over, break and return the time */
-    if (ns2 > ns1) {
+    /* Read the seconds again */
+    MAC_STSR_RgRd(varmac_stsr2);
+
+    /* If the seconds didn't roll over, break and return the time */
+    if (varmac_stsr1 == varmac_stsr2) {
       break;
     }
 
-    /* If the nanoseconds did roll over, read the time again */
-    ns1 = ns2;
+    /* If the seconds did roll over, read the time again */
+    varmac_stsr1 = varmac_stsr2;
   }
 
   /* convert sec/high time value to nanosecond */
-  return ((ULONG_LONG) ns2) + (varmac_stsr * 1000000000ull);
+  return ((ULONG_LONG) ns) + (varmac_stsr1 * 1000000000ull);
 }
 
 
