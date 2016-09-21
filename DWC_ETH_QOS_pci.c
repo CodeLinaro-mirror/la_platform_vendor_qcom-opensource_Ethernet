@@ -372,7 +372,7 @@ static int DWC_ETH_QOS_panic_notifier(struct notifier_block *this,
 {
 	if (gDWC_ETH_QOS_prv_data) {
 		DBGPR("DWC_ETH_QOS: 0x%pK\n", gDWC_ETH_QOS_prv_data);
-		update_dma_stats(gDWC_ETH_QOS_prv_data);
+		DWC_ETH_QOS_ipa_stats_read(gDWC_ETH_QOS_prv_data);
 	}
 	return NOTIFY_DONE;
 }

@@ -81,12 +81,64 @@
  */
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_ethtool.h"
+#include "DWC_ETH_QOS_ipa.h"
 
 struct DWC_ETH_QOS_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int stat_offset;
 };
+
+#define DWC_ETH_QOS_IPA(m) \
+	{#m, FIELD_SIZEOF(struct DWC_ETH_QOS_ipa_stats, m), \
+	offsetof(struct DWC_ETH_QOS_prv_data, ipa_stats.m)}
+
+static const struct DWC_ETH_QOS_stats DWC_ETH_QOS_ipa_gstrings_stats[] = {
+	DWC_ETH_QOS_IPA(ipa_rx_Desc_Ring_Base),
+	DWC_ETH_QOS_IPA(ipa_rx_Desc_Ring_Size),
+	DWC_ETH_QOS_IPA(ipa_rx_Buff_Ring_Base),
+	DWC_ETH_QOS_IPA(ipa_rx_Buff_Ring_Size),
+	DWC_ETH_QOS_IPA(ipa_rx_Db_Int_Raised),
+	DWC_ETH_QOS_IPA(ipa_rx_Cur_Desc_Ptr_Indx),
+	DWC_ETH_QOS_IPA(ipa_rx_Tail_Ptr_Indx),
+
+	DWC_ETH_QOS_IPA(ipa_rx_DMA_Status),
+	DWC_ETH_QOS_IPA(ipa_rx_DMA_Ch_Status),
+	DWC_ETH_QOS_IPA(ipa_rx_DMA_Ch_underflow),
+	DWC_ETH_QOS_IPA(ipa_rx_DMA_Ch_stopped),
+	DWC_ETH_QOS_IPA(ipa_rx_DMA_Ch_complete),
+
+	DWC_ETH_QOS_IPA(ipa_rx_Int_Mask),
+	DWC_ETH_QOS_IPA(ipa_rx_Transfer_Complete_irq),
+	DWC_ETH_QOS_IPA(ipa_rx_Transfer_Stopped_irq),
+	DWC_ETH_QOS_IPA(ipa_rx_Underflow_irq),
+	DWC_ETH_QOS_IPA(ipa_rx_Early_Trans_Comp_irq),
+
+	DWC_ETH_QOS_IPA(ipa_tx_Desc_Ring_Base),
+	DWC_ETH_QOS_IPA(ipa_tx_Desc_Ring_Size),
+	DWC_ETH_QOS_IPA(ipa_tx_Buff_Ring_Base),
+	DWC_ETH_QOS_IPA(ipa_tx_Buff_Ring_Size),
+	DWC_ETH_QOS_IPA(ipa_tx_Db_Int_Raised),
+	DWC_ETH_QOS_IPA(ipa_tx_Curr_Desc_Ptr_Indx),
+	DWC_ETH_QOS_IPA(ipa_tx_Tail_Ptr_Indx),
+
+	DWC_ETH_QOS_IPA(ipa_tx_DMA_Status),
+	DWC_ETH_QOS_IPA(ipa_tx_DMA_Ch_Status),
+	DWC_ETH_QOS_IPA(ipa_tx_DMA_Ch_underflow),
+	DWC_ETH_QOS_IPA(ipa_tx_DMA_Transfer_stopped),
+	DWC_ETH_QOS_IPA(ipa_tx_DMA_Transfer_complete),
+
+	DWC_ETH_QOS_IPA(ipa_tx_Int_Mask),
+	DWC_ETH_QOS_IPA(ipa_tx_Transfer_Complete_irq),
+	DWC_ETH_QOS_IPA(ipa_tx_Transfer_Stopped_irq),
+	DWC_ETH_QOS_IPA(ipa_tx_Underflow_irq),
+	DWC_ETH_QOS_IPA(ipa_tx_Early_Trans_Cmp_irq),
+	DWC_ETH_QOS_IPA(ipa_tx_Fatal_err_irq),
+	DWC_ETH_QOS_IPA(ipa_tx_Desc_Err_irq),
+
+	DWC_ETH_QOS_IPA(ipa_ul_exception),
+};
+#define DWC_ETH_QOS_IPA_STAT_LEN ARRAY_SIZE(DWC_ETH_QOS_ipa_gstrings_stats)
 
 /* HW extra status */
 #define DWC_ETH_QOS_EXTRA_STAT(m) \
@@ -1075,6 +1127,18 @@ static void DWC_ETH_QOS_get_ethtool_stats(struct net_device *dev,
 				sizeof(u64)) ? (*(u64 *)p) : (*(u32 *)p);
 	}
 
+	/* Update IPA stats */
+	if (pdata->ipa_enabled) {
+		NMSGPR_INFO("Add IPA stats\n");
+		DWC_ETH_QOS_ipa_stats_read(pdata);
+		for (i = 0; i < DWC_ETH_QOS_IPA_STAT_LEN; i++) {
+			char *p = (char *)pdata +
+					DWC_ETH_QOS_ipa_gstrings_stats[i].stat_offset;
+			data[j++] = (DWC_ETH_QOS_ipa_gstrings_stats[i].sizeof_stat ==
+					sizeof(u64)) ? (*(u64 *)p) : (*(u32 *)p);
+		}
+	}
+
 	DBGPR("<--DWC_ETH_QOS_get_ethtool_stats\n");
 }
 
@@ -1112,6 +1176,14 @@ static void DWC_ETH_QOS_get_strings(struct net_device *dev, u32 stringset, u8 *d
 				ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+
+		if (pdata->ipa_enabled) {
+			for (i = 0; i < DWC_ETH_QOS_IPA_STAT_LEN; i++) {
+				memcpy(p, DWC_ETH_QOS_ipa_gstrings_stats[i].stat_string,
+					ETH_GSTRING_LEN);
+				p += ETH_GSTRING_LEN;
+			}
+		}
 		break;
 	default:
 		WARN_ON(1);
@@ -1145,6 +1217,8 @@ static int DWC_ETH_QOS_get_sset_count(struct net_device *dev, int sset)
 		if (pdata->hw_feat.mmc_sel)
 			len = DWC_ETH_QOS_MMC_STATS_LEN;
 		len += DWC_ETH_QOS_EXTRA_STAT_LEN;
+		if (pdata->ipa_enabled)
+			len += DWC_ETH_QOS_IPA_STAT_LEN;
 		break;
 	default:
 		len = -EOPNOTSUPP;

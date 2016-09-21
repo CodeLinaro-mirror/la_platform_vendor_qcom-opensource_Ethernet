@@ -1425,48 +1425,50 @@ struct DWC_ETH_QOS_extra_stats {
 	unsigned long m3_msi_rxch[NTN_DMA_RX_CH_CNT];
 };
 
-struct DWC_ETH_QOS_ipa_dma_stats {
-	UINT RX0_Desc_Ring_Base;
-	INT RX0_Desc_Ring_Size;
-	UINT RX0_Buff_Ring_Base;
-	INT RX0_Buff_Ring_Size;
-	UINT RX0_Db_Int_Raised;
-	UINT RX0_Cur_Desc_Ptr_Indx;
-	UINT RX0_Tail_Ptr_Indx;
+struct DWC_ETH_QOS_ipa_stats {
+	unsigned int ipa_rx_Desc_Ring_Base;
+	unsigned int ipa_rx_Desc_Ring_Size;
+	unsigned int ipa_rx_Buff_Ring_Base;
+	unsigned int ipa_rx_Buff_Ring_Size;
+	unsigned int ipa_rx_Db_Int_Raised;
+	unsigned int ipa_rx_Cur_Desc_Ptr_Indx;
+	unsigned int ipa_rx_Tail_Ptr_Indx;
 
-	UINT RX0_DMA_Status;
-	UINT RX0_DMA_Ch_Status;
-	UINT RX0_DMA_Ch_underflow;
-	UINT RX0_DMA_Ch_stopped;
-	UINT RX0_DMA_Ch_complete;
+	unsigned int ipa_rx_DMA_Status;
+	unsigned int ipa_rx_DMA_Ch_Status;
+	unsigned int ipa_rx_DMA_Ch_underflow;
+	unsigned int ipa_rx_DMA_Ch_stopped;
+	unsigned int ipa_rx_DMA_Ch_complete;
 
-	UINT RX0_Int_Mask;
-	ULONG RX0_Transfer_Complete_irq;
-	ULONG RX0_Transfer_Stopped_irq;
-	ULONG RX0_Underflow_irq;
-	ULONG RX0_Early_Transmit_Complete_irq;
+	unsigned int ipa_rx_Int_Mask;
+	unsigned long ipa_rx_Transfer_Complete_irq;
+	unsigned long ipa_rx_Transfer_Stopped_irq;
+	unsigned long ipa_rx_Underflow_irq;
+	unsigned long ipa_rx_Early_Trans_Comp_irq;
 
-	UINT TX2_Desc_Ring_Base;
-	INT TX2_Desc_Ring_Size;
-	UINT TX2_Buff_Ring_Base;
-	INT TX2_Buff_Ring_Size;
-	UINT TX2_Db_Int_Raised;
-	ULONG TX2_Curr_Desc_Ptr_Indx;
-	ULONG TX2_Tail_Ptr_Indx;
+	unsigned int ipa_tx_Desc_Ring_Base;
+	unsigned int ipa_tx_Desc_Ring_Size;
+	unsigned int ipa_tx_Buff_Ring_Base;
+	unsigned int ipa_tx_Buff_Ring_Size;
+	unsigned int ipa_tx_Db_Int_Raised;
+	unsigned long ipa_tx_Curr_Desc_Ptr_Indx;
+	unsigned long ipa_tx_Tail_Ptr_Indx;
 
-	UINT TX2_DMA_Status;
-	UINT TX2_DMA_Ch_Status;
-	UINT TX2_DMA_Ch_underflow;
-	UINT TX2_DMA_Transfer_stopped;
-	UINT TX2_DMA_Transfer_complete;
+	unsigned int ipa_tx_DMA_Status;
+	unsigned int ipa_tx_DMA_Ch_Status;
+	unsigned int ipa_tx_DMA_Ch_underflow;
+	unsigned int ipa_tx_DMA_Transfer_stopped;
+	unsigned int ipa_tx_DMA_Transfer_complete;
 
-	UINT TX2_Int_Mask;
-	ULONG TX2_Transfer_Complete_irq;
-	ULONG TX2_Transfer_Stopped_irq;
-	ULONG TX2_Underflow_irq;
-	ULONG TX2_Early_Trans_Cmp_irq;
-	ULONG TX2_Fatal_err_irq;
-	ULONG TX2_Desc_Err_irq;
+	unsigned int ipa_tx_Int_Mask;
+	unsigned long ipa_tx_Transfer_Complete_irq;
+	unsigned long ipa_tx_Transfer_Stopped_irq;
+	unsigned long ipa_tx_Underflow_irq;
+	unsigned long ipa_tx_Early_Trans_Cmp_irq;
+	unsigned long ipa_tx_Fatal_err_irq;
+	unsigned long ipa_tx_Desc_Err_irq;
+
+	unsigned long long ipa_ul_exception;
 };
 
 struct DWC_ETH_QOS_prv_ipa_data {
@@ -1482,10 +1484,6 @@ struct DWC_ETH_QOS_prv_ipa_data {
 
 	/* Dev state */
 	bool is_dev_ready;
-
-	/* IPA Stats */
-	unsigned long long ipa_ul_exception;
-	struct DWC_ETH_QOS_ipa_dma_stats dma_stats;
 };
 
 struct DWC_ETH_QOS_prv_data {
@@ -1577,6 +1575,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	struct DWC_ETH_QOS_mmc_counters mmc;
 	struct DWC_ETH_QOS_extra_stats xstats;
+	struct DWC_ETH_QOS_ipa_stats ipa_stats;
 
 	/* for MAC loopback */
 	unsigned int mac_loopback_mode;
