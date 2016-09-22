@@ -1784,6 +1784,11 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 
 	DBGPR("-->DWC_ETH_QOS_open\n");
 
+	/* Connect the phy to the network device */
+	if (pdata->enable_phy && pdata->phydev)
+		phy_connect_direct(dev, pdata->phydev, DWC_ETH_QOS_adjust_link,
+				   pdata->interface);
+
 	if (DWC_ETH_QOS_request_irq(dev) != 0) {
 		NMSGPR_ALERT("Unable to register IRQ %d\n", pdata->irq_number);
 		ret = -EBUSY;
@@ -1880,6 +1885,11 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	desc_if->tx_free_mem(pdata);
 	desc_if->rx_free_mem(pdata);
 	DWC_ETH_QOS_free_irq(dev);
+
+	/* Release the phy by killing the phy state machine and disconnecting
+	 * from it */
+	if (pdata->enable_phy && pdata->phydev)
+		phy_disconnect(pdata->phydev);
 
 #ifdef NTN_POLLING_METHOD
 	cancel_delayed_work_sync(&task);

@@ -401,8 +401,7 @@ void dump_phy_registers(struct DWC_ETH_QOS_prv_data *pdata)
 *
 * \return void
 */
-
-static void DWC_ETH_QOS_adjust_link(struct net_device *dev)
+void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
@@ -547,7 +546,7 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 
 	DBGPR_MDIO("trying to attach to %s\n", phy_id_fmt);
 
-	phydev = phy_connect(dev, phy_id_fmt, &DWC_ETH_QOS_adjust_link,
+	phydev = phy_connect(dev, phy_id_fmt, DWC_ETH_QOS_adjust_link,
 			     pdata->interface);
 
 	if (IS_ERR(phydev)) {
