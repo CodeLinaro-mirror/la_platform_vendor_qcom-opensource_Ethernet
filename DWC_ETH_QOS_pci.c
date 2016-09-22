@@ -937,8 +937,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		}
 	} else if (!hw_if->ntn_boot_from_flash_done()) {
 		NMSGPR_ALERT("ERROR: Boot from flash failed\n");
-		ret = -EINVAL;
-		goto err_load_fw_failed;
+		/* eth interface need to comeup even if firmware is not available
+		 * in HW, hence do not return here. Please refer CR 1069885.
+		 */
 	} else {
 		NMSGPR_INFO("Boot from flash complete\n");
 	}
