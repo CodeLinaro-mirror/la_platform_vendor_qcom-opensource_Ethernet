@@ -1766,6 +1766,7 @@ bool DWC_ETH_QOS_eee_init(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_handle_eee_interrupt(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_disable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_enable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_adjust_link(struct net_device *dev);
 
 /* For debug prints*/
 #define DRV_NAME "DWC_ETH_QOS_drv.c"
