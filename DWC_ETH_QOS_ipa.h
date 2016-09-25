@@ -57,7 +57,7 @@ int DWC_ETH_QOS_ipa_create_debugfs(struct DWC_ETH_QOS_prv_data *pdata);
 /* Cleanup Debugfs Node */
 int DWC_ETH_QOS_ipa_cleanup_debugfs(struct DWC_ETH_QOS_prv_data *pdata);
 
-void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_ipa_stats_read(struct DWC_ETH_QOS_prv_data *pdata);
 
 #else /* DWC_ETH_QOS_ENABLE_IPA */
 
@@ -78,7 +78,7 @@ static inline int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *p
 	return -EPERM;
 }
 
-static inline void update_dma_stats(struct DWC_ETH_QOS_prv_data *pdata)
+static inline void DWC_ETH_QOS_ipa_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	return;
 }

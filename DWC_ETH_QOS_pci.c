@@ -372,7 +372,7 @@ static int DWC_ETH_QOS_panic_notifier(struct notifier_block *this,
 {
 	if (gDWC_ETH_QOS_prv_data) {
 		DBGPR("DWC_ETH_QOS: 0x%pK\n", gDWC_ETH_QOS_prv_data);
-		update_dma_stats(gDWC_ETH_QOS_prv_data);
+		DWC_ETH_QOS_ipa_stats_read(gDWC_ETH_QOS_prv_data);
 	}
 	return NOTIFY_DONE;
 }
@@ -645,7 +645,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	struct hw_if_struct *hw_if = NULL;
 	struct desc_if_struct *desc_if = NULL;
 	UCHAR tx_q_count = 0, rx_q_count = 0;
-	unsigned int reg_val, fw_ver_cap=0;
+	unsigned int reg_val;
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
 	ULONG phy_mem_adrs;
 #endif
@@ -944,12 +944,15 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NMSGPR_INFO("Boot from flash complete\n");
 	}
 
-	fw_ver_cap =
-	   hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
-						 PCIE_SRAM_BAR_NUM);
-	NMSGPR_INFO("DBG Resvd area: 0x%x\n", fw_ver_cap);
-	NMSGPR_INFO("NTN FW Version: %d.%d\n", (fw_ver_cap >> 12),
-				((fw_ver_cap >> 8) & 0xF));
+	pdata->fw_ver_cap = hw_if->read_fw_ver_features();
+	NMSGPR_INFO("DBG Resvd area: 0x%x\n", pdata->fw_ver_cap);
+	NMSGPR_INFO("NTN FW Version: %d.%d\n", (pdata->fw_ver_cap >> 12),
+				((pdata->fw_ver_cap >> 8) & 0xF));
+
+	/* Verify if IPA is supported in firmware */
+	pdata->ipa_enabled =
+		hw_if->ntn_fw_ipa_supported() && NTN_HOST_IPA_CAPABLE;
+	NMSGPR_INFO("NTN IPA enabled: %d\n", pdata->ipa_enabled);
 
 	DWC_ETH_QOS_get_all_hw_features(pdata);
 	DWC_ETH_QOS_print_all_hw_features(pdata);
@@ -1061,10 +1064,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		netif_carrier_off(dev);
 		NMSGPR_ALERT( "carrier off till LINK is up\n");
 	}
-
-	/* Verify if IPA is supported in firmware */
-	pdata->ipa_enabled =
-		hw_if->ntn_fw_ipa_supported() && NTN_HOST_IPA_CAPABLE;
 
 	if (pdata->ipa_enabled) {
 		/* Configure IPA Related Stuff */

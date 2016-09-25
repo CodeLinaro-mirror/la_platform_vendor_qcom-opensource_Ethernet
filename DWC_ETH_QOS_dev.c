@@ -3015,7 +3015,7 @@ static void rx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
 
 	/* initialize all desc */
 
-	for (i = 0; i < RX_DESC_CNT; i++) {
+	for (i = 0; i < pdata->rx_dma_ch[chInx].desc_cnt; i++) {
 		memset(RX_NORMAL_DESC, 0, sizeof(struct s_RX_NORMAL_DESC));
 		/* update buffer 1 address pointer */
 		dma_adrs = buffer->dma;
@@ -3060,7 +3060,7 @@ static void rx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
 			}
 		}
 
-		INCR_RX_DESC_INDEX(rx_desc_data->cur_rx, 1);
+		INCR_RX_DESC_INDEX(rx_desc_data->cur_rx, 1, pdata->rx_dma_ch[chInx].desc_cnt);
 		RX_NORMAL_DESC =
 			GET_RX_DESC_PTR(chInx, rx_desc_data->cur_rx);
 		buffer = GET_RX_BUF_PTR(chInx, rx_desc_data->cur_rx);
@@ -3068,14 +3068,14 @@ static void rx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
 
 	/* Reset the OWN bit of last descriptor */
 	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
-		RX_NORMAL_DESC = GET_RX_DESC_PTR(chInx, RX_DESC_CNT - 1);
+		RX_NORMAL_DESC = GET_RX_DESC_PTR(chInx, pdata->rx_dma_ch[chInx].desc_cnt - 1);
 		RX_CONTEXT_DESC_RDES3_OWN_Mlf_Wr(RX_NORMAL_DESC->RDES3, 0);
 	}
 
 	/* update the total no of Rx descriptors count */
-	DMA_RXCH_DESC_RING_LENGTH_RgWr(chInx, (RX_DESC_CNT - 1));
+	DMA_RXCH_DESC_RING_LENGTH_RgWr(chInx, (pdata->rx_dma_ch[chInx].desc_cnt - 1));
 	/* update the Rx Descriptor Tail Pointer */
-	last_index = GET_CURRENT_RCVD_LAST_DESC_INDEX(start_index, 0);
+	last_index = GET_RX_CURRENT_RCVD_LAST_DESC_INDEX(start_index, 0, pdata->rx_dma_ch[chInx].desc_cnt);
 	DMA_RXCH_DESC_TAILPTR_RgWr(chInx, GET_RX_DESC_DMA_ADDR(chInx, last_index));
 	/* update the starting address of desc chain/ring */
 	desc_dma_adrs = GET_RX_DESC_DMA_ADDR(chInx, start_index);
@@ -3107,7 +3107,7 @@ static void tx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata,
 
 	/* initialze all descriptors. */
 
-	for (i = 0; i < TX_DESC_CNT; i++) {
+	for (i = 0; i < pdata->tx_dma_ch[chInx].desc_cnt; i++) {
 		/* update buffer 1 address pointer to zero */
 		TX_NORMAL_DESC_TDES0_Ml_Wr(TX_NORMAL_DESC->TDES0, 0);
 		/* update buffer 2 address pointer to zero */
@@ -3117,12 +3117,12 @@ static void tx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata,
 		/* set all other control bits (OWN, CTXT, FD, LD, CPC, CIC etc) to zero */
 		TX_NORMAL_DESC_TDES3_Ml_Wr(TX_NORMAL_DESC->TDES3, 0);
 
-		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1);
+		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		TX_NORMAL_DESC = GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 	}
 
 	/* update the total no of Tx descriptors count */
-	DMA_TXCH_DESC_RING_LENGTH_RgWr(chInx, (TX_DESC_CNT - 1));
+	DMA_TXCH_DESC_RING_LENGTH_RgWr(chInx, (pdata->tx_dma_ch[chInx].desc_cnt - 1));
 	/* update the starting address of desc chain/ring */
 	desc_dma_adrs = GET_TX_DESC_DMA_ADDR(chInx, start_index);
 #ifdef NTN_DESC_BUF_IN_HOST_MEM
@@ -3153,7 +3153,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 	struct s_TX_NORMAL_DESC *TX_NORMAL_DESC =
 	    GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 	struct s_TX_CONTEXT_DESC *TX_CONTEXT_DESC =
-	    GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
+	    (struct s_TX_CONTEXT_DESC *)GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 	UINT varcsum_enable;
 	UINT varvlan_pkt;
 	UINT varvt = 0;
@@ -3204,7 +3204,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		DBGPR_VLAN("%s:VLAN: TXDESC3_VT=%x VLTV,CTXT,OWN=1\n",__func__,varvt);
 
 		original_start_index = tx_desc_data->cur_tx;
-		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1);
+		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		start_index = tx_desc_data->cur_tx;
 		TX_NORMAL_DESC =
 			GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
@@ -3235,7 +3235,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		TX_CONTEXT_DESC_TDES3_OWN_Mlf_Wr(TX_CONTEXT_DESC->TDES3, 0x1);
 
 		original_start_index = tx_desc_data->cur_tx;
-		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1);
+		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		start_index = tx_desc_data->cur_tx;
 		TX_NORMAL_DESC = GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 		buffer = GET_TX_BUF_PTR(chInx, tx_desc_data->cur_tx);
@@ -3257,7 +3257,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		tx_desc_data->default_mss = tx_pkt_features->mss;
 
 		original_start_index = tx_desc_data->cur_tx;
-		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1);
+		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		start_index = tx_desc_data->cur_tx;
 		TX_NORMAL_DESC = GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 		buffer = GET_TX_BUF_PTR(chInx, tx_desc_data->cur_tx);
@@ -3281,7 +3281,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 	} else {
 		/* update total length of packet */
 		GET_TX_TOT_LEN(GET_TX_BUF_PTR(chInx, 0), tx_desc_data->cur_tx,
-				GET_CURRENT_XFER_DESC_CNT(chInx), total_len);
+				GET_CURRENT_XFER_DESC_CNT(chInx), total_len, pdata->tx_dma_ch[chInx].desc_cnt);
 		TX_NORMAL_DESC_TDES3_FL_Mlf_Wr(TX_NORMAL_DESC->TDES3, total_len);
 	}
 
@@ -3339,7 +3339,7 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		TX_NORMAL_DESC_TDES2_TTSE_Mlf_Wr(TX_NORMAL_DESC->TDES2, 0x1);
 	}
 
-	INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1);
+	INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 	TX_NORMAL_DESC = GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 	buffer = GET_TX_BUF_PTR(chInx, tx_desc_data->cur_tx);
 
@@ -3358,13 +3358,13 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		/* Mark it as NORMAL descriptor */
 		TX_NORMAL_DESC_TDES3_CTXT_Mlf_Wr(TX_NORMAL_DESC->TDES3, 0);
 
-		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1);
+		INCR_TX_DESC_INDEX(tx_desc_data->cur_tx, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		TX_NORMAL_DESC = GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 		buffer = GET_TX_BUF_PTR(chInx, tx_desc_data->cur_tx);
 	}
 	/* Mark it as LAST descriptor */
 	last_index =
-		GET_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, 0);
+		GET_TX_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, 0, pdata->tx_dma_ch[chInx].desc_cnt);
 	TX_NORMAL_DESC = GET_TX_DESC_PTR(chInx, last_index);
 	TX_NORMAL_DESC_TDES3_LD_Mlf_Wr(TX_NORMAL_DESC->TDES3, 0x1);
 	/* set Interrupt on Completion for last descriptor */
@@ -3417,13 +3417,13 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		pdata->mac_enable_count -= pdata->drop_tx_pktburstcnt;
 		/* issue a poll command to Tx DMA by writing address
 		 * of next immediate free descriptor */
-		last_index = GET_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, 1);
+		last_index = GET_TX_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, 1, pdata->tx_dma_ch[chInx].desc_cnt);
 		DMA_TXCH_DESC_TAILPTR_RgWr(chInx, GET_TX_DESC_DMA_ADDR(chInx, last_index));
 	}
 #else
 	/* issue a poll command to Tx DMA by writing address
 	 * of next immediate free descriptor */
-	last_index = GET_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, 1);
+	last_index = GET_TX_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, 1, pdata->tx_dma_ch[chInx].desc_cnt);
     DMA_TXCH_DESC_TAILPTR_RgWr(chInx, GET_TX_DESC_DMA_ADDR(chInx, last_index));
 
 #endif
@@ -4185,6 +4185,18 @@ static UINT ntn_reg_rd(UINT reg_offset, INT bar_num)
 }
 
 /*!
+ * \brief API to read FW version and features
+ * \param[in]
+ * \return register value
+ */
+static UINT read_fw_ver_features(void)
+{
+	return ntn_reg_rd(
+			(NTN_M3_DBG_CNT_START + NTN_M3_DBG_RSVD_OFST),
+			PCIE_SRAM_BAR_NUM);
+}
+
+/*!
  * \brief API to write register
  * \param[in] address offset as per Neutrino data-sheet
  * \return register
@@ -4443,6 +4455,7 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 	hw_if->dev_read = device_read;
 	hw_if->init = DWC_ETH_QOS_yinit;
 	hw_if->exit = DWC_ETH_QOS_yexit;
+	hw_if->read_fw_ver_features = read_fw_ver_features;
 	hw_if->init_offload = DWC_ETH_QOS_yinit_offload;
 	hw_if->exit_offload = DWC_ETH_QOS_yexit_offload;
 	hw_if->enable_offload = enable_offload;

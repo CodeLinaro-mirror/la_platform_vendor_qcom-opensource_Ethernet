@@ -390,13 +390,12 @@
 	0x13c7ULL << 32)
 #define MAC_MASK (0x10ULL << 0)
 
-#ifdef DWC_ETH_QOS_ENABLE_IPA
-#define TX_DESC_CNT	128 /*Increase the TX desc count to 128 for IPA offload*/
-#define RX_DESC_CNT	128 /*Increase the RX desc count to 128 for IPA offload*/
-#else
+#define IPA_TX_DESC_CNT	128 /*Increase the TX desc count to 128 for IPA offload*/
+#define IPA_RX_DESC_CNT	128 /*Increase the RX desc count to 128 for IPA offload*/
+
 #define TX_DESC_CNT	16
 #define RX_DESC_CNT	16
-#endif
+
 #define MIN_RX_DESC_CNT 4
 
 #define TX_BUF_SIZE 1536
@@ -508,34 +507,34 @@
 
 #define GET_TX_BUF_PTR(chInx, dInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_buf_ptrs[(dInx)])
 
-#define INCR_TX_DESC_INDEX(inx, offset) do {\
+#define INCR_TX_DESC_INDEX(inx, offset, desc_cnt) do {\
 	(inx) += (offset);\
-	if ((inx) >= TX_DESC_CNT)\
-		(inx) = ((inx) - TX_DESC_CNT);\
+	if ((inx) >= desc_cnt)\
+		(inx) = ((inx) - desc_cnt);\
 } while (0)
 
-#define DECR_TX_DESC_INDEX(inx) do {\
+#define DECR_TX_DESC_INDEX(inx, desc_cnt) do {\
   (inx)--;\
   if ((inx) < 0)\
-    (inx) = (TX_DESC_CNT + (inx));\
+    (inx) = (desc_cnt + (inx));\
 } while (0)
 
-#define INCR_TX_LOCAL_INDEX(inx, offset)\
-	(((inx) + (offset)) >= TX_DESC_CNT ?\
-	((inx) + (offset) - TX_DESC_CNT) : ((inx) + (offset)))
+#define INCR_TX_LOCAL_INDEX(inx, offset, desc_cnt)\
+	(((inx) + (offset)) >= desc_cnt ?\
+	((inx) + (offset) - desc_cnt) : ((inx) + (offset)))
 
 #define GET_CURRENT_XFER_DESC_CNT(chInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.packet_count)
 
-#define GET_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, offset)\
-	(GET_CURRENT_XFER_DESC_CNT((chInx)) == 0) ? (TX_DESC_CNT - 1) :\
-	((GET_CURRENT_XFER_DESC_CNT((chInx)) == 1) ? (INCR_TX_LOCAL_INDEX((start_index), (offset))) :\
-	INCR_TX_LOCAL_INDEX((start_index), (GET_CURRENT_XFER_DESC_CNT((chInx)) + (offset) - 1)))
+#define GET_TX_CURRENT_XFER_LAST_DESC_INDEX(chInx, start_index, offset, desc_cnt)\
+	(GET_CURRENT_XFER_DESC_CNT((chInx)) == 0) ? (desc_cnt - 1) :\
+	((GET_CURRENT_XFER_DESC_CNT((chInx)) == 1) ? (INCR_TX_LOCAL_INDEX((start_index), (offset), (desc_cnt))) :\
+	INCR_TX_LOCAL_INDEX((start_index), (GET_CURRENT_XFER_DESC_CNT((chInx)) + (offset) - 1), (desc_cnt)))
 
-#define GET_TX_TOT_LEN(buffer, start_index, packet_count, total_len) do {\
+#define GET_TX_TOT_LEN(buffer, start_index, packet_count, total_len, desc_cnt) do {\
   int i, pkt_idx = (start_index);\
   for(i = 0; i < (packet_count); i++) {\
     (total_len) += ((buffer)[pkt_idx].len + (buffer)[pkt_idx].len2);\
-    pkt_idx = INCR_TX_LOCAL_INDEX(pkt_idx, 1);\
+    pkt_idx = INCR_TX_LOCAL_INDEX(pkt_idx, 1, desc_cnt);\
   } \
 } while (0)
 
@@ -555,25 +554,25 @@
 
 #define GET_RX_BUF_PTR(chInx, dInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.rx_buf_ptrs[(dInx)])
 
-#define INCR_RX_DESC_INDEX(inx, offset) do {\
+#define INCR_RX_DESC_INDEX(inx, offset, desc_cnt) do {\
   (inx) += (offset);\
-  if ((inx) >= RX_DESC_CNT)\
-    (inx) = ((inx) - RX_DESC_CNT);\
+  if ((inx) >= desc_cnt)\
+    (inx) = ((inx) - desc_cnt);\
 } while (0)
 
-#define DECR_RX_DESC_INDEX(inx) do {\
+#define DECR_RX_DESC_INDEX(inx, desc_cnt) do {\
 	(inx)--;\
 	if ((inx) < 0)\
-		(inx) = (RX_DESC_CNT + (inx));\
+		(inx) = (desc_cnt + (inx));\
 } while (0)
 
-#define INCR_RX_LOCAL_INDEX(inx, offset)\
-	(((inx) + (offset)) >= RX_DESC_CNT ?\
-	((inx) + (offset) - RX_DESC_CNT) : ((inx) + (offset)))
+#define INCR_RX_LOCAL_INDEX(inx, offset, desc_cnt)\
+	(((inx) + (offset)) >= desc_cnt ?\
+	((inx) + (offset) - desc_cnt) : ((inx) + (offset)))
 
 #define GET_CURRENT_RCVD_DESC_CNT(chInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.pkt_received)
 
-#define GET_CURRENT_RCVD_LAST_DESC_INDEX(start_index, offset) (RX_DESC_CNT - 1)
+#define GET_RX_CURRENT_RCVD_LAST_DESC_INDEX(start_index, offset, desc_cnt) (desc_cnt - 1)
 
 #define GET_TX_DESC_IDX(chInx, desc) (((desc) - GET_TX_DESC_DMA_ADDR((chInx), 0))/(sizeof(struct s_TX_NORMAL_DESC)))
 
@@ -829,6 +828,7 @@ struct hw_if_struct {
 
 	INT(*init) (struct DWC_ETH_QOS_prv_data *);
 	INT(*exit) (void);
+	UINT(*read_fw_ver_features) (void);
 
 	INT(*init_offload) (struct DWC_ETH_QOS_prv_data *);
 	INT(*exit_offload) (void);
@@ -1053,13 +1053,13 @@ struct DWC_ETH_QOS_tx_buffer {
 struct DWC_ETH_QOS_tx_wrapper_descriptor {
 	char *desc_name;	/* ID of descriptor */
 
-	void *tx_desc_ptrs[TX_DESC_CNT];
-	dma_addr_t tx_desc_dma_addrs[TX_DESC_CNT];
+	struct s_TX_NORMAL_DESC **tx_desc_ptrs;
+	dma_addr_t *tx_desc_dma_addrs;
 
-	struct DWC_ETH_QOS_tx_buffer *tx_buf_ptrs[TX_DESC_CNT];
+	struct DWC_ETH_QOS_tx_buffer **tx_buf_ptrs;
 
 	dma_addr_t *tx_ipa_dma_buff_addrs;
-	struct sk_buff *tx_ipa_buff_addrs[TX_DESC_CNT];
+	struct sk_buff **tx_ipa_buff_addrs;
 
 	unsigned char contigous_mem;
 
@@ -1097,6 +1097,7 @@ struct DWC_ETH_QOS_tx_dma_ch {
 	/* Tx descriptors */
 	struct DWC_ETH_QOS_tx_wrapper_descriptor tx_desc_data;
 	int q_op_mode;
+	UINT desc_cnt;
 };
 
 /* wrapper buffer structure to hold received pkt details */
@@ -1124,12 +1125,12 @@ struct DWC_ETH_QOS_rx_buffer {
 struct DWC_ETH_QOS_rx_wrapper_descriptor {
 	char *desc_name;	/* ID of descriptor */
 
-	void *rx_desc_ptrs[RX_DESC_CNT];
-	dma_addr_t rx_desc_dma_addrs[RX_DESC_CNT];
+	struct s_RX_NORMAL_DESC **rx_desc_ptrs;
+	dma_addr_t *rx_desc_dma_addrs;
 
 	dma_addr_t *ipa_rx_buff_addrs;
 
-	struct DWC_ETH_QOS_rx_buffer *rx_buf_ptrs[RX_DESC_CNT];
+	struct DWC_ETH_QOS_rx_buffer **rx_buf_ptrs;
 
 	unsigned char contigous_mem;
 
@@ -1169,6 +1170,7 @@ struct DWC_ETH_QOS_rx_dma_ch {
 	struct net_lro_mgr lro_mgr;
 	struct net_lro_desc lro_arr[DWC_ETH_QOS_MAX_LRO_DESC];
 	int lro_flush_needed;
+	UINT desc_cnt;
 };
 
 struct desc_if_struct {
@@ -1423,48 +1425,50 @@ struct DWC_ETH_QOS_extra_stats {
 	unsigned long m3_msi_rxch[NTN_DMA_RX_CH_CNT];
 };
 
-struct DWC_ETH_QOS_ipa_dma_stats {
-	UINT RX0_Desc_Ring_Base;
-	INT RX0_Desc_Ring_Size;
-	UINT RX0_Buff_Ring_Base;
-	INT RX0_Buff_Ring_Size;
-	UINT RX0_Db_Int_Raised;
-	UINT RX0_Cur_Desc_Ptr_Indx;
-	UINT RX0_Tail_Ptr_Indx;
+struct DWC_ETH_QOS_ipa_stats {
+	unsigned int ipa_rx_Desc_Ring_Base;
+	unsigned int ipa_rx_Desc_Ring_Size;
+	unsigned int ipa_rx_Buff_Ring_Base;
+	unsigned int ipa_rx_Buff_Ring_Size;
+	unsigned int ipa_rx_Db_Int_Raised;
+	unsigned int ipa_rx_Cur_Desc_Ptr_Indx;
+	unsigned int ipa_rx_Tail_Ptr_Indx;
 
-	UINT RX0_DMA_Status;
-	UINT RX0_DMA_Ch_Status;
-	UINT RX0_DMA_Ch_underflow;
-	UINT RX0_DMA_Ch_stopped;
-	UINT RX0_DMA_Ch_complete;
+	unsigned int ipa_rx_DMA_Status;
+	unsigned int ipa_rx_DMA_Ch_Status;
+	unsigned int ipa_rx_DMA_Ch_underflow;
+	unsigned int ipa_rx_DMA_Ch_stopped;
+	unsigned int ipa_rx_DMA_Ch_complete;
 
-	UINT RX0_Int_Mask;
-	ULONG RX0_Transfer_Complete_irq;
-	ULONG RX0_Transfer_Stopped_irq;
-	ULONG RX0_Underflow_irq;
-	ULONG RX0_Early_Transmit_Complete_irq;
+	unsigned int ipa_rx_Int_Mask;
+	unsigned long ipa_rx_Transfer_Complete_irq;
+	unsigned long ipa_rx_Transfer_Stopped_irq;
+	unsigned long ipa_rx_Underflow_irq;
+	unsigned long ipa_rx_Early_Trans_Comp_irq;
 
-	UINT TX2_Desc_Ring_Base;
-	INT TX2_Desc_Ring_Size;
-	UINT TX2_Buff_Ring_Base;
-	INT TX2_Buff_Ring_Size;
-	UINT TX2_Db_Int_Raised;
-	ULONG TX2_Curr_Desc_Ptr_Indx;
-	ULONG TX2_Tail_Ptr_Indx;
+	unsigned int ipa_tx_Desc_Ring_Base;
+	unsigned int ipa_tx_Desc_Ring_Size;
+	unsigned int ipa_tx_Buff_Ring_Base;
+	unsigned int ipa_tx_Buff_Ring_Size;
+	unsigned int ipa_tx_Db_Int_Raised;
+	unsigned long ipa_tx_Curr_Desc_Ptr_Indx;
+	unsigned long ipa_tx_Tail_Ptr_Indx;
 
-	UINT TX2_DMA_Status;
-	UINT TX2_DMA_Ch_Status;
-	UINT TX2_DMA_Ch_underflow;
-	UINT TX2_DMA_Transfer_stopped;
-	UINT TX2_DMA_Transfer_complete;
+	unsigned int ipa_tx_DMA_Status;
+	unsigned int ipa_tx_DMA_Ch_Status;
+	unsigned int ipa_tx_DMA_Ch_underflow;
+	unsigned int ipa_tx_DMA_Transfer_stopped;
+	unsigned int ipa_tx_DMA_Transfer_complete;
 
-	UINT TX2_Int_Mask;
-	ULONG TX2_Transfer_Complete_irq;
-	ULONG TX2_Transfer_Stopped_irq;
-	ULONG TX2_Underflow_irq;
-	ULONG TX2_Early_Trans_Cmp_irq;
-	ULONG TX2_Fatal_err_irq;
-	ULONG TX2_Desc_Err_irq;
+	unsigned int ipa_tx_Int_Mask;
+	unsigned long ipa_tx_Transfer_Complete_irq;
+	unsigned long ipa_tx_Transfer_Stopped_irq;
+	unsigned long ipa_tx_Underflow_irq;
+	unsigned long ipa_tx_Early_Trans_Cmp_irq;
+	unsigned long ipa_tx_Fatal_err_irq;
+	unsigned long ipa_tx_Desc_Err_irq;
+
+	unsigned long long ipa_ul_exception;
 };
 
 struct DWC_ETH_QOS_prv_ipa_data {
@@ -1480,10 +1484,6 @@ struct DWC_ETH_QOS_prv_ipa_data {
 
 	/* Dev state */
 	bool is_dev_ready;
-
-	/* IPA Stats */
-	unsigned long long ipa_ul_exception;
-	struct DWC_ETH_QOS_ipa_dma_stats dma_stats;
 };
 
 struct DWC_ETH_QOS_prv_data {
@@ -1491,6 +1491,7 @@ struct DWC_ETH_QOS_prv_data {
 	struct pci_dev *pdev;
 	struct DWC_ETH_QOS_prv_ipa_data prv_ipa;
 	bool ipa_enabled;
+	UINT fw_ver_cap;
 
 	spinlock_t lock;
 	spinlock_t tx_lock;
@@ -1574,6 +1575,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	struct DWC_ETH_QOS_mmc_counters mmc;
 	struct DWC_ETH_QOS_extra_stats xstats;
+	struct DWC_ETH_QOS_ipa_stats ipa_stats;
 
 	/* for MAC loopback */
 	unsigned int mac_loopback_mode;
