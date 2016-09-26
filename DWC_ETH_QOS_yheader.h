@@ -393,10 +393,11 @@
 #define IPA_TX_DESC_CNT	128 /*Increase the TX desc count to 128 for IPA offload*/
 #define IPA_RX_DESC_CNT	128 /*Increase the RX desc count to 128 for IPA offload*/
 
-#define TX_DESC_CNT	16
-#define RX_DESC_CNT	16
+#define TX_DESC_CNT     128
+#define RX_DESC_CNT     128
 
-#define MIN_RX_DESC_CNT 4
+/* Obtained by trial and error  */
+#define MIN_RX_DESC_CNT 44
 
 #define TX_BUF_SIZE 1536
 #define RX_BUF_SIZE 1568
@@ -580,12 +581,12 @@
 
 /* Helper macro for handling coalesce parameters via ethtool */
 /* Obtained by trial and error  */
-#define DWC_ETH_QOS_OPTIMAL_DMA_RIWT_USEC  124
+#define DWC_ETH_QOS_OPTIMAL_DMA_RIWT_USEC  54
 /* Max delay before RX interrupt after a pkt is received Max
  * delay in usecs is 1020 for 62.5MHz device clock */
 #define DWC_ETH_QOS_MAX_DMA_RIWT  0xff
 /* Max no of pkts to be received before an RX interrupt */
-#define DWC_ETH_QOS_RX_MAX_FRAMES 16
+#define DWC_ETH_QOS_RX_MAX_FRAMES 32
 
 #define DMA_BUSCFG_AXI_PBL_MASK 0xE
 
