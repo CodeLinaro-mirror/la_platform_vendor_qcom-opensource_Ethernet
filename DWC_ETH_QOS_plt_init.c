@@ -217,10 +217,15 @@ static int DWC_ETH_QOS_init_gpios(struct device *dev)
 		goto exit_error;
 
 	/* Configure GPIOs required for the Neutrino reset */
-	ret = setup_gpio_common(dev, NTN_RESET_GPIO_NAME, &plt_data->resx_gpio_num, 0x1, 0x1);
-	if (ret)
+	ret = setup_gpio_common(dev, NTN_RESET_GPIO_NAME, &plt_data->resx_gpio_num, 0x1, 0x0);
+	if (ret) {
+		NMSGPR_ALERT("%s: Failed to toggle OFF %s\n", __func__,NTN_PWR_GPIO_NAME);
 		goto exit_error;
-
+	}
+	if (gpio_is_valid(plt_data->resx_gpio_num)) {
+		msleep(10);
+		gpio_set_value(plt_data->resx_gpio_num, 0x1);
+	}
 	return ret;
 
 exit_error:
