@@ -1814,12 +1814,17 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		pdata->prv_ipa.is_dev_ready = true;
 
 		/* Configure IPA Related Stuff */
-		if (!pdata->prv_ipa.ipa_ready)
-			return ret;
-
-		ret = DWC_ETH_QOS_enable_ipa_offload(pdata);
-		if (ret)
-			return ret;
+		if (pdata->prv_ipa.ipa_ready) {
+			NMSGPR_INFO("%s:%d ipa ready\n", __func__, __LINE__);
+			ret = DWC_ETH_QOS_enable_ipa_offload(pdata);
+			if (ret) {
+				NMSGPR_ERR("%s:%d unable to enable ipa offload\n",
+					   __func__, __LINE__);
+				goto err_out_desc_buf_alloc_failed;
+			}
+		}
+		else
+			NMSGPR_INFO("%s:%d ipa not ready\n", __func__, __LINE__);
 	}
 
 #ifdef NTN_POLLING_METHOD
@@ -1831,7 +1836,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 
 	hw_if->ntn_wrap_ts_valid_window_config(pdata->ntn_timestamp_valid_window);
 
-	DBGPR("<--DWC_ETH_QOS_open\n");
+	DBGPR("<--DWC_ETH_QOS_open, %d\n", ret);
 
 	return ret;
 

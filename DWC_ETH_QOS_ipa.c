@@ -11,6 +11,7 @@
  */
 
 #include "DWC_ETH_QOS_ipa.h"
+static void DWC_ETH_QOS_ipardy_wq(struct work_struct *work);
 
 /* Description of RX CH Status as per DMA_RXCHSTS register in spec*/
 static const char *rx_ch_status_string[] = {
@@ -136,6 +137,17 @@ int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 	return ret;
 }
 
+static void DWC_ETH_QOS_ipardy_wq(struct work_struct *work)
+{
+	struct DWC_ETH_QOS_prv_ipa_data *ntn_ipa = container_of(work,
+					struct DWC_ETH_QOS_prv_ipa_data, ntn_ipa_rdy_work);
+	struct DWC_ETH_QOS_prv_data *pdata = container_of(ntn_ipa,
+					struct DWC_ETH_QOS_prv_data, prv_ipa);
+
+	if (ntn_ipa->is_dev_ready)
+		DWC_ETH_QOS_enable_ipa_offload(pdata);
+
+}
 /**
  * DWC_ETH_QOS_ipa_ready_cb() - Callback register with IPA to indicate
  * if IPA (and IPA uC) is ready to receive configuration commands.
@@ -156,11 +168,10 @@ void DWC_ETH_QOS_ipa_ready_cb(void *user_data)
 
 	NDBGPR_L1("%s Received IPA ready callback\n",__func__);
 	pdata->prv_ipa.ipa_ready = true;
-
-	/* Dev is ready to configure offload data path*/
-	if (ntn_ipa->is_dev_ready)
-		DWC_ETH_QOS_enable_ipa_offload(pdata);
-
+	if (ntn_ipa->is_dev_ready) {
+		INIT_WORK(&ntn_ipa->ntn_ipa_rdy_work, DWC_ETH_QOS_ipardy_wq);
+		queue_work(system_unbound_wq, &ntn_ipa->ntn_ipa_rdy_work);
+	}
 	return;
 }
 
