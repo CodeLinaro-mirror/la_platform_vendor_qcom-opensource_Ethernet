@@ -1,5 +1,5 @@
 /* ============================================================================
-* COPYRIGHT © 2015-2016
+* COPYRIGHT © 2015
 *
 * Toshiba America Electronic Components
 *
