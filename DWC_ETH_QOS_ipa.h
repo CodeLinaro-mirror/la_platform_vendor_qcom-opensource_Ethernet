@@ -34,7 +34,7 @@ extern ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
 #define NTN_HOST_IPA_CAPABLE	1
 
 /* IPA Ready client callback. Called by IPA when its ready */
-void DWC_ETH_QOS_ipa_ready_cb(void *user_data);
+void DWC_ETH_QOS_ipa_uc_ready_cb(void *user_data);
 
 int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata);
 int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata);
@@ -63,7 +63,12 @@ void DWC_ETH_QOS_ipa_stats_read(struct DWC_ETH_QOS_prv_data *pdata);
 
 #define NTN_HOST_IPA_CAPABLE	0
 
-static inline void DWC_ETH_QOS_ipa_ready_cb(void *user_data)
+static inline int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	return -EPERM;
+}
+
+static inline void DWC_ETH_QOS_ipa_uc_ready_cb(void *user_data)
 {
 	return;
 }

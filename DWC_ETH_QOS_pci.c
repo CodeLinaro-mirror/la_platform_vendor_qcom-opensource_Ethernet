@@ -1000,6 +1000,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->ipa_enabled =
 		hw_if->ntn_fw_ipa_supported(pdata) && NTN_HOST_IPA_CAPABLE;
 	NMSGPR_INFO("NTN IPA enabled: %d\n", pdata->ipa_enabled);
+	if (pdata->ipa_enabled)
+		hw_if->enable_offload(pdata);
+	else
+		hw_if->disable_offload(pdata);
 
 	DWC_ETH_QOS_get_all_hw_features(pdata);
 	DWC_ETH_QOS_print_all_hw_features(pdata);
@@ -1110,24 +1114,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	if (pdata->hw_feat.pcs_sel) {
 		netif_carrier_off(dev);
 		NMSGPR_ALERT( "carrier off till LINK is up\n");
-	}
-
-	if (pdata->ipa_enabled) {
-		/* Configure IPA Related Stuff */
-		ret = ipa_register_ipa_ready_cb(DWC_ETH_QOS_ipa_ready_cb,
-						(void *)pdata);
-		if (ret < 0) {
-			if (ret == -EEXIST) {
-				NMSGPR_ALERT("IPA is ready %d\n", ret);
-				pdata->prv_ipa.ipa_ready = true;
-			} else {
-				NMSGPR_ERR("IPA ready registration failed %d\n", ret);
-				pdata->prv_ipa.ipa_ready = false;
-			}
-		} else if (ret == 0) {
-			NMSGPR_ALERT("IPA Not ready, cb registered successfully \n");
-			pdata->prv_ipa.ipa_ready = false;
-		}
 	}
 
 	return 0;
