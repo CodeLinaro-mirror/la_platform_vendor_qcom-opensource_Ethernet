@@ -1576,7 +1576,7 @@ static void DWC_ETH_QOS_default_tx_confs_single_q(
 	desc_data->tx_threshold_val = DWC_ETH_QOS_TX_THRESHOLD_32;
 	desc_data->tsf_on = DWC_ETH_QOS_TSF_ENABLE;
 	desc_data->osf_on = DWC_ETH_QOS_OSF_ENABLE;
-	desc_data->tx_pbl = DWC_ETH_QOS_PBL_16;
+	desc_data->tx_pbl = DWC_ETH_QOS_PBL_32;
 	desc_data->tx_vlan_tag_via_reg = Y_FALSE;
 	desc_data->tx_vlan_tag_ctrl = DWC_ETH_QOS_TX_VLAN_TAG_INSERT;
 	desc_data->vlan_tag_present = 0;
