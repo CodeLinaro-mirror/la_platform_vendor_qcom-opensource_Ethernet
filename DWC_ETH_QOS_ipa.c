@@ -57,7 +57,7 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 	struct hw_if_struct *hw_if = &pdata->hw_if;
 
 	/* Enable offload flag in NTN HW */
-	hw_if->enable_offload();
+	hw_if->enable_offload(pdata);
 
 	ret = DWC_ETH_QOS_ipa_offload_init(pdata);
 	if (ret) {
@@ -95,7 +95,7 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 fail:
 	pdata->prv_ipa.ipa_offload_ready = false;
 	/* Disable offload flag in NTN HW */
-	hw_if->disable_offload();
+	hw_if->disable_offload(pdata);
 
 	return ret;
 }
@@ -132,7 +132,7 @@ int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 
 	pdata->prv_ipa.ipa_offload_ready = false;
 	/* Disable offload flag in NTN HW */
-	hw_if->disable_offload();
+	hw_if->disable_offload(pdata);
 
 	return ret;
 }
@@ -499,7 +499,7 @@ void DWC_ETH_QOS_ipa_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
 	dma_stats->ipa_rx_Buff_Ring_Size = pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt - 1;
 	dma_stats->ipa_rx_Db_Int_Raised =
 		hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_DMA_RXCH0_DB_OFST),
-						 PCIE_SRAM_BAR_NUM);
+						 PCIE_SRAM_BAR_NUM, pdata);
 
 	DMA_RXCH_CUR_DESC_RgRd(NTN_RX_DMA_CH_0, data);
 	dma_stats->ipa_rx_Cur_Desc_Ptr_Indx = GET_RX_DESC_IDX(NTN_RX_DMA_CH_0, data);
@@ -533,7 +533,7 @@ void DWC_ETH_QOS_ipa_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
 	dma_stats->ipa_tx_Buff_Ring_Size = pdata->tx_dma_ch[NTN_TX_DMA_CH_2].desc_cnt - 1;
 	dma_stats->ipa_tx_Db_Int_Raised =
 		hw_if->ntn_reg_rd((NTN_M3_DBG_CNT_START + NTN_M3_DBG_DMA_TXCH2_DB_OFST),
-						  PCIE_SRAM_BAR_NUM);
+						  PCIE_SRAM_BAR_NUM, pdata);
 	DMA_TXCH_CUR_DESC_RgRd(NTN_TX_DMA_CH_2, data);
 	dma_stats->ipa_tx_Curr_Desc_Ptr_Indx = GET_TX_DESC_IDX(NTN_TX_DMA_CH_2, data);
 	DMA_TXCH_DESC_TAILPTR_RgRd(NTN_TX_DMA_CH_2, data);

@@ -1796,7 +1796,7 @@ static void DWC_ETH_QOS_re_alloc_skb(struct DWC_ETH_QOS_prv_data *pdata,
 	tail_idx = desc_data->skb_realloc_idx;
 	DECR_RX_DESC_INDEX(tail_idx, pdata->rx_dma_ch[chInx].desc_cnt);
 	hw_if->update_rx_tail_ptr(chInx,
-		GET_RX_DESC_DMA_ADDR(chInx, tail_idx));
+		GET_RX_DESC_DMA_ADDR(chInx, tail_idx), pdata);
 	desc_data->dirty_rx = 0;
 
 	NDBGPR_TS1("RX Ch %d : %s \n", chInx, __FUNCTION__);

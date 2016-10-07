@@ -87,12 +87,6 @@
 #include "DWC_ETH_QOS_yapphdr.h"
 #include "DWC_ETH_QOS_drv.h"
 #include "DWC_ETH_QOS_ipa.h"
-
-extern ULONG dwc_eth_ntn_reg_pci_base_addr;
-extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_phy;
-extern ULONG dwc_eth_ntn_SRAM_pci_base_addr_virt;
-extern ULONG dwc_eth_ntn_hostmem_pci_base_addr_virt;
-
 #include "DWC_ETH_QOS_yregacc.h"
 
 #define AVB_QUEUE_CLASS_A 1
@@ -162,7 +156,7 @@ void DWC_ETH_QOS_stop_all_ch_tx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 	for(chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++){
 		if(!pdata->tx_dma_ch_for_host[chInx])
 			continue;
-		hw_if->stop_dma_tx(chInx);
+		hw_if->stop_dma_tx(chInx, pdata);
 	}
 
 	DBGPR("<--DWC_ETH_QOS_stop_all_ch_tx_dma\n");
@@ -178,7 +172,7 @@ static void DWC_ETH_QOS_stop_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 	for(chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-		hw_if->stop_dma_rx(chInx);
+		hw_if->stop_dma_rx(chInx, pdata);
 	}
 	DBGPR("<--DWC_ETH_QOS_stop_all_ch_rx_dma\n");
 }
@@ -193,7 +187,7 @@ static void DWC_ETH_QOS_start_all_ch_tx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 	for(chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++){
 		if(!pdata->tx_dma_ch_for_host[chInx])
 			continue;
-		hw_if->start_dma_tx(chInx);
+		hw_if->start_dma_tx(chInx, pdata);
 	}
 	DBGPR("<--DWC_ETH_QOS_start_all_ch_tx_dma\n");
 }
@@ -208,7 +202,7 @@ static void DWC_ETH_QOS_start_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 	for(chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-		hw_if->start_dma_rx(chInx);
+		hw_if->start_dma_rx(chInx, pdata);
 	}
 	DBGPR("<--DWC_ETH_QOS_start_all_ch_rx_dma\n");
 }
@@ -278,7 +272,7 @@ static void DWC_ETH_QOS_stop_dev(struct DWC_ETH_QOS_prv_data *pdata)
 	DWC_ETH_QOS_stop_all_ch_rx_dma(pdata);
 
 	/* issue software reset to device */
-	hw_if->exit();
+	hw_if->exit(pdata);
 
 	/* free tx skb's */
 	desc_if->tx_skb_free_mem(pdata, NTN_TX_DMA_CH_CNT);
@@ -475,9 +469,9 @@ static void DWC_ETH_QOS_start_dev(struct DWC_ETH_QOS_prv_data *pdata)
 	hw_if->init(pdata);
 
 	if (pdata->vlan_hash_filtering)
-		hw_if->update_vlan_hash_table_reg(pdata->vlan_ht_or_id);
+		hw_if->update_vlan_hash_table_reg(pdata->vlan_ht_or_id, pdata);
 	else
-		hw_if->update_vlan_id(pdata->vlan_ht_or_id);
+		hw_if->update_vlan_id(pdata->vlan_ht_or_id, pdata);
 
 	DWC_ETH_QOS_restart_phy(pdata);
 
@@ -514,8 +508,8 @@ static void DWC_ETH_QOS_restart_dev(struct DWC_ETH_QOS_prv_data *pdata,
 	napi_disable(&rx_dma_ch->napi);
 
 	/* stop DMA TX/RX */
-	hw_if->stop_dma_tx(chInx);
-	hw_if->stop_dma_rx(chInx);
+	hw_if->stop_dma_tx(chInx, pdata);
+	hw_if->stop_dma_rx(chInx, pdata);
 
 	/* free tx skb's */
 	desc_if->tx_skb_free_mem_single_q(pdata, chInx);
@@ -525,7 +519,7 @@ static void DWC_ETH_QOS_restart_dev(struct DWC_ETH_QOS_prv_data *pdata,
 	if ((NTN_TX_QUEUE_CNT == 0) &&
 		(NTN_RX_QUEUE_CNT == 0)) {
 		/* issue software reset to device */
-		hw_if->exit();
+		hw_if->exit(pdata);
 
 		DWC_ETH_QOS_configure_rx_fun_ptr(pdata);
 		DWC_ETH_QOS_default_common_confs(pdata);
@@ -563,7 +557,7 @@ void DWC_ETH_QOS_disable_all_ch_rx_interrpt(
 	for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-		hw_if->disable_rx_interrupt(chInx);
+		hw_if->disable_rx_interrupt(chInx, pdata);
 	}
 
 	DBGPR("<--DWC_ETH_QOS_disable_all_ch_rx_interrpt\n");
@@ -580,7 +574,7 @@ void DWC_ETH_QOS_enable_all_ch_rx_interrpt(
 	for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-		hw_if->enable_rx_interrupt(chInx);
+		hw_if->enable_rx_interrupt(chInx, pdata);
 	}
 
 	DBGPR("<--DWC_ETH_QOS_enable_all_ch_rx_interrpt\n");
@@ -882,21 +876,21 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 				netif_carrier_on(dev);
 				if ((varMAC_PCS & 0x10000) == 0x10000) {
 					pdata->pcs_duplex = 1;
-					hw_if->set_full_duplex();
+					hw_if->set_full_duplex(pdata);
 				} else {
 					pdata->pcs_duplex = 0;
-					hw_if->set_half_duplex();
+					hw_if->set_half_duplex(pdata);
 				}
 
 				if ((varMAC_PCS & 0x60000) == 0x0) {
 					pdata->pcs_speed = SPEED_10;
-					hw_if->set_mii_speed_10();
+					hw_if->set_mii_speed_10(pdata);
 				} else if ((varMAC_PCS & 0x60000) == 0x20000) {
 					pdata->pcs_speed = SPEED_100;
-					hw_if->set_mii_speed_100();
+					hw_if->set_mii_speed_100(pdata);
 				} else if ((varMAC_PCS & 0x60000) == 0x40000) {
 					pdata->pcs_speed = SPEED_1000;
-					hw_if->set_gmii_speed();
+					hw_if->set_gmii_speed(pdata);
 				}
 				NMSGPR_ALERT( "Link is UP:%dMbps & %s duplex\n",
 					pdata->pcs_speed, pdata->pcs_duplex ? "Full" : "Half");
@@ -1834,7 +1828,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	schedule_delayed_work(&task, usecs_to_jiffies(NTN_POLL_DELAY_US));
 #endif //NTN_POLLING_METHOD
 
-	hw_if->ntn_wrap_ts_valid_window_config(pdata->ntn_timestamp_valid_window);
+	hw_if->ntn_wrap_ts_valid_window_config(pdata->ntn_timestamp_valid_window, pdata);
 
 	DBGPR("<--DWC_ETH_QOS_open, %d\n", ret);
 
@@ -1886,7 +1880,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	}
 
 	/* issue software reset to device */
-	hw_if->exit();
+	hw_if->exit(pdata);
 	desc_if->tx_free_mem(pdata);
 	desc_if->rx_free_mem(pdata);
 	DWC_ETH_QOS_free_irq(dev);
@@ -1952,7 +1946,7 @@ static int DWC_ETH_QOS_prepare_mc_list(struct net_device *dev)
 			}
 
 		for (i = 0; i < DWC_ETH_QOS_HTR_CNT; i++)
-			hw_if->update_hash_table_reg(i, mc_filter[i]);
+			hw_if->update_hash_table_reg(i, mc_filter[i], pdata);
 
 	} else {
 		DBGPR_FILTER("select PERFECT FILTERING for mc addresses, mc_count = %d, max_addr_reg_cnt = %d\n",
@@ -1962,7 +1956,7 @@ static int DWC_ETH_QOS_prepare_mc_list(struct net_device *dev)
 			DBGPR_FILTER("mc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n", i,
 					ha->addr[0], ha->addr[1], ha->addr[2],
 					ha->addr[3], ha->addr[4], ha->addr[5]);
-				hw_if->update_mac_addr3_31_low_high_reg(i, ha->addr);
+				hw_if->update_mac_addr3_31_low_high_reg(i, ha->addr, pdata);
 			i++;
 		}
 	}
@@ -2019,7 +2013,7 @@ static int DWC_ETH_QOS_prepare_uc_list(struct net_device *dev)
 			uc_filter[crc32_val >> 5] |= (1 << (crc32_val & 0x1F));
 
 		for (i = 0; i < DWC_ETH_QOS_HTR_CNT; i++)
-			hw_if->update_hash_table_reg(i, uc_filter[i]);
+			hw_if->update_hash_table_reg(i, uc_filter[i], pdata);
 
 	} else {
 		DBGPR_FILTER("select PERFECT FILTERING for uc addresses: uc_count = %d\n",
@@ -2029,7 +2023,7 @@ static int DWC_ETH_QOS_prepare_uc_list(struct net_device *dev)
 			DBGPR_FILTER("uc addr[%d] = %#x:%#x:%#x:%#x:%#x:%#x\n", i,
 					ha->addr[0], ha->addr[1], ha->addr[2],
 					ha->addr[3], ha->addr[4], ha->addr[5]);
-				hw_if->update_mac_addr3_31_low_high_reg(i, ha->addr);
+				hw_if->update_mac_addr3_31_low_high_reg(i, ha->addr, pdata);
 			i++;
 		}
 	}
@@ -2074,7 +2068,7 @@ static void DWC_ETH_QOS_set_rx_mode(struct net_device *dev)
 		pm_mode = 1;
 		if (pdata->max_hash_table_size) {
 			for (i = 0; i < DWC_ETH_QOS_HTR_CNT; i++)
-				hw_if->update_hash_table_reg(i, 0xffffffff);
+				hw_if->update_hash_table_reg(i, 0xffffffff, pdata);
 		}
 	} else if (!netdev_mc_empty(dev)) {
 		DBGPR_FILTER("pass list of multicast pkt\n");
@@ -2115,7 +2109,7 @@ static void DWC_ETH_QOS_set_rx_mode(struct net_device *dev)
 	}
 
 	hw_if->config_mac_pkt_filter_reg(pr_mode, huc_mode,
-		hmc_mode, pm_mode, hpf_mode);
+		hmc_mode, pm_mode, hpf_mode, pdata);
 
 	spin_unlock_irqrestore(&pdata->lock, flags);
 
@@ -2174,7 +2168,7 @@ UINT DWC_ETH_QOS_get_total_desc_cnt(struct DWC_ETH_QOS_prv_data *pdata,
 			desc_data->vlan_tag_id = vlan_tag;
 			if (Y_TRUE == desc_data->tx_vlan_tag_via_reg) {
 				DBGPR_VLAN("%s:VLAN: enable_vlan_reg_control\n",__func__);
-				hw_if->enable_vlan_reg_control(desc_data);
+				hw_if->enable_vlan_reg_control(desc_data, pdata);
 			} else {
 				DBGPR_VLAN("%s:VLAN: enable_vlan_desc_control\n",__func__);
 				hw_if->enable_vlan_desc_control(pdata);
@@ -2586,7 +2580,7 @@ static unsigned int DWC_ETH_QOS_get_tx_hwtstamp(
 
 	DBGPR_PTP("-->DWC_ETH_QOS_get_tx_hwtstamp\n");
 
-	if (hw_if->drop_tx_status_enabled() == 0) {
+	if (hw_if->drop_tx_status_enabled(pdata) == 0) {
 		/* check tx tstamp status */
 		if (!hw_if->get_tx_tstamp_status(txdesc)) {
 			NMSGPR_ALERT( "tx timestamp is not captured for this packet\n");
@@ -2600,13 +2594,13 @@ static unsigned int DWC_ETH_QOS_get_tx_hwtstamp(
 		 * stamp from register instead of descriptor */
 
 		/* check tx tstamp status */
-		if (!hw_if->get_tx_tstamp_status_via_reg()) {
+		if (!hw_if->get_tx_tstamp_status_via_reg(pdata)) {
 			NMSGPR_ALERT( "tx timestamp is not captured for this packet\n");
 			return 0;
 		}
 
 		/* get the valid tstamp */
-		ns = hw_if->get_tx_tstamp_via_reg();
+		ns = hw_if->get_tx_tstamp_via_reg(pdata);
 	}
 
 	pdata->xstats.tx_timestamp_captured_n++;
@@ -3325,12 +3319,12 @@ static int DWC_ETH_QOS_set_features(struct net_device *dev, netdev_features_t fe
 
 		if (((features & NETIF_F_RXCSUM) == NETIF_F_RXCSUM)
 		    && !dev_rxcsum_enable) {
-			hw_if->enable_rx_csum();
+			hw_if->enable_rx_csum(pdata);
 			pdata->dev_state |= NETIF_F_RXCSUM;
 			NMSGPR_ALERT( "State change - rxcsum enable\n");
 		} else if (((features & NETIF_F_RXCSUM) == 0)
 			   && dev_rxcsum_enable) {
-			hw_if->disable_rx_csum();
+			hw_if->disable_rx_csum(pdata);
 			pdata->dev_state &= ~NETIF_F_RXCSUM;
 			NMSGPR_ALERT( "State change - rxcsum disable\n");
 		}
@@ -3340,12 +3334,12 @@ static int DWC_ETH_QOS_set_features(struct net_device *dev, netdev_features_t fe
 	if (((features & NETIF_F_HW_VLAN_CTAG_RX) == NETIF_F_HW_VLAN_CTAG_RX)
 	    && !dev_rxvlan_enable) {
 		pdata->dev_state |= NETIF_F_HW_VLAN_CTAG_RX;
-		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS);
+		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS, pdata);
 		DBGPR_VLAN("%s:VLAN: State change - rxvlan enable\n",__func__);
 	} else if (((features & NETIF_F_HW_VLAN_CTAG_RX) == 0) &&
 			dev_rxvlan_enable) {
 		pdata->dev_state &= ~NETIF_F_HW_VLAN_CTAG_RX;
-		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
+		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
 		DBGPR_VLAN("%s:VLAN: State change - rxvlan disable\n",__func__);
 	}
 
@@ -3427,7 +3421,7 @@ static int DWC_ETH_QOS_config_l3_l4_filtering(struct net_device *dev,
 	}
 
 	pdata->l3_l4_filter = !!flags;
-	hw_if->config_l3_l4_filter_enable(pdata->l3_l4_filter);
+	hw_if->config_l3_l4_filter_enable(pdata->l3_l4_filter, pdata);
 
 	DBGPR_FILTER("Succesfully %s L3/L4 filtering\n",
 		(flags ? "ENABLED" : "DISABLED"));
@@ -3479,7 +3473,7 @@ static int DWC_ETH_QOS_config_ip4_filters(struct net_device *dev,
 	}
 
 	if (!pdata->l3_l4_filter) {
-		hw_if->config_l3_l4_filter_enable(1);
+		hw_if->config_l3_l4_filter_enable(1, pdata);
 		pdata->l3_l4_filter = 1;
 	}
 
@@ -3487,14 +3481,14 @@ static int DWC_ETH_QOS_config_ip4_filters(struct net_device *dev,
 	hw_if->config_l3_filters(l_l3_filter.filter_no,
 			l_l3_filter.filter_enb_dis, 0,
 			l_l3_filter.src_dst_addr_match,
-			l_l3_filter.perfect_inverse_match);
+			l_l3_filter.perfect_inverse_match, pdata);
 
 	if (!l_l3_filter.src_dst_addr_match)
 		hw_if->update_ip4_addr0(l_l3_filter.filter_no,
-				l_l3_filter.ip4_addr);
+				l_l3_filter.ip4_addr, pdata);
 	else
 		hw_if->update_ip4_addr1(l_l3_filter.filter_no,
-				l_l3_filter.ip4_addr);
+				l_l3_filter.ip4_addr, pdata);
 
 	DBGPR_FILTER("Successfully %s IPv4 %s %s addressing filtering on %d filter\n",
 		(l_l3_filter.filter_enb_dis ? "ENABLED" : "DISABLED"),
@@ -3549,7 +3543,7 @@ static int DWC_ETH_QOS_config_ip6_filters(struct net_device *dev,
 	}
 
 	if (!pdata->l3_l4_filter) {
-		hw_if->config_l3_l4_filter_enable(1);
+		hw_if->config_l3_l4_filter_enable(1, pdata);
 		pdata->l3_l4_filter = 1;
 	}
 
@@ -3557,10 +3551,10 @@ static int DWC_ETH_QOS_config_ip6_filters(struct net_device *dev,
 	hw_if->config_l3_filters(l_l3_filter.filter_no,
 			l_l3_filter.filter_enb_dis, 1,
 			l_l3_filter.src_dst_addr_match,
-			l_l3_filter.perfect_inverse_match);
+			l_l3_filter.perfect_inverse_match, pdata);
 
 	hw_if->update_ip6_addr(l_l3_filter.filter_no,
-			l_l3_filter.ip6_addr);
+			l_l3_filter.ip6_addr, pdata);
 
 	DBGPR_FILTER("Successfully %s IPv6 %s %s addressing filtering on %d filter\n",
 		(l_l3_filter.filter_enb_dis ? "ENABLED" : "DISABLED"),
@@ -3617,7 +3611,7 @@ static int DWC_ETH_QOS_config_tcp_udp_filters(struct net_device *dev,
 	}
 
 	if (!pdata->l3_l4_filter) {
-		hw_if->config_l3_l4_filter_enable(1);
+		hw_if->config_l3_l4_filter_enable(1, pdata);
 		pdata->l3_l4_filter = 1;
 	}
 
@@ -3626,14 +3620,14 @@ static int DWC_ETH_QOS_config_tcp_udp_filters(struct net_device *dev,
 			l_l4_filter.filter_enb_dis,
 			tcp_udp,
 			l_l4_filter.src_dst_addr_match,
-			l_l4_filter.perfect_inverse_match);
+			l_l4_filter.perfect_inverse_match, pdata);
 
 	if (l_l4_filter.src_dst_addr_match)
 		hw_if->update_l4_da_port_no(l_l4_filter.filter_no,
-				l_l4_filter.port_no);
+				l_l4_filter.port_no, pdata);
 	else
 		hw_if->update_l4_sa_port_no(l_l4_filter.filter_no,
-				l_l4_filter.port_no);
+				l_l4_filter.port_no, pdata);
 
 	DBGPR_FILTER("Successfully %s %s %s %s Port number filtering on %d filter\n",
 		(l_l4_filter.filter_enb_dis ? "ENABLED" : "DISABLED"),
@@ -3686,7 +3680,7 @@ static int DWC_ETH_QOS_config_vlan_filter(struct net_device *dev,
 	/* configure the vlan filter */
 	hw_if->config_vlan_filtering(l_vlan_filter.filter_enb_dis,
 					l_vlan_filter.perfect_hash,
-					l_vlan_filter.perfect_inverse_match);
+					l_vlan_filter.perfect_inverse_match, pdata);
 	pdata->vlan_hash_filtering = l_vlan_filter.perfect_hash;
 
 	DBGPR_FILTER("Successfully %s VLAN %s filtering and %s matching\n",
@@ -3731,8 +3725,8 @@ static int DWC_ETH_QOS_config_arp_offload(struct net_device *dev,
 		return -EFAULT;
 
 	/* configure the L3 filters */
-	hw_if->config_arp_offload(req->flags);
-	hw_if->update_arp_offload_ip_addr(l_arp_offload.ip_addr);
+	hw_if->config_arp_offload(req->flags, pdata);
+	hw_if->update_arp_offload_ip_addr(l_arp_offload.ip_addr, pdata);
 	pdata->arp_offload = req->flags;
 
 	NMSGPR_ALERT( "Successfully %s arp Offload\n",
@@ -3787,7 +3781,7 @@ static int DWC_ETH_QOS_confing_l2_da_filter(struct net_device *dev,
 	}
 
 	/* configure L2 DA perfect/inverse_matching */
-	hw_if->config_l2_da_perfect_inverse_match(l_l2_da_filter.perfect_inverse_match);
+	hw_if->config_l2_da_perfect_inverse_match(l_l2_da_filter.perfect_inverse_match, pdata);
 
 	DBGPR_FILTER("Successfully selected L2 %s filtering and %s DA matching\n",
 		(l_l2_da_filter.perfect_hash ? "HASH" : "PERFECT"),
@@ -3830,7 +3824,7 @@ static int DWC_ETH_QOS_config_mac_loopback_mode(struct net_device *dev,
 		return -EINVAL;
 	}
 	pdata->mac_loopback_mode = !!flags;
-	hw_if->config_mac_loopback_mode(flags);
+	hw_if->config_mac_loopback_mode(flags, pdata);
 
 	NMSGPR_ALERT( "Succesfully %s MAC loopback mode\n",
 		(flags ? "enabled" : "disabled"));
@@ -3898,16 +3892,16 @@ static INT config_tx_dvlan_processing_via_reg(struct DWC_ETH_QOS_prv_data *pdata
 
 	if (pdata->in_out & DWC_ETH_QOS_DVLAN_OUTER)
 		hw_if->config_tx_outer_vlan(pdata->op_type,
-					pdata->outer_vlan_tag);
+					pdata->outer_vlan_tag, pdata);
 
 	if (pdata->in_out & DWC_ETH_QOS_DVLAN_INNER)
 		hw_if->config_tx_inner_vlan(pdata->op_type,
-					pdata->inner_vlan_tag);
+					pdata->inner_vlan_tag, pdata);
 
 	if (flags == DWC_ETH_QOS_DVLAN_DISABLE)
 		hw_if->config_mac_for_vlan_pkt(); /* restore default configurations */
 	else
-		hw_if->config_dvlan(1);
+		hw_if->config_dvlan(1, pdata);
 
 	NMSGPR_ALERT( "<-- config_tx_dvlan_processing_via_reg()\n");
 
@@ -3925,7 +3919,7 @@ static int config_tx_dvlan_processing_via_desc(struct DWC_ETH_QOS_prv_data *pdat
 		hw_if->config_mac_for_vlan_pkt(); /* restore default configurations */
 		pdata->via_reg_or_desc = 0;
 	} else {
-		hw_if->config_dvlan(1);
+		hw_if->config_dvlan(1, pdata);
 	}
 
 	if (pdata->in_out & DWC_ETH_QOS_DVLAN_INNER)
@@ -4003,20 +3997,20 @@ static int DWC_ETH_QOS_config_rx_dvlan_processing(
 
 	DBGPR("-->DWC_ETH_QOS_config_rx_dvlan_processing\n");
 
-	hw_if->config_dvlan(1);
+	hw_if->config_dvlan(1, pdata);
 	if (flags == DWC_ETH_QOS_DVLAN_NONE) {
-		hw_if->config_dvlan(0);
-		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
-		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
+		hw_if->config_dvlan(0, pdata);
+		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
+		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
 	} else if (flags == DWC_ETH_QOS_DVLAN_INNER) {
-		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
-		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS);
+		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
+		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS, pdata);
 	} else if (flags == DWC_ETH_QOS_DVLAN_OUTER) {
-		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS);
-		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
+		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS, pdata);
+		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
 	} else if (flags == DWC_ETH_QOS_DVLAN_BOTH) {
-		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS);
-		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS);
+		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS, pdata);
+		hw_if->config_rx_inner_vlan_stripping(DWC_ETH_QOS_RX_VLAN_STRIP_ALWAYS, pdata);
 	} else {
 		NMSGPR_ALERT( "ERROR : double VLAN Rx configuration - Invalid argument");
 		ret = DWC_ETH_QOS_CONFIG_FAIL;
@@ -4047,7 +4041,7 @@ static int DWC_ETH_QOS_config_svlan(struct DWC_ETH_QOS_prv_data *pdata,
 
 	DBGPR("-->DWC_ETH_QOS_config_svlan\n");
 
-	ret = hw_if->config_svlan(flags);
+	ret = hw_if->config_svlan(flags, pdata);
 	if (ret == Y_FAILURE)
 		ret = DWC_ETH_QOS_CONFIG_FAIL;
 
@@ -4067,7 +4061,7 @@ static VOID DWC_ETH_QOS_config_timer_registers(
 		DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
 
 		/* program Sub Second Increment Reg */
-		hw_if->config_sub_second_increment(DWC_ETH_QOS_SYSCLOCK);
+		hw_if->config_sub_second_increment(DWC_ETH_QOS_SYSCLOCK, pdata);
 
 		/* formula is :
 		 * addend = 2^32/freq_div_ratio;
@@ -4085,11 +4079,11 @@ static VOID DWC_ETH_QOS_config_timer_registers(
 		temp = (u64)(50000000ULL << 32);
 		pdata->default_addend = div_u64(temp, DWC_ETH_QOS_SYSCLOCK);
 
-		hw_if->config_addend(pdata->default_addend);
+		hw_if->config_addend(pdata->default_addend, pdata);
 
 		/* initialize system time */
 		getnstimeofday(&now);
-		hw_if->init_systime(now.tv_sec, now.tv_nsec);
+		hw_if->init_systime(now.tv_sec, now.tv_nsec, pdata);
 
 		DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
 }
@@ -4172,9 +4166,9 @@ static int DWC_ETH_QOS_config_ptpoffload(
 	}
 
 	pto_cntrl |= (l_conf_ptp.domain_num << 8);
-	hw_if->config_hw_time_stamping(varMAC_TCR);
+	hw_if->config_hw_time_stamping(varMAC_TCR, pdata);
 	DWC_ETH_QOS_config_timer_registers(pdata);
-	hw_if->config_ptpoffload_engine(pto_cntrl, l_conf_ptp.mc_uc);
+	hw_if->config_ptpoffload_engine(pto_cntrl, l_conf_ptp.mc_uc, pdata);
 
 	NMSGPR_ALERT("<--DWC_ETH_QOS_config_ptpoffload\n");
 
@@ -4214,7 +4208,7 @@ static int DWC_ETH_QOS_config_pfc(struct net_device *dev,
 		return DWC_ETH_QOS_NO_HW_SUPPORT;
 	}
 
-	hw_if->config_pfc(flags);
+	hw_if->config_pfc(flags, pdata);
 
 	NMSGPR_ALERT( "Succesfully %s PFC(Priority Based Flow Control)\n",
 		(flags ? "enabled" : "disabled"));
@@ -4253,11 +4247,11 @@ static int DWC_ETH_QOS_RD_WR_REG(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_
 	switch(req->flags)
 	{
 		case NTN_REG_RD: /* Neutrino Register Read */
-			*(unsigned int*)(req->ptr) = hw_if->ntn_reg_rd(req->adrs, req->bar_num);
+			*(unsigned int*)(req->ptr) = hw_if->ntn_reg_rd(req->adrs, req->bar_num, pdata);
 			ret = 0;
 			break;
 		case NTN_REG_WR: /* Neutrino Register Write */
-			hw_if->ntn_reg_wr(req->adrs, *(UINT*)req->ptr, req->bar_num);
+			hw_if->ntn_reg_wr(req->adrs, *(UINT*)req->ptr, req->bar_num, pdata);
 			ret = 0;
 			break;
 		case NTN_PCIE_CONFIG_REG_RD: /* PCIe config Register Read */
@@ -4294,18 +4288,18 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 	int i;
 
 		//Assert TDM reset
-		reg_val = hw_if->ntn_reg_rd(0x1008, 0);
+		reg_val = hw_if->ntn_reg_rd(0x1008, 0, pdata);
 		reg_val |= 0x1<<6;
-		hw_if->ntn_reg_wr(0x1008, reg_val, 0);
+		hw_if->ntn_reg_wr(0x1008, reg_val, 0, pdata);
 
 	/* Stop TDM */
 	if(ntn_tdm_cfg->tdm_start == 0){
      	NMSGPR_INFO("Disabled TDM path\n");
 
 		//Disable TDM clock
-		reg_val = hw_if->ntn_reg_rd(0x1004, 0);
+		reg_val = hw_if->ntn_reg_rd(0x1004, 0, pdata);
 		reg_val &= ~(0x1<<6);
-		hw_if->ntn_reg_wr(0x1004, reg_val, 0);
+		hw_if->ntn_reg_wr(0x1004, reg_val, 0, pdata);
 
 		/* Disable TDM interrupt in INTC Module */
 		NTN_INTC_INTMCUMASK1_RgRd(int_mask_val);
@@ -4314,20 +4308,20 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 		return 0;
 	}
 
-   	/* Enable TDM interrupt in INTC Module */
+	/* Enable TDM interrupt in INTC Module */
 	NTN_INTC_INTMCUMASK1_RgRd(int_mask_val);
 	int_mask_val &= ~(0x7F<<22); //Enable all interrupts
 	NTN_INTC_INTMCUMASK1_RgWr(int_mask_val);
 
 	//Enable TDM clock
-	reg_val = hw_if->ntn_reg_rd(0x1004, 0);
+	reg_val = hw_if->ntn_reg_rd(0x1004, 0, pdata);
 	reg_val |= 0x1<<6;
-   	hw_if->ntn_reg_wr(0x1004, reg_val, 0);
+	hw_if->ntn_reg_wr(0x1004, reg_val, 0, pdata);
 
 	//Deassert TDM reset
-	reg_val = hw_if->ntn_reg_rd(0x1008, 0);
+	reg_val = hw_if->ntn_reg_rd(0x1008, 0, pdata);
 	reg_val &= ~(0x1<<6);
-	hw_if->ntn_reg_wr(0x1008, reg_val, 0);
+	hw_if->ntn_reg_wr(0x1008, reg_val, 0, pdata);
 
 	/* Start TDM */
 	NMSGPR_INFO("TDM Path Configuration\n");
@@ -4341,39 +4335,39 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 
 	switch(ntn_tdm_cfg->sample_rate){
 	case 48000:
-		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)
-		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0);   	//T0EVB_DDANRatio (N value)
+		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
+		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0, pdata);   	//T0EVB_DDANRatio (N value)
 #ifdef NTN_DRV_TEST_LOOPBACK
-		hw_if->ntn_reg_wr(0x44e0, 0x0000760C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
+		hw_if->ntn_reg_wr(0x44e0, 0x0000760C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
 #else
-		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
+		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
 #endif
-		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0);	//DDA_PLL_Ctrl1
-		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
-		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0);	//DDA_PLL_UPDT
+		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0, pdata);	//DDA_PLL_Ctrl1
+		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
+		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0, pdata);	//DDA_PLL_UPDT
 		ntn_tdm_cfg->fdf = 2;
        	break;
 	case 44100:
-		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)
-		hw_if->ntn_reg_wr(0x44a0, 0x00006E40, 0);   	//T0EVB_DDANRatio (N value)
-		hw_if->ntn_reg_wr(0x44e0, 0x0001060C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
-		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0);	//DDA_PLL_Ctrl1
-		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
-		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0);	//DDA_PLL_UPDT
+		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
+		hw_if->ntn_reg_wr(0x44a0, 0x00006E40, 0, pdata);   	//T0EVB_DDANRatio (N value)
+		hw_if->ntn_reg_wr(0x44e0, 0x0001060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
+		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0, pdata);	//DDA_PLL_Ctrl1
+		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
+		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0, pdata);	//DDA_PLL_UPDT
 		ntn_tdm_cfg->fdf = 1;
 	break;
 //	case 96000:
-//		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0);	//TDM DDA Control (M value)
-//		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0);   	//T0EVB_DDANRatio (N value)
-//		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0);	//T0EVB_DDACtrl2  (PLL output divider)
-//		hw_if->ntn_reg_wr(0x44e4, 0x00FFB700, 0);	//DDA_PLL_Ctrl1
-//		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0);	//DDA_PLL_Ctrl2  ( BCLK and MCLK divider )
+//		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
+//		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0, pdata);   	//T0EVB_DDANRatio (N value)
+//		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
+//		hw_if->ntn_reg_wr(0x44e4, 0x00FFB700, 0, pdata);	//DDA_PLL_Ctrl1
+//		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  ( BCLK and MCLK divider )
 //	break;
 	default: break;
 	}
 
 	/*Clock & Reset*/
-	hw_if->ntn_reg_wr(0x0010, 0x3030008, 0);		//Neutrino eMAC DIV
+	hw_if->ntn_reg_wr(0x0010, 0x3030008, 0, pdata);		//Neutrino eMAC DIV
 
 	/*EMAC RX*/
 	/* TDM Source MAC ID */
@@ -4383,27 +4377,27 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 //                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_SRC_ID[i]);
 
         reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
-	hw_if->ntn_reg_wr(0x3010, reg_val, 0);		//TDM Header Ethernet MAC Source Low Address Register
+	hw_if->ntn_reg_wr(0x3010, reg_val, 0, pdata);		//TDM Header Ethernet MAC Source Low Address Register
         reg_val = (ptr[5] << 8) | (ptr[4] << 0);
-	hw_if->ntn_reg_wr(0x3014, reg_val, 0);		//TDM Header Ethernet MAC Source High Address Register
+	hw_if->ntn_reg_wr(0x3014, reg_val, 0, pdata);		//TDM Header Ethernet MAC Source High Address Register
 
 #ifdef NTN_DRV_TEST_LOOPBACK
-	hw_if->ntn_reg_wr(0xab98, 0x00003D08, 0);	//MAC_PPS0_Width : 125 us
+	hw_if->ntn_reg_wr(0xab98, 0x00003D08, 0, pdata);	//MAC_PPS0_Width : 125 us
 #else
-	hw_if->ntn_reg_wr(0xab98, 0x0000186a, 0);	//MAC_PPS0_Width : 125 us
+	hw_if->ntn_reg_wr(0xab98, 0x0000186a, 0, pdata);	//MAC_PPS0_Width : 125 us
 #endif
-	hw_if->ntn_reg_wr(0xab70, 0x00000212, 0);       //MAC_PPS_Control : Set for only PPS0 output
+	hw_if->ntn_reg_wr(0xab70, 0x00000212, 0, pdata);       //MAC_PPS_Control : Set for only PPS0 output
 
 
 	/*TDM*/
 	if(ntn_tdm_cfg->direction == NTN_TDM_IN)
 	{
-	hw_if->ntn_reg_wr(0x4414, 0x08100058, 0);		//TDM conf0
+	hw_if->ntn_reg_wr(0x4414, 0x08100058, 0, pdata);		//TDM conf0
 
-	reg_val = hw_if->ntn_reg_rd(0x3000, 0);
+	reg_val = hw_if->ntn_reg_rd(0x3000, 0, pdata);
 	reg_val |= (ntn_tdm_cfg->a_priority&0x7)<<2;
 	reg_val |= (ntn_tdm_cfg->fdf&0xFF)<<8;
-	hw_if->ntn_reg_wr(0x3000, reg_val, 0);			//TDM Control Register
+	hw_if->ntn_reg_wr(0x3000, reg_val, 0, pdata);			//TDM Control Register
 
    	/* config stream id */
         ptr = ntn_tdm_cfg->TDM_STREAM_ID;
@@ -4412,9 +4406,9 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 		                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_STREAM_ID[i]);
 
         reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
-	hw_if->ntn_reg_wr(0x4418, reg_val, 0);		//TDM Stream ID low
+	hw_if->ntn_reg_wr(0x4418, reg_val, 0, pdata);		//TDM Stream ID low
         reg_val = (ptr[7] << 24) | (ptr[6] << 16) | (ptr[5] << 8) | ptr[4];
-	hw_if->ntn_reg_wr(0x441c, reg_val, 0);		//TDM Stream ID hi
+	hw_if->ntn_reg_wr(0x441c, reg_val, 0, pdata);		//TDM Stream ID hi
 
 	/* TDM Destination MAC ID */
         ptr = ntn_tdm_cfg->TDM_DST_ID;
@@ -4423,24 +4417,24 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 //                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_DST_ID[i]);
 
         reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
-	hw_if->ntn_reg_wr(0x4420, reg_val, 0);		//TDM MAC low
+	hw_if->ntn_reg_wr(0x4420, reg_val, 0, pdata);		//TDM MAC low
         reg_val = (ptr[5] << 8) | (ptr[4] << 0);
-	hw_if->ntn_reg_wr(0x4424, reg_val, 0);		//TDM MAC hi
+	hw_if->ntn_reg_wr(0x4424, reg_val, 0, pdata);		//TDM MAC hi
 
 	reg_val = 0x40005800;
 	reg_val |= (ntn_tdm_cfg->channels & 0xF)<<16;
 	reg_val |= (ntn_tdm_cfg->protocol & 0x1)<<15;
-	hw_if->ntn_reg_wr(0x4410, reg_val, 0);			//TDM Control Register
+	hw_if->ntn_reg_wr(0x4410, reg_val, 0, pdata);			//TDM Control Register
 
-	//reg_val = hw_if->ntn_reg_rd(0x4400, 0);			//TDM Stream 0 Control register
+	//reg_val = hw_if->ntn_reg_rd(0x4400, 0, pdata);			//TDM Stream 0 Control register
 	reg_val = 0x2003072C;
 	reg_val |= (ntn_tdm_cfg->mode_sel & 0x1)<<31;
-	hw_if->ntn_reg_wr(0x4400, reg_val, 0);			//TDM Control Register
+	hw_if->ntn_reg_wr(0x4400, reg_val, 0, pdata);			//TDM Control Register
 
 #ifdef NTN_DRV_TEST_LOOPBACK
-	hw_if->ntn_reg_wr(0x100C, 0x00002600, 0);	//Pin Mux control
+	hw_if->ntn_reg_wr(0x100C, 0x00002600, 0, pdata);	//Pin Mux control
 #else
-	hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0);	//Pin Mux control
+	hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0, pdata);	//Pin Mux control
 #endif
 		NMSGPR_INFO("TDM Out configured\n");
 
@@ -4452,18 +4446,18 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 
 		/* Disable VLAN striping */
                 pdata->dev_state &= ~NETIF_F_HW_VLAN_CTAG_RX;
-                hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP);
+                hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
 #ifdef NTN_DRV_TEST_LOOPBACK
-		hw_if->ntn_reg_wr(0x100C, 0x00002600, 0);	//Pin Mux control
-		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0);	//Pin Mux control
-		hw_if->ntn_reg_wr(0x44b8, 0x00000000, 0);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x100C, 0x00002600, 0, pdata);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0, pdata);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x44b8, 0x00000000, 0, pdata);	//Pin Mux control
 #else
-		hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0);	//Pin Mux control
-		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0);	//Pin Mux control
-		hw_if->ntn_reg_wr(0x44b8, 0x0006e61e, 0);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0, pdata);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0, pdata);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x44b8, 0x0006e61e, 0, pdata);	//Pin Mux control
 		reg_val = 0x0003072C;
 		reg_val |= (ntn_tdm_cfg->mode_sel & 0x1)<<31;
-		hw_if->ntn_reg_wr(0x4400, reg_val, 0);			//TDM Control Register
+		hw_if->ntn_reg_wr(0x4400, reg_val, 0, pdata);			//TDM Control Register
 #endif
 		/* config stream id */
 		ptr = ntn_tdm_cfg->TDM_STREAM_ID;
@@ -4472,17 +4466,17 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 			NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_STREAM_ID[i]);
 
 		reg_val = (ptr[4] << 24) | (ptr[5] << 16) | (ptr[6] << 8) | ptr[7];
-		hw_if->ntn_reg_wr(0x3084, reg_val, 0);		//TDM Stream ID hi
+		hw_if->ntn_reg_wr(0x3084, reg_val, 0, pdata);		//TDM Stream ID hi
 		reg_val = (ptr[0] << 24) | (ptr[1] << 16) | (ptr[2] << 8) | ptr[3];
-		hw_if->ntn_reg_wr(0x3088, reg_val, 0);		//TDM Stream ID low
+		hw_if->ntn_reg_wr(0x3088, reg_val, 0, pdata);		//TDM Stream ID low
 
-		hw_if->ntn_reg_wr(0x44CC, 0x00CC0133, 0);	//TDM buffer near underflow threshold register
-		hw_if->ntn_reg_wr(0x44D0, 0x02CC0333, 0);	//TDM buffer near overflow threshold register
+		hw_if->ntn_reg_wr(0x44CC, 0x00CC0133, 0, pdata);	//TDM buffer near underflow threshold register
+		hw_if->ntn_reg_wr(0x44D0, 0x02CC0333, 0, pdata);	//TDM buffer near overflow threshold register
 
 #ifdef NTN_DRV_TEST_LOOPBACK
 		reg_val = 0x6003072C;
 		reg_val |= (ntn_tdm_cfg->mode_sel & 0x1)<<31;
-		hw_if->ntn_reg_wr(0x4400, reg_val, 0);		//TDM Control Register
+		hw_if->ntn_reg_wr(0x4400, reg_val, 0, pdata);		//TDM Control Register
 #endif
 		NMSGPR_INFO("TDM In configured\n");
 	}
@@ -4586,7 +4580,7 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 	case DWC_ETH_QOS_RX_THRESHOLD_CMD:
 		rx_desc_data->rx_threshold_val = req->flags;
 		hw_if->config_rx_threshold(chInx,
-					rx_desc_data->rx_threshold_val);
+					rx_desc_data->rx_threshold_val, pdata);
 		NMSGPR_ALERT( "Configured Rx threshold with %d\n",
 		       rx_desc_data->rx_threshold_val);
 		break;
@@ -4594,35 +4588,35 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 	case DWC_ETH_QOS_TX_THRESHOLD_CMD:
 		tx_desc_data->tx_threshold_val = req->flags;
 		hw_if->config_tx_threshold(chInx,
-					tx_desc_data->tx_threshold_val);
+					tx_desc_data->tx_threshold_val, pdata);
 		NMSGPR_ALERT( "Configured Tx threshold with %d\n",
 		       tx_desc_data->tx_threshold_val);
 		break;
 
 	case DWC_ETH_QOS_RSF_CMD:
 		rx_desc_data->rsf_on = req->flags;
-		hw_if->config_rsf_mode(chInx, rx_desc_data->rsf_on);
+		hw_if->config_rsf_mode(chInx, rx_desc_data->rsf_on, pdata);
 		NMSGPR_ALERT( "Receive store and forward mode %s\n",
 		       (rx_desc_data->rsf_on) ? "enabled" : "disabled");
 		break;
 
 	case DWC_ETH_QOS_TSF_CMD:
 		tx_desc_data->tsf_on = req->flags;
-		hw_if->config_tsf_mode(chInx, tx_desc_data->tsf_on);
+		hw_if->config_tsf_mode(chInx, tx_desc_data->tsf_on, pdata);
 		NMSGPR_ALERT( "Transmit store and forward mode %s\n",
 		       (tx_desc_data->tsf_on) ? "enabled" : "disabled");
 		break;
 
 	case DWC_ETH_QOS_OSF_CMD:
 		tx_desc_data->osf_on = req->flags;
-		hw_if->config_osf_mode(chInx, tx_desc_data->osf_on);
+		hw_if->config_osf_mode(chInx, tx_desc_data->osf_on, pdata);
 		NMSGPR_ALERT( "Transmit DMA OSF mode is %s\n",
 		       (tx_desc_data->osf_on) ? "enabled" : "disabled");
 		break;
 
 	case DWC_ETH_QOS_INCR_INCRX_CMD:
 		pdata->incr_incrx = req->flags;
-		hw_if->config_incr_incrx_mode(pdata->incr_incrx);
+		hw_if->config_incr_incrx_mode(pdata->incr_incrx, pdata);
 		NMSGPR_ALERT( "%s mode is enabled\n",
 		       (pdata->incr_incrx) ? "INCRX" : "INCR");
 		break;
@@ -4684,8 +4678,8 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 				memcpy(pdata->mac_addr, mac_addr0,
 				       DWC_ETH_QOS_MAC_ADDR_LEN);
 			}
-			hw_if->configure_mac_addr0_reg(pdata->mac_addr);
-			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg);
+			hw_if->configure_mac_addr0_reg(pdata->mac_addr, pdata);
+			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg, pdata);
 			NMSGPR_ALERT(
 			       "SA will use MAC0 with descriptor for configuration %d\n",
 			       pdata->tx_sa_ctrl_via_desc);
@@ -4707,8 +4701,8 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 				memcpy(pdata->mac_addr, mac_addr1,
 				       DWC_ETH_QOS_MAC_ADDR_LEN);
 			}
-			hw_if->configure_mac_addr1_reg(pdata->mac_addr);
-			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg);
+			hw_if->configure_mac_addr1_reg(pdata->mac_addr, pdata);
+			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg, pdata);
 			NMSGPR_ALERT(
 			       "SA will use MAC1 with descriptor for configuration %d\n",
 			       pdata->tx_sa_ctrl_via_desc);
@@ -4730,8 +4724,8 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 				memcpy(pdata->mac_addr, mac_addr0,
 				       DWC_ETH_QOS_MAC_ADDR_LEN);
 			}
-			hw_if->configure_mac_addr0_reg(pdata->mac_addr);
-			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg);
+			hw_if->configure_mac_addr0_reg(pdata->mac_addr, pdata);
+			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg, pdata);
 			NMSGPR_ALERT(
 			       "SA will use MAC0 with register for configuration %d\n",
 			       pdata->tx_sa_ctrl_via_desc);
@@ -4753,8 +4747,8 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 				memcpy(pdata->mac_addr, mac_addr1,
 				       DWC_ETH_QOS_MAC_ADDR_LEN);
 			}
-			hw_if->configure_mac_addr1_reg(pdata->mac_addr);
-			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg);
+			hw_if->configure_mac_addr1_reg(pdata->mac_addr, pdata);
+			hw_if->configure_sa_via_reg(pdata->tx_sa_ctrl_via_reg, pdata);
 			NMSGPR_ALERT(
 			       "SA will use MAC1 with register for configuration %d\n",
 			       pdata->tx_sa_ctrl_via_desc);
@@ -4842,17 +4836,17 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		break;
 	case DWC_ETH_QOS_AXI_PBL_CMD:
 		pdata->axi_pbl = req->flags;
-		hw_if->config_axi_pbl_val(pdata->axi_pbl);
+		hw_if->config_axi_pbl_val(pdata->axi_pbl, pdata);
 		NMSGPR_ALERT( "AXI PBL value: %d\n", pdata->axi_pbl);
 		break;
 	case DWC_ETH_QOS_AXI_WORL_CMD:
 		pdata->axi_worl = req->flags;
-		hw_if->config_axi_worl_val(pdata->axi_worl);
+		hw_if->config_axi_worl_val(pdata->axi_worl, pdata);
 		NMSGPR_ALERT( "AXI WORL value: %d\n", pdata->axi_worl);
 		break;
 	case DWC_ETH_QOS_AXI_RORL_CMD:
 		pdata->axi_rorl = req->flags;
-		hw_if->config_axi_rorl_val(pdata->axi_rorl);
+		hw_if->config_axi_rorl_val(pdata->axi_rorl, pdata);
 		NMSGPR_ALERT( "AXI RORL value: %d\n", pdata->axi_rorl);
 		break;
 	case DWC_ETH_QOS_MAC_LOOPBACK_MODE_CMD:
@@ -4876,7 +4870,7 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		ret = DWC_ETH_QOS_RD_WR_REG(pdata, (void*)req);
 		break;
     case DWC_WRAP_TS_FEATURE:
-        hw_if->ntn_wrap_ts_ignore_config(req->flags);
+        hw_if->ntn_wrap_ts_ignore_config(req->flags, pdata);
         NMSGPR_ALERT( "Neutrino Wrapper TS Feature Value: %d\n", req->flags);
         break;
 	case NTN_DWC_GET_FREE_TX_DESC_CNT_CMD:
@@ -5084,7 +5078,7 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 
 	if (!pdata->hwts_tx_en && !pdata->hwts_rx_en) {
 		/* disable hw time stamping */
-		hw_if->config_hw_time_stamping(varMAC_TCR);
+		hw_if->config_hw_time_stamping(varMAC_TCR, pdata);
 	} else {
 		varMAC_TCR = (MAC_TCR_TSENA | MAC_TCR_TSCFUPDT | MAC_TCR_TSCTRLSSR |
 				tstamp_all | ptp_v2 | ptp_over_ethernet | ptp_over_ipv6_udp |
@@ -5094,10 +5088,10 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		if (!pdata->one_nsec_accuracy)
 			varMAC_TCR &= ~MAC_TCR_TSCTRLSSR;
 
-		hw_if->config_hw_time_stamping(varMAC_TCR);
+		hw_if->config_hw_time_stamping(varMAC_TCR, pdata);
 
 		/* program Sub Second Increment Reg */
-		hw_if->config_sub_second_increment(DWC_ETH_QOS_SYSCLOCK);
+		hw_if->config_sub_second_increment(DWC_ETH_QOS_SYSCLOCK, pdata);
 
 		/* formula is :
 		 * addend = 2^32/freq_div_ratio;
@@ -5115,11 +5109,11 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		temp = (u64)(50000000ULL << 32);
 		pdata->default_addend = div_u64(temp, DWC_ETH_QOS_SYSCLOCK);
 
-		hw_if->config_addend(pdata->default_addend);
+		hw_if->config_addend(pdata->default_addend, pdata);
 
 		/* initialize system time */
 		getnstimeofday(&now);
-		hw_if->init_systime(now.tv_sec, now.tv_nsec);
+		hw_if->init_systime(now.tv_sec, now.tv_nsec, pdata);
 	}
 
 	DBGPR_PTP("config.flags = %#x, tx_type = %#x, rx_filter = %#x\n",
@@ -5339,7 +5333,7 @@ static void DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 	if (pdata->vlan_hash_filtering) {
 		crc32_val = (bitrev32(~crc32_le(~0, (unsigned char *)&vid, 2)) >> 28);
 
-		enb_12bit_vhash = hw_if->get_vlan_tag_comparison();
+		enb_12bit_vhash = hw_if->get_vlan_tag_comparison(pdata);
 		if (enb_12bit_vhash) {
 			/* neget 4-bit crc value for 12-bit VLAN hash comparison */
 			new_index = (1 << (~crc32_val & 0xF));
@@ -5347,14 +5341,14 @@ static void DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 			new_index = (1 << (crc32_val & 0xF));
 		}
 
-		old_index = hw_if->get_vlan_hash_table_reg();
+		old_index = hw_if->get_vlan_hash_table_reg(pdata);
 		old_index &= ~new_index;
-		hw_if->update_vlan_hash_table_reg(old_index);
+		hw_if->update_vlan_hash_table_reg(old_index, pdata);
 		pdata->vlan_ht_or_id = old_index;
 	} else {
 		/* By default, receive only VLAN pkt with VID = 1
 		 * becasue writting 0 will pass all VLAN pkt */
-		hw_if->update_vlan_id(1);
+		hw_if->update_vlan_id(1, pdata);
 		pdata->vlan_ht_or_id = 1;
 	}
 
@@ -5409,7 +5403,7 @@ static void DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev, u16 vid)
 		/* These 4(0xF) bits determines the bit within the
 		 * VLAN Hash Table Reg 0
 		 * */
-		enb_12bit_vhash = hw_if->get_vlan_tag_comparison();
+		enb_12bit_vhash = hw_if->get_vlan_tag_comparison(pdata);
 		if (enb_12bit_vhash) {
 			/* neget 4-bit crc value for 12-bit VLAN hash comparison */
 			new_index = (1 << (~crc32_val & 0xF));
@@ -5417,12 +5411,12 @@ static void DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev, u16 vid)
 			new_index = (1 << (crc32_val & 0xF));
 		}
 
-		old_index = hw_if->get_vlan_hash_table_reg();
+		old_index = hw_if->get_vlan_hash_table_reg(pdata);
 		old_index |= new_index;
-		hw_if->update_vlan_hash_table_reg(old_index);
+		hw_if->update_vlan_hash_table_reg(old_index,pdata);
 		pdata->vlan_ht_or_id = old_index;
 	} else {
-		hw_if->update_vlan_id(vid);
+		hw_if->update_vlan_id(vid, pdata);
 		pdata->vlan_ht_or_id = vid;
 	}
 
@@ -5492,9 +5486,9 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 
 	/* enable power down mode by programming the PMT regs */
 	if (wakeup_type & DWC_ETH_QOS_REMOTE_WAKEUP)
-		hw_if->enable_remote_pmt();
+		hw_if->enable_remote_pmt(pdata);
 	if (wakeup_type & DWC_ETH_QOS_MAGIC_WAKEUP)
-		hw_if->enable_magic_pmt();
+		hw_if->enable_magic_pmt(pdata);
 	pdata->power_down_type = wakeup_type;
 
 	if (caller == DWC_ETH_QOS_IOCTL_CONTEXT)
@@ -5556,12 +5550,12 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	mutex_lock(&pdata->pmt_lock);
 
 	if (pdata->power_down_type & DWC_ETH_QOS_MAGIC_WAKEUP) {
-		hw_if->disable_magic_pmt();
+		hw_if->disable_magic_pmt(pdata);
 		pdata->power_down_type &= ~DWC_ETH_QOS_MAGIC_WAKEUP;
 	}
 
 	if (pdata->power_down_type & DWC_ETH_QOS_REMOTE_WAKEUP) {
-		hw_if->disable_remote_pmt();
+		hw_if->disable_remote_pmt(pdata);
 		pdata->power_down_type &= ~DWC_ETH_QOS_REMOTE_WAKEUP;
 	}
 
@@ -5586,7 +5580,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	}
 
 	/* enable MAC TX/RX */
-	hw_if->start_mac_tx_rx();
+	hw_if->start_mac_tx_rx(pdata);
 
 	/* enable DMA TX/RX */
 	DWC_ETH_QOS_start_all_ch_tx_dma(pdata);
@@ -5635,7 +5629,7 @@ INT DWC_ETH_QOS_configure_remotewakeup(struct net_device *dev,
 	}
 
 	hw_if->configure_rwk_filter(req->rwk_filter_values,
-				    req->rwk_filter_length);
+				    req->rwk_filter_length, pdata);
 
 	DWC_ETH_QOS_powerdown(dev, DWC_ETH_QOS_REMOTE_WAKEUP,
 			DWC_ETH_QOS_IOCTL_CONTEXT);
@@ -5672,13 +5666,13 @@ static void DWC_ETH_QOS_config_rx_pbl(struct DWC_ETH_QOS_prv_data *pdata,
 	case DWC_ETH_QOS_PBL_8:
 	case DWC_ETH_QOS_PBL_16:
 	case DWC_ETH_QOS_PBL_32:
-		hw_if->config_rx_pbl_val(chInx, rx_pbl);
+		hw_if->config_rx_pbl_val(chInx, rx_pbl, pdata);
 		hw_if->config_pblx8(chInx, 0);
 		break;
 	case DWC_ETH_QOS_PBL_64:
 	case DWC_ETH_QOS_PBL_128:
 	case DWC_ETH_QOS_PBL_256:
-		hw_if->config_rx_pbl_val(chInx, rx_pbl / 8);
+		hw_if->config_rx_pbl_val(chInx, rx_pbl / 8, pdata);
 		hw_if->config_pblx8(chInx, 1);
 		pblx8_val = 1;
 		break;
@@ -5687,15 +5681,15 @@ static void DWC_ETH_QOS_config_rx_pbl(struct DWC_ETH_QOS_prv_data *pdata,
 	switch (pblx8_val) {
 		case 0:
 			NMSGPR_ALERT( "Tx PBL[%d] value: %d\n",
-					chInx, hw_if->get_tx_pbl_val(chInx));
+					chInx, hw_if->get_tx_pbl_val(chInx, pdata));
 			NMSGPR_ALERT( "Rx PBL[%d] value: %d\n",
-					chInx, hw_if->get_rx_pbl_val(chInx));
+					chInx, hw_if->get_rx_pbl_val(chInx, pdata));
 			break;
 		case 1:
 			NMSGPR_ALERT( "Tx PBL[%d] value: %d\n",
-					chInx, (hw_if->get_tx_pbl_val(chInx) * 8));
+					chInx, (hw_if->get_tx_pbl_val(chInx, pdata) * 8));
 			NMSGPR_ALERT( "Rx PBL[%d] value: %d\n",
-					chInx, (hw_if->get_rx_pbl_val(chInx) * 8));
+					chInx, (hw_if->get_rx_pbl_val(chInx, pdata) * 8));
 			break;
 	}
 
@@ -5731,13 +5725,13 @@ static void DWC_ETH_QOS_config_tx_pbl(struct DWC_ETH_QOS_prv_data *pdata,
 	case DWC_ETH_QOS_PBL_8:
 	case DWC_ETH_QOS_PBL_16:
 	case DWC_ETH_QOS_PBL_32:
-		hw_if->config_tx_pbl_val(chInx, tx_pbl);
+		hw_if->config_tx_pbl_val(chInx, tx_pbl, pdata);
 		hw_if->config_pblx8(chInx, 0);
 		break;
 	case DWC_ETH_QOS_PBL_64:
 	case DWC_ETH_QOS_PBL_128:
 	case DWC_ETH_QOS_PBL_256:
-		hw_if->config_tx_pbl_val(chInx, tx_pbl / 8);
+		hw_if->config_tx_pbl_val(chInx, tx_pbl / 8, pdata);
 		hw_if->config_pblx8(chInx, 1);
 		pblx8_val = 1;
 		break;
@@ -5746,15 +5740,15 @@ static void DWC_ETH_QOS_config_tx_pbl(struct DWC_ETH_QOS_prv_data *pdata,
 	switch (pblx8_val) {
 		case 0:
 			NMSGPR_ALERT( "Tx PBL[%d] value: %d\n",
-					chInx, hw_if->get_tx_pbl_val(chInx));
+					chInx, hw_if->get_tx_pbl_val(chInx, pdata));
 			NMSGPR_ALERT( "Rx PBL[%d] value: %d\n",
-					chInx, hw_if->get_rx_pbl_val(chInx));
+					chInx, hw_if->get_rx_pbl_val(chInx, pdata));
 			break;
 		case 1:
 			NMSGPR_ALERT( "Tx PBL[%d] value: %d\n",
-					chInx, (hw_if->get_tx_pbl_val(chInx) * 8));
+					chInx, (hw_if->get_tx_pbl_val(chInx, pdata) * 8));
 			NMSGPR_ALERT( "Rx PBL[%d] value: %d\n",
-					chInx, (hw_if->get_rx_pbl_val(chInx) * 8));
+					chInx, (hw_if->get_rx_pbl_val(chInx, pdata) * 8));
 			break;
 	}
 
@@ -5788,9 +5782,9 @@ static void DWC_ETH_QOS_program_dcb_algorithm(struct DWC_ETH_QOS_prv_data *pdata
 		NMSGPR_ALERT( "Failed to fetch DCB Struct info from user\n");
 
 	hw_if->set_tx_queue_operating_mode(l_dcb_struct.chInx,
-		(UINT)l_dcb_struct.op_mode);
-	hw_if->set_dcb_algorithm(l_dcb_struct.algorithm);
-	hw_if->set_dcb_queue_weight(l_dcb_struct.chInx, l_dcb_struct.weight);
+		(UINT)l_dcb_struct.op_mode, pdata);
+	hw_if->set_dcb_algorithm(l_dcb_struct.algorithm, pdata);
+	hw_if->set_dcb_queue_weight(l_dcb_struct.chInx, l_dcb_struct.weight, pdata);
 
 	DBGPR("<--DWC_ETH_QOS_program_dcb_algorithm\n");
 
@@ -5825,10 +5819,10 @@ void DWC_ETH_QOS_reload_fqtss_cfg(struct DWC_ETH_QOS_prv_data *pdata)
 	else
 		avb_params = &(pdata->cbsSpeed100Cfg[0]);
 
-	hw_if->config_send_slope(AVB_QUEUE_CLASS_A, avb_params->send_slope);
-	hw_if->config_idle_slope(AVB_QUEUE_CLASS_A, avb_params->idle_slope);
-	hw_if->config_high_credit(AVB_QUEUE_CLASS_A, avb_params->hi_credit);
-	hw_if->config_low_credit(AVB_QUEUE_CLASS_A, avb_params->low_credit);
+	hw_if->config_send_slope(AVB_QUEUE_CLASS_A, avb_params->send_slope, pdata);
+	hw_if->config_idle_slope(AVB_QUEUE_CLASS_A, avb_params->idle_slope, pdata);
+	hw_if->config_high_credit(AVB_QUEUE_CLASS_A, avb_params->hi_credit, pdata);
+	hw_if->config_low_credit(AVB_QUEUE_CLASS_A, avb_params->low_credit, pdata);
 
 	NDBGPR_L1("--- Class B ---\n");
 
@@ -5837,10 +5831,10 @@ void DWC_ETH_QOS_reload_fqtss_cfg(struct DWC_ETH_QOS_prv_data *pdata)
 	else
 		avb_params = &(pdata->cbsSpeed100Cfg[1]);
 
-	hw_if->config_send_slope(AVB_QUEUE_CLASS_B, avb_params->send_slope);
-	hw_if->config_idle_slope(AVB_QUEUE_CLASS_B, avb_params->idle_slope);
-	hw_if->config_high_credit(AVB_QUEUE_CLASS_B, avb_params->hi_credit);
-	hw_if->config_low_credit(AVB_QUEUE_CLASS_B, avb_params->low_credit);
+	hw_if->config_send_slope(AVB_QUEUE_CLASS_B, avb_params->send_slope, pdata);
+	hw_if->config_idle_slope(AVB_QUEUE_CLASS_B, avb_params->idle_slope, pdata);
+	hw_if->config_high_credit(AVB_QUEUE_CLASS_B, avb_params->hi_credit, pdata);
+	hw_if->config_low_credit(AVB_QUEUE_CLASS_B, avb_params->low_credit, pdata);
 
 	NDBGPR_L1("---------------------------------------------\n");
 
@@ -5889,13 +5883,13 @@ static void DWC_ETH_QOS_program_avb_algorithm(struct DWC_ETH_QOS_prv_data *pdata
 	NDBGPR_L1("Setting CBS for speed %d, class %s\n", pdata->speed, l_avb_struct.chInx == 1 ? "A" : "B");
 
 	hw_if->set_tx_queue_operating_mode(l_avb_struct.chInx,
-		(UINT)l_avb_struct.op_mode);
-	hw_if->set_avb_algorithm(l_avb_struct.chInx, l_avb_struct.algorithm);
-	hw_if->config_credit_control(l_avb_struct.chInx, l_avb_struct.cc);
-	hw_if->config_send_slope(l_avb_struct.chInx, avb_params->send_slope);
-	hw_if->config_idle_slope(l_avb_struct.chInx, avb_params->idle_slope);
-	hw_if->config_high_credit(l_avb_struct.chInx, avb_params->hi_credit);
-	hw_if->config_low_credit(l_avb_struct.chInx, avb_params->low_credit);
+		(UINT)l_avb_struct.op_mode, pdata);
+	hw_if->set_avb_algorithm(l_avb_struct.chInx, l_avb_struct.algorithm, pdata);
+	hw_if->config_credit_control(l_avb_struct.chInx, l_avb_struct.cc, pdata);
+	hw_if->config_send_slope(l_avb_struct.chInx, avb_params->send_slope, pdata);
+	hw_if->config_idle_slope(l_avb_struct.chInx, avb_params->idle_slope, pdata);
+	hw_if->config_high_credit(l_avb_struct.chInx, avb_params->hi_credit, pdata);
+	hw_if->config_low_credit(l_avb_struct.chInx, avb_params->low_credit, pdata);
 
 	NDBGPR_L1("---------------------------------------------\n");
 
@@ -6898,7 +6892,7 @@ inline unsigned long long DWC_ETH_QOS_reg_read64(volatile ULONG *ptr)
  * \return void
  */
 
-void DWC_ETH_QOS_mmc_read(struct DWC_ETH_QOS_mmc_counters *mmc)
+void DWC_ETH_QOS_mmc_read(struct DWC_ETH_QOS_mmc_counters *mmc, struct DWC_ETH_QOS_prv_data *pdata)
 {
 	DBGPR("-->DWC_ETH_QOS_mmc_read\n");
 
