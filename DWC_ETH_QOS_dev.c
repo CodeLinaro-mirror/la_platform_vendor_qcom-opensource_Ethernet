@@ -3158,7 +3158,7 @@ static void tx_descriptor_init(struct DWC_ETH_QOS_prv_data *pdata,
 */
 
 static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
-				UINT chInx)
+				UINT chInx, UINT ethertype)
 {
 	struct DWC_ETH_QOS_tx_wrapper_descriptor *tx_desc_data =
 	    GET_TX_WRAPPER_DESC(chInx);
@@ -3388,8 +3388,21 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 0x1);
 		//TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2,(chInx==3?(!(tx_desc_data->cur_tx%4)):1));
 #else
-	//TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2,(chInx==3?(!(tx_desc_data->cur_tx%4)):1));
-	TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 0x1);
+	/* Set the interrupt on complete bit. For normal IP traffic
+	 * (channel 0) and AVTP traffic (channels 3 and 4), trigger an interrupt on
+	 * every 8th transmit to improve performance. For GPTP traffic, trigger
+	 * an interrupt on complete for every packet (in order to get the TX time). */
+	if (chInx == NTN_TX_DMA_CH_0) {
+		if (ethertype == NTN_GPTP_ETH_TYPE) {
+			TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 0x1);
+		} else {
+			TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % 8)));
+		}
+	} else if (chInx == NTN_TX_DMA_CH_3 || chInx == NTN_TX_DMA_CH_4) {
+		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % 8)));
+	} else {
+		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 0x1);
+	}
 #endif
 
 	/* Set the launch time for the TX packet, before setting the OWN bit */

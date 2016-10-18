@@ -1856,6 +1856,11 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 
 	hw_if->ntn_wrap_ts_valid_window_config(pdata->ntn_timestamp_valid_window, pdata);
 
+	/* Disable early transmit complete and underflow interrupt enable bits
+	 * for performance */
+	DMA_TXCHINTMASK_ETCEN_UdfWr(0, 0);
+	DMA_TXCHINTMASK_UNFEN_UdfWr(0, 0);
+
 	DBGPR("<--DWC_ETH_QOS_open, %d\n", ret);
 
 	return ret;
@@ -2388,7 +2393,7 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 	}
 
 	/* configure required descriptor fields for transmission */
-	hw_if->pre_xmit(pdata, chInx);
+	hw_if->pre_xmit(pdata, chInx, ETHERTYPE_FROM_PACKET(skb->data));
 
 tx_netdev_return:
 	spin_unlock_irqrestore(&pdata->tx_lock, flags);

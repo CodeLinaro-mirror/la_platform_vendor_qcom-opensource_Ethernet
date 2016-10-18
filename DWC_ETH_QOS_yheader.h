@@ -112,6 +112,7 @@
 //#define NTN_AVB_LAUNCHTIME_DUMP
 //#define NTN_AVB_LAUNCHTIME_TS_CAPTURE_DUMP
 
+#define ETHERTYPE_FROM_PACKET(packet)	((packet)[12]<<8 | (packet)[13])
 
 #define NTN_GPTP_ETH_TYPE		(0x88F7)
 
@@ -839,7 +840,7 @@ struct hw_if_struct {
 
 	INT(*enable_int) (e_DWC_ETH_QOS_int_id);
 	INT(*disable_int) (e_DWC_ETH_QOS_int_id);
-	void (*pre_xmit) (struct DWC_ETH_QOS_prv_data *, UINT chInx);
+	void (*pre_xmit) (struct DWC_ETH_QOS_prv_data *, UINT chInx, UINT ethertype);
 	void (*dev_read) (struct DWC_ETH_QOS_prv_data *, UINT chInx);
 	void (*tx_desc_init) (struct DWC_ETH_QOS_prv_data *, UINT chInx);
 	void (*rx_desc_init) (struct DWC_ETH_QOS_prv_data *, UINT chInx);
