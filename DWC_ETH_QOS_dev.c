@@ -1870,6 +1870,7 @@ static VOID configure_mac_addr1_reg(UCHAR *mac_addr, struct DWC_ETH_QOS_prv_data
 static VOID configure_mac_addr0_reg(UCHAR *mac_addr, struct DWC_ETH_QOS_prv_data *pdata)
 {
 	MAC_MA0HR_RgWr(((mac_addr[5] << 8) | (mac_addr[4])));
+	MAC_MA0HR_AE_UdfWr(0x1);
 	MAC_MA0LR_RgWr(((mac_addr[3] << 24) | (mac_addr[2] << 16) |
 			(mac_addr[1] << 8) | (mac_addr[0])));
 }
@@ -4292,6 +4293,11 @@ static UINT ntn_boot_from_flash_done(struct DWC_ETH_QOS_prv_data *pdata)
   return rd_val & NTN_NCTLSTS_HW_SEQ_COMPLETE_MASK;
 }
 
+static void ntn_config_pme(UINT reg_val, struct DWC_ETH_QOS_prv_data *pdata)
+{
+	NTN_INTC_PMEINTCFG_RgWr(reg_val);
+}
+
 static int DWC_ETH_QOS_yinit_offload(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	DBGPR("-->DWC_ETH_QOS_yinit_offload\n");
@@ -4665,6 +4671,9 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 	/* Determine if boot mode is host initiated */
 	hw_if->ntn_boot_host_initiated = ntn_boot_host_initiated;
 	hw_if->ntn_boot_from_flash_done = ntn_boot_from_flash_done;
+
+	/* Configure PME pin for WOL */
+	hw_if->ntn_config_pme = ntn_config_pme;
 
 	DBGPR("<--DWC_ETH_QOS_init_function_ptrs_dev\n");
 }

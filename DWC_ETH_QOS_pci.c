@@ -1032,6 +1032,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	/* enabling and registration of irq with magic wakeup */
 	if (1 == pdata->hw_feat.mgk_sel) {
 		device_set_wakeup_capable(&pdev->dev, 1);
+		device_set_wakeup_enable(&pdata->pdev->dev, 1);
 		pdata->wolopts = WAKE_MAGIC;
 		enable_irq_wake(dev->irq);
 	}
@@ -1447,13 +1448,17 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 		if (hw_if->ntn_boot_host_initiated(pdata)) {
 			DWC_ETH_QOS_load_fw(pdev);
 		}
-#ifdef NTN_ENABLE_PCIE_MEM_ACCESS
-		DWC_ETH_QOS_config_tamap(pdev);
-#endif
 	}
+
+#ifdef NTN_ENABLE_PCIE_MEM_ACCESS
+	DWC_ETH_QOS_config_tamap(pdev);
+#endif
 
 	pci_enable_msi(pdev);
 	ret = DWC_ETH_QOS_powerup(dev, DWC_ETH_QOS_DRIVER_CONTEXT);
+
+	/* Hold the wake lock for 5sec to ensure any traffic*/
+	pm_wakeup_event(&pdev->dev, 5000);
 
 	DBGPR("<--DWC_ETH_QOS_resume\n");
 

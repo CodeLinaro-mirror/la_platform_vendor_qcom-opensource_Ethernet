@@ -243,6 +243,10 @@ static INT DWC_ETH_QOS_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write: phyaddr = %d, phyreg = %d, phydata = %#x\n",
 	      phyaddr, phyreg, phydata);
 
+	/* Prevent PHY powerdown during WOL */
+	if (phyreg == MII_BMCR && pdata->wolopts == WAKE_MAGIC)
+		phydata &= ~BMCR_PDOWN;
+
         if (!pdata->enable_phy) {
                 NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
                 return -1;
@@ -723,4 +727,50 @@ void DWC_ETH_QOS_mdio_unregister(struct net_device *dev)
 	pdata->mii = NULL;
 
 	DBGPR_MDIO("<--DWC_ETH_QOS_mdio_unregister\n");
+}
+
+void DWC_ETH_QOS_enable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	uint16_t bmcr_val, ctrl1000_val, adv_val;
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+
+	/* Disable 1000M mode */
+	ctrl1000_val = phy_read(pdata->phydev, MII_CTRL1000);
+	ctrl1000_val &= ~(ADVERTISE_1000HALF | ADVERTISE_1000FULL);
+	phy_write(pdata->phydev, MII_CTRL1000, ctrl1000_val);
+	/* Disable 100M mode */
+	adv_val = phy_read(pdata->phydev, MII_ADVERTISE);
+	adv_val &= ~(ADVERTISE_100HALF | ADVERTISE_100FULL);
+	phy_write(pdata->phydev, MII_ADVERTISE, adv_val);
+	/* Restart aneg for 10M link */
+	bmcr_val = phy_read(pdata->phydev, MII_BMCR);
+	bmcr_val |= BMCR_ANRESTART;
+	phy_write(pdata->phydev, MII_BMCR, bmcr_val);
+	/* Setup MAC for 10M */
+	hw_if->set_mii_speed_10(pdata);
+	hw_if->ntn_set_tx_clk_2_5MHz(pdata);
+}
+
+void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	uint16_t bmcr_val, ctrl1000_val, adv_val;
+
+	/* Enable 1000M mode */
+	ctrl1000_val = phy_read(pdata->phydev, MII_CTRL1000);
+	if (pdata->phydev->advertising & ADVERTISED_1000baseT_Half)
+		ctrl1000_val |= ADVERTISE_1000HALF;
+	if (pdata->phydev->advertising & ADVERTISED_1000baseT_Full)
+		ctrl1000_val |= ADVERTISE_1000FULL;
+	phy_write(pdata->phydev, MII_CTRL1000, ctrl1000_val);
+	/* Enable 100M mode */
+	adv_val = phy_read(pdata->phydev, MII_ADVERTISE);
+	if (pdata->phydev->advertising & ADVERTISED_100baseT_Half)
+		adv_val |= ADVERTISE_100HALF;
+	if (pdata->phydev->advertising & ADVERTISED_100baseT_Full)
+		adv_val |= ADVERTISE_100FULL;
+	phy_write(pdata->phydev, MII_ADVERTISE, adv_val);
+	/* Restart aneg */
+	bmcr_val = phy_read(pdata->phydev, MII_BMCR);
+	bmcr_val |= BMCR_ANRESTART;
+	phy_write(pdata->phydev, MII_BMCR, bmcr_val);
 }

@@ -29354,6 +29354,11 @@
         (data) = ioread32((void *)NTN_INTC_INTSTATUS_RgOffAddr);\
 } while(0)
 
+/* Write PME interrupt configuration */
+#define NTN_INTC_PMEINTCFG_RgWr(data) do {\
+        iowrite32(data, (void *)NTN_INTC_PMEINTCFG_RgOffAddr);\
+} while(0)
+
 #define NTN_INTC_GMAC_INT_MASK  (0x3FC000FF)
 #define NTN_INTC_GMAC_INT_TXCH2_BIT_POS 13
 #define NTN_INTC_GMAC_INT_RXCH0_BIT_POS 16
