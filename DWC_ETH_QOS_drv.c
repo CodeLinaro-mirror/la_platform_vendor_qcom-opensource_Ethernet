@@ -5522,6 +5522,20 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 		hw_if->enable_magic_pmt(pdata);
 	pdata->power_down_type = wakeup_type;
 
+	if (pdata->power_down_type) {
+		/* Setup the PHY to 10M for power saving */
+		DWC_ETH_QOS_enable_phy_wol(pdata);
+		/* For WOL functionality, magic packets are only detected by
+		 * the MAC0 filter */
+		hw_if->configure_mac_addr0_reg(pdata->dev->dev_addr, pdata);
+		/* Configure the PME interrupt pin
+		   pme_mac_msk (BIT4)=0; unmask mac_pmt_intr_o
+		   pme_o_pls (BIT16)=0; level signal
+		   pme_o_lvl (BIT17)=0; active low level signal
+		*/
+		hw_if->ntn_config_pme(0x0F00000F, pdata);
+	}
+
 	if (caller == DWC_ETH_QOS_IOCTL_CONTEXT)
 		pdata->power_down = 1;
 
@@ -5580,6 +5594,10 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 
 	mutex_lock(&pdata->pmt_lock);
 
+	/* Return PHY to original state before suspend */
+	if (pdata->power_down_type)
+		DWC_ETH_QOS_disable_phy_wol(pdata);
+
 	if (pdata->power_down_type & DWC_ETH_QOS_MAGIC_WAKEUP) {
 		hw_if->disable_magic_pmt(pdata);
 		pdata->power_down_type &= ~DWC_ETH_QOS_MAGIC_WAKEUP;
@@ -5606,6 +5624,8 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 			del_timer_sync(&pdata->eee_ctrl_timer);
 		DWC_ETH_QOS_init_common(dev);
 	} else {
+		/* Re-initialize the MAC since it can get reset during WOL */
+		hw_if->init(pdata);
 		if (pdata->enable_phy && pdata->phydev)
 			phy_start(pdata->phydev);
 	}

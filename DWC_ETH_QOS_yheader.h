@@ -1031,6 +1031,9 @@ struct hw_if_struct {
 	/* Read host initiated boot option */
 	UINT(*ntn_boot_host_initiated)(struct DWC_ETH_QOS_prv_data *);
 	UINT(*ntn_boot_from_flash_done)(struct DWC_ETH_QOS_prv_data *);
+
+	/* Configure PME for WOL */
+	void (*ntn_config_pme)(UINT, struct DWC_ETH_QOS_prv_data *);
 };
 
 /* wrapper buffer structure to hold transmit pkt details */
@@ -1782,6 +1785,8 @@ void DWC_ETH_QOS_handle_eee_interrupt(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_disable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_enable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_adjust_link(struct net_device *dev);
+void DWC_ETH_QOS_enable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
 
 /* For debug prints*/
 #define DRV_NAME "DWC_ETH_QOS_drv.c"
