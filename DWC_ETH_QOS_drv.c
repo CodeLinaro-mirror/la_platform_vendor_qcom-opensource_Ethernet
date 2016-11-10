@@ -187,6 +187,8 @@ static void DWC_ETH_QOS_start_all_ch_tx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 	for(chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++){
 		if(!pdata->tx_dma_ch_for_host[chInx])
 			continue;
+		if (pdata->ipa_enabled && chInx == NTN_TX_DMA_CH_2)
+			continue;
 		hw_if->start_dma_tx(chInx, pdata);
 	}
 	DBGPR("<--DWC_ETH_QOS_start_all_ch_tx_dma\n");
@@ -201,6 +203,8 @@ static void DWC_ETH_QOS_start_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 
 	for(chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++){
 		if(!pdata->rx_dma_ch_for_host[chInx])
+			continue;
+		if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0)
 			continue;
 		hw_if->start_dma_rx(chInx, pdata);
 	}

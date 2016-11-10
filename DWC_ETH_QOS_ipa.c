@@ -11,6 +11,12 @@
  */
 
 #include "DWC_ETH_QOS_ipa.h"
+
+#define NTN_IPA_PIPE_MAX_BW 800
+#define NTN_IPA_PIPE_MIN_BW 0
+#define NTN_IPA_DBG_MAX_MSG_LEN 3000
+static char buf[3000];
+
 static void DWC_ETH_QOS_ipaUcRdy_wq(struct work_struct *work);
 
 /* Description of RX CH Status as per DMA_RXCHSTS register in spec*/
@@ -145,6 +151,106 @@ int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 	return ret;
 }
 
+/**
+ * DWC_ETH_QOS_ipa_offload_suspend() - Suspend IPA offload data
+ * path.
+ *
+ * IN: @pdata: NTN dirver private structure.
+ * OUT: 0 on success and -1 on failure
+ */
+int DWC_ETH_QOS_ipa_offload_suspend(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int ret = Y_SUCCESS;
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	struct ipa_rm_perf_profile profile;
+
+	NDBGPR_L1("Suspend/disable IPA offload\n");
+	ret = hw_if->stop_dma_rx(NTN_RX_DMA_CH_0, pdata);
+	if (ret != Y_SUCCESS) {
+		NMSGPR_ERR("%s stop_dma_rx failed %d\n", __func__, ret);
+		return ret;
+	}
+
+	/* Disconnect IPA offload */
+	if (pdata->prv_ipa.ipa_offload_conn) {
+		ret = DWC_ETH_QOS_ipa_offload_disconnect(pdata);
+		if (ret) {
+			NMSGPR_ERR("IPA Offload Disconnect Failed, err:%d\n", ret);
+			return ret;
+		}
+		pdata->prv_ipa.ipa_offload_conn = false;
+		NDBGPR_L1("IPA Offload Disconnect Successfully \n");
+	}
+
+	ret = hw_if->stop_dma_tx(NTN_TX_DMA_CH_2, pdata);
+	if (ret != Y_SUCCESS) {
+		NMSGPR_ERR("%s stop_dma_tx failed %d\n", __func__, ret);
+		return ret;
+	}
+
+	profile.max_supported_bandwidth_mbps = NTN_IPA_PIPE_MIN_BW;
+	ret = ipa_rm_set_perf_profile(IPA_RM_RESOURCE_ODU_ADAPT_CONS,
+					&profile);
+	if (ret)
+		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ODU_ADAPT_CONS err:%d\n",
+				ret);
+
+	pdata->prv_ipa.ipa_offload_susp = true;
+	return ret;
+}
+
+/**
+ * DWC_ETH_QOS_ipa_offload_resume() - Resumes IPA offload data
+ * path.
+ *
+ * IN: @pdata: NTN dirver private structure.
+ * OUT: 0 on success and -1 on failure
+ */
+int DWC_ETH_QOS_ipa_offload_resume(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	struct desc_if_struct *desc_if = &(pdata->desc_if);
+	int ret = Y_SUCCESS;
+	struct ipa_rm_perf_profile profile;
+
+	NDBGPR_L1("Resume/enable IPA offload\n");
+	desc_if->wrapper_tx_desc_init_single_q(pdata, NTN_TX_DMA_CH_2);
+	desc_if->wrapper_rx_desc_init_single_q(pdata, NTN_RX_DMA_CH_0);
+
+	NDBGPR_L1("DWC_ETH_QOS_ipa_offload_connect\n");
+	ret = DWC_ETH_QOS_ipa_offload_connect(pdata);
+	if (ret != Y_SUCCESS)
+		return ret;
+	else
+		pdata->prv_ipa.ipa_offload_conn = true;
+
+	profile.max_supported_bandwidth_mbps = NTN_IPA_PIPE_MAX_BW;
+	ret = ipa_rm_set_perf_profile(IPA_RM_RESOURCE_ODU_ADAPT_CONS,
+					&profile);
+	if (ret)
+		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ODU_ADAPT_CONS err:%d\n",
+				ret);
+	/*Initialize DMA CHs for offload*/
+	ret = hw_if->init_offload(pdata);
+	if (ret) {
+		NMSGPR_ERR("Offload channel Init Failed \n");
+		return ret;
+	}
+
+	NDBGPR_L1("start_dma_tx/start_dma_rx\n");
+	ret = hw_if->start_dma_tx(NTN_TX_DMA_CH_2, pdata);
+	if (ret != Y_SUCCESS) {
+		NMSGPR_ERR("%s start_dma_tx failed %d\n", __func__, ret);
+		return ret;
+	}
+
+	ret = hw_if->start_dma_rx(NTN_RX_DMA_CH_0, pdata);
+	if (ret != Y_SUCCESS)
+		NMSGPR_ERR("%s start_dma_rx failed %d\n", __func__, ret);
+
+	pdata->prv_ipa.ipa_offload_susp = false;
+	return ret;
+}
 static void DWC_ETH_QOS_ipaUcRdy_wq(struct work_struct *work)
 {
 	struct DWC_ETH_QOS_prv_ipa_data *ntn_ipa = container_of(work,
@@ -404,7 +510,7 @@ int DWC_ETH_QOS_ipa_offload_connect(struct DWC_ETH_QOS_prv_data *pdata)
         ntn_ipa->uc_db_tx_addr = out.u.ntn.dl_uc_db_pa;
 
 	/* Set Perf Profile For PROD/CONS Pipes */
-	profile.max_supported_bandwidth_mbps = 800;
+	profile.max_supported_bandwidth_mbps = NTN_IPA_PIPE_MAX_BW;
 	ret = ipa_rm_set_perf_profile (IPA_RM_RESOURCE_ODU_ADAPT_PROD,
 					&profile);
 	if (ret) {
@@ -419,6 +525,7 @@ int DWC_ETH_QOS_ipa_offload_connect(struct DWC_ETH_QOS_prv_data *pdata)
 				ret);
 		return -1;
 	}
+	__pm_stay_awake(&pdata->prv_ipa.wlock);
 
 	return 0;
 }
@@ -450,6 +557,8 @@ int DWC_ETH_QOS_ipa_offload_disconnect(struct DWC_ETH_QOS_prv_data *pdata)
 		NMSGPR_ERR("Could not cleanup IPA Offload ret %d\n",ret);
 		return ret;
 	}
+	__pm_relax(&pdata->prv_ipa.wlock);
+
 	NMSGPR_INFO("%s - end \n",__func__);
 	return 0;
 }
@@ -484,6 +593,14 @@ static ssize_t read_ipa_stats(struct file *file,
 
 	len += scnprintf(buf + len, buf_len - len, "%-25s %10llu\n",
 		"IPA RX Packets: ", pdata->ipa_stats.ipa_ul_exception);
+	len += scnprintf(buf + len, buf_len - len, "\n");
+
+	len += scnprintf(buf + len, buf_len - len, "%-25s %10d\n",
+		"NTN FW Support IPA: ", pdata->hw_if.ntn_fw_ipa_supported(pdata));
+	len += scnprintf(buf + len, buf_len - len, "\n");
+
+	len += scnprintf(buf + len, buf_len - len, "%-25s 0x%10x\n",
+		"FW Version: ", pdata->hw_if.read_fw_ver_features(pdata));
 	len += scnprintf(buf + len, buf_len - len, "\n");
 
 	if (len > buf_len)
@@ -714,6 +831,51 @@ static ssize_t read_ntn_dma_stats(struct file *file,
 	return ret_cnt;
 }
 
+static ssize_t read_ipa_offload_status(struct file *file,
+	char __user *user_buf, size_t count, loff_t *ppos)
+{
+	unsigned int len = 0, buf_len = NTN_IPA_DBG_MAX_MSG_LEN;
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+
+	if (pdata->prv_ipa.ipa_offload_susp)
+		len += scnprintf(buf + len, buf_len - len, "IPA Offload suspended\n");
+	else
+		len += scnprintf(buf + len, buf_len - len, "IPA Offload enabled\n");
+
+	if (len > buf_len)
+		len = buf_len;
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t suspend_resume_ipa_offload(struct file *file,
+	char __user *user_buf, size_t count, loff_t *ppos)
+{
+	s8 option = 0;
+	char in_buf[2];
+	unsigned long ret;
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+
+	if (sizeof(in_buf) < 2)
+		return -EFAULT;
+
+	ret = copy_from_user(in_buf, user_buf, 1);
+	if (ret)
+		return -EFAULT;
+
+	in_buf[1] = '\0';
+	if (kstrtos8(in_buf, 0, &option))
+		return -EFAULT;
+
+	if (option == 1 && !pdata->prv_ipa.ipa_offload_susp)
+		DWC_ETH_QOS_ipa_offload_suspend(pdata);
+	else if (option == 0 && pdata->prv_ipa.ipa_offload_susp)
+		DWC_ETH_QOS_ipa_offload_resume(pdata);
+
+	return count;
+}
+
+
 static const struct file_operations fops_ipa_stats = {
 	.read = read_ipa_stats,
 	.open = simple_open,
@@ -728,6 +890,13 @@ static const struct file_operations fops_ntn_dma_stats = {
 	.llseek = default_llseek,
 };
 
+static const struct file_operations fops_ntn_ipa_offload_en = {
+	.read = read_ipa_offload_status,
+	.write = suspend_resume_ipa_offload,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
 /**
  * DWC_ETH_QOS_ipa_create_debugfs() - Called from NTN driver to create debugfs node
  * for offload data path debugging.
@@ -762,6 +931,13 @@ int DWC_ETH_QOS_ipa_create_debugfs(struct DWC_ETH_QOS_prv_data *pdata)
 				pdata, &fops_ntn_dma_stats);
 	if (!stats || IS_ERR(stats)) {
 		NMSGPR_ERR( "Cannot create debugfs dma_stats %d \n", (int)stats);
+		goto fail;
+	}
+
+	stats = debugfs_create_file("suspend_ipa_offload", (S_IRUSR|S_IWUSR),
+				ntn_ipa->debugfs_dir, pdata, &fops_ntn_ipa_offload_en);
+	if (!stats || IS_ERR(stats)) {
+		NMSGPR_ERR( "Cannot create debugfs ipa_offload_en %d \n", (int)stats);
 		goto fail;
 	}
 	return 0;

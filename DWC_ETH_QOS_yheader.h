@@ -1488,10 +1488,12 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	bool ipa_offload_init;
 	bool ipa_offload_conn;
 	bool ipa_debugfs_exists;
+	bool ipa_offload_susp;
 
 	/* Dev state */
 	bool is_dev_ready;
 	struct work_struct ntn_ipa_rdy_work;
+	struct wakeup_source wlock;
 };
 
 struct DWC_ETH_QOS_prv_data {
