@@ -486,11 +486,11 @@ static int DWC_ETH_QOS_pci_resume(struct pci_dev *pdev)
 		goto exit;
 	}
 
-	ret = msm_pcie_recover_config(pdev);
-	if (ret) {
-		NMSGPR_ALERT("%s: Failed to restore PCI config\n", __func__);
-		goto exit;
-	}
+	//ret = msm_pcie_recover_config(pdev);
+	//if (ret) {
+		//NMSGPR_ALERT("%s: Failed to restore PCI config\n", __func__);
+		//goto exit;
+	//}
 
 
 exit:
