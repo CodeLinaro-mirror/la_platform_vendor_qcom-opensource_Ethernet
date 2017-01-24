@@ -666,7 +666,6 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 	ULONG varDMA_RXCHINTMASK;
 	ULONG varDMA_TXCHINTMASK;
 	ULONG varBitField;
-
 	ULONG varMAC_ISR;
 	ULONG varMAC_IMR;
 	ULONG varMAC_PMTCSR;
@@ -705,8 +704,6 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 			continue;
 		}
 
-	    	rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
-
             	/* DMA RX Channel level status register */
 			DMA_RXCHSTS_RgRd(chInx, var_raw_DMA_RXCHSTS);
 	    	/* clear interrupts. This will clear INTC interrupt status as well. */
@@ -721,10 +718,14 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 	    	varDMA_RXCHSTS = (var_raw_DMA_RXCHSTS & varDMA_RXCHINTMASK);
 			NDBGPR_L2( "DMA_RXCHSTS[%d] = %#lx\n", chInx, varDMA_RXCHSTS);
 
+			if(0 == varDMA_RXCHSTS)
+				continue;
+
 		if ((GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RC_LPOS, DMA_RXCHSTS_RC_HPOS) & 1) ||
 			(GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_UNF_LPOS, DMA_RXCHSTS_UNF_HPOS) & 1)) {
 
 				if (!napi_sched) {
+					rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
 					napi_sched = 1;
 					if (likely(napi_schedule_prep(&rx_dma_ch->napi))) {
 						DWC_ETH_QOS_disable_all_ch_rx_interrpt(pdata);
@@ -847,6 +848,8 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 				case DMA_TXCHSTS_CHSTS_STOP:
 					NMSGPR_ALERT( "TX Channel %d Stopped\n", chInx);
 					break;
+			default:
+				break;
 			}
 
     }
@@ -2110,7 +2113,6 @@ static void DWC_ETH_QOS_set_rx_mode(struct net_device *dev)
 		if ((netdev_mc_count(dev) > (pdata->max_addr_reg_cnt - 1)) &&
 			(!pdata->max_hash_table_size)) {
 			/* switch to PROMISCUOUS mode */
-		printk("switch to promiscuous for multicast\n");
 			pr_mode = 1;
 		} else {
 			mode = DWC_ETH_QOS_prepare_mc_list(dev);
@@ -2674,7 +2676,9 @@ static void DWC_ETH_QOS_tx_interrupt(struct net_device *dev,
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	struct desc_if_struct *desc_if = &(pdata->desc_if);
 #ifndef DWC_ETH_QOS_CERTIFICATION_PKTBURSTCNT
+#ifdef DWC_ETH_QOS_ENABLE_ERROR_COUNTERS
 	int err_incremented;
+#endif
 #endif
 	unsigned int tstamp_taken = 0;
 	unsigned long flags;
@@ -2749,7 +2753,7 @@ static void DWC_ETH_QOS_tx_interrupt(struct net_device *dev,
 						chInx, desc_data->dirty_tx);
 				}
 			}
-
+#ifdef DWC_ETH_QOS_ENABLE_ERROR_COUNTERS
 			err_incremented = 0;
 			if (hw_if->tx_window_error) {
 				if (hw_if->tx_window_error(txptr)) {
@@ -2785,6 +2789,7 @@ static void DWC_ETH_QOS_tx_interrupt(struct net_device *dev,
 
 			if (err_incremented == 1)
 				dev->stats.tx_errors++;
+#endif
 
 			pdata->xstats.q_tx_pkt_n[chInx]++;
 			pdata->xstats.tx_pkt_n++;
@@ -3128,7 +3133,9 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 				received++;
 			} else {
 				NMSGPR_ALERT( "DWC_ETH_QOS clean IRQ failure!! \n");
+#ifdef DWC_ETH_QOS_ENABLE_RX_DESC_DUMP
 				dump_rx_desc(chInx, RX_NORMAL_DESC, desc_data->cur_rx);
+#endif
 				if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_LD))
 					DBGPR("Received oversized pkt, spanned across multiple desc\n");
 
