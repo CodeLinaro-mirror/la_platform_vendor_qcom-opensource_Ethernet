@@ -98,6 +98,8 @@
 //#define DESC_SRAM_BUF_SRAM
 #define DESC_HOSTMEM_BUF_HOSTMEM
 
+#define NTN_BUS_WIDTH_NONE 0
+#define NTN_BUS_WIDTH_HIGH 1
 
 /* Neutrino Specific Macros*/
 
@@ -1708,6 +1710,9 @@ struct DWC_ETH_QOS_prv_data {
 
 	/* mdio bus id */
 	USHORT mdio_bus_id;
+
+	unsigned int bus_client;
+	int current_bandwidth_vote;
 };
 
 struct DWC_ETH_QOS_plt_data {
