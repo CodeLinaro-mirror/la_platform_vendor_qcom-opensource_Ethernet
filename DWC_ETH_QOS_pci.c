@@ -84,6 +84,7 @@
 #ifdef CONFIG_PCI_MSM
 #include <linux/msm_pcie.h>
 #endif
+#include <linux/msm-bus.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include "DWC_ETH_QOS_yheader.h"
@@ -121,6 +122,37 @@ CHARP fw_filename = "";
 
 module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(fw_filename, "Firmware filename");
+
+
+int DWC_ETH_QOS_request_bus_bandwidth(struct DWC_ETH_QOS_prv_data *pdata, int bandwidth)
+{
+	int ret = 0;
+
+	if (!pdata)
+		return -ENODEV;
+
+	if (!pdata->bus_client)
+		return -ENOSYS;
+
+	switch (bandwidth) {
+	case NTN_BUS_WIDTH_NONE:
+	case NTN_BUS_WIDTH_HIGH:
+		ret = msm_bus_scale_client_update_request(
+				pdata->bus_client, bandwidth);
+		if (!ret) {
+			pdata->current_bandwidth_vote = bandwidth;
+		} else {
+			pr_err("%s: could not set bus bandwidth %d, ret = %d\n",
+			       __func__, bandwidth, ret);
+		}
+		break;
+
+	default:
+		pr_err("%s: Invalid request %d", __func__, bandwidth);
+		ret = -EINVAL;
+	}
+	return ret;
+}
 
 void DWC_ETH_QOS_init_all_fptrs(struct DWC_ETH_QOS_prv_data *pdata)
 {
@@ -667,6 +699,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	ULONG dwc_eth_ntn_SRAM_len;
 	ULONG dwc_eth_ntn_FLASH_len;
 	static USHORT mdio_bus_id = 0;
+	struct msm_bus_scale_pdata *ntn_bus_pdata = NULL;
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
 	ULONG phy_mem_adrs;
 #endif
@@ -1118,6 +1151,16 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		netif_carrier_off(dev);
 		NMSGPR_ALERT( "carrier off till LINK is up\n");
 	}
+
+	/* Register bus client */
+        ntn_bus_pdata = msm_bus_cl_get_pdata(pldev);
+	if( ntn_bus_pdata != NULL ){
+           pdata->bus_client = msm_bus_scale_register_client(ntn_bus_pdata);
+           if (!pdata->bus_client)
+              pr_err("Unable to register bus client\n");
+	}
+	else
+              pr_err("msm_bus_cl_get_pdata() failed\n");
 
 	return 0;
 
