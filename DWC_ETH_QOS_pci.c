@@ -1069,7 +1069,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		device_set_wakeup_capable(&pdev->dev, 1);
 		device_set_wakeup_enable(&pdata->pdev->dev, 1);
 		pdata->wolopts = WAKE_MAGIC;
-		enable_irq_wake(dev->irq);
 	}
 
 	for (i = 0; i < NTN_RX_DMA_CH_CNT; i++) {
@@ -1243,6 +1242,7 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	DBGPR("--> DWC_ETH_QOS_remove\n");
 
 	if (pdata->irq_number != 0) {
+		disable_irq_wake(dev->irq);
 		free_irq(pdata->irq_number, pdata);
 		pdata->irq_number = 0;
 	}

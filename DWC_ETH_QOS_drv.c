@@ -1733,6 +1733,8 @@ static int DWC_ETH_QOS_request_irq(struct net_device *dev)
 
 	pdata->irq_number = dev->irq;
 
+	enable_irq_wake(dev->irq);
+
 #ifdef NTN_POLLING_METHOD
 	ret = request_irq(pdata->irq_number, DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS_DUMMY,
 					  IRQF_SHARED, DEV_NAME, pdata);
@@ -1755,6 +1757,7 @@ static void DWC_ETH_QOS_free_irq(struct net_device *dev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 
 	if (pdata->irq_number != 0) {
+		disable_irq_wake(dev->irq);
 		NDBGPR_L1("DWC_ETH_QOS IRQ %d freed\n", pdata->irq_number);
 		free_irq(pdata->irq_number, pdata);
 		pdata->irq_number = 0;
