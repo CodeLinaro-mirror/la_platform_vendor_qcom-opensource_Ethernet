@@ -3162,8 +3162,10 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 	struct s_TX_CONTEXT_DESC *TX_CONTEXT_DESC =
 	    (struct s_TX_CONTEXT_DESC *)GET_TX_DESC_PTR(chInx, tx_desc_data->cur_tx);
 	UINT varcsum_enable;
+#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
 	UINT varvlan_pkt;
 	UINT varvt = 0;
+#endif
 	INT i;
 	INT start_index = tx_desc_data->cur_tx;
 	INT last_index, original_start_index = tx_desc_data->cur_tx;
@@ -3478,9 +3480,11 @@ static void device_read(struct DWC_ETH_QOS_prv_data *pdata, UINT chInx)
 	UINT varIPCB;
 	UINT varIPHE;
 	struct s_rx_pkt_features *rx_pkt_features = GET_RX_PKT_FEATURES_PTR;
+#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
 	UINT varRS0V;
 	UINT varLT;
 	UINT varRDES0;
+#endif
 	UINT varOE;
 	struct s_rx_error_counters *rx_error_counters =
 	    GET_RX_ERROR_COUNTERS_PTR;
