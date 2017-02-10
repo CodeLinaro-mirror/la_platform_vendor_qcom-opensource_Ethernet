@@ -2176,10 +2176,12 @@ UINT DWC_ETH_QOS_get_total_desc_cnt(struct DWC_ETH_QOS_prv_data *pdata,
 {
 	UINT count = 0, size = 0;
 	INT length = 0;
+#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
 	struct hw_if_struct *hw_if = &pdata->hw_if;
 	struct s_tx_pkt_features *tx_pkt_features = GET_TX_PKT_FEATURES_PTR;
 	struct DWC_ETH_QOS_tx_wrapper_descriptor *desc_data =
 	    GET_TX_WRAPPER_DESC(chInx);
+#endif
 
 	/* SG fragment count */
 	count += skb_shinfo(skb)->nr_frags;
@@ -2260,7 +2262,9 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct hw_if_struct *hw_if = &pdata->hw_if;
 	struct desc_if_struct *desc_if = &pdata->desc_if;
 	INT retval = NETDEV_TX_OK;
+#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
 	UINT varvlan_pkt;
+#endif
 	int tso;
 
 	spin_lock_irqsave(&pdata->tx_lock, flags);
@@ -3356,7 +3360,9 @@ static int DWC_ETH_QOS_set_features(struct net_device *dev, netdev_features_t fe
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	UINT dev_rxcsum_enable;
+#ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
 	UINT dev_rxvlan_enable, dev_txvlan_enable;
+#endif
 
 	if (pdata->hw_feat.rx_coe_sel) {
 		dev_rxcsum_enable = !!(pdata->dev_state & NETIF_F_RXCSUM);
@@ -5354,16 +5360,17 @@ unsigned int crc32_snps_le(unsigned int initval, unsigned char *data, unsigned i
 *
 * \return void
 */
-#ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+static
+#if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
+int
+#else
+void
+#endif
+DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev,
 #ifdef NETIF_F_HW_VLAN_CTAG_RX
-static int DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev,
-                               __always_unused __be16 proto, u16 vid)
-#else
-static int DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
+                             __always_unused __be16 proto,
 #endif
-#else
-static void DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
-#endif
+                             u16 vid)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
@@ -5398,10 +5405,11 @@ static void DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 
 	NMSGPR_ALERT( "<--DWC_ETH_QOS_vlan_rx_kill_vid\n");
 
-#ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+#if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
 	return 0;
+#else
+	return;
 #endif
-	return 0;
 }
 
 
@@ -5418,16 +5426,17 @@ static void DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
 *
 * \return void
 */
-#ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+static
+#if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
+int
+#else
+void
+#endif
+DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev,
 #ifdef NETIF_F_HW_VLAN_CTAG_RX
-static int DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev,
-			       __always_unused __be16 proto, u16 vid)
-#else
-static int DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev, u16 vid)
+                            __always_unused __be16 proto,
 #endif
-#else
-static void DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev, u16 vid)
-#endif
+                            u16 vid)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
@@ -5466,10 +5475,11 @@ static void DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev, u16 vid)
 
 	NMSGPR_ALERT( "<--DWC_ETH_QOS_vlan_rx_add_vid\n");
 
-#ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+#if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
 	return 0;
+#else
+	return;
 #endif
-	return 0;
 }
 
 /*!

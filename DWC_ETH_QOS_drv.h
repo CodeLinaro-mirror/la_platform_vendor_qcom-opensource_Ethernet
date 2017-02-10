@@ -80,6 +80,8 @@
 
 #define __DWC_ETH_QOS_DRV_H__
 
+#include <linux/netdev_features.h>
+
 static int DWC_ETH_QOS_open(struct net_device *);
 
 static int DWC_ETH_QOS_close(struct net_device *);
@@ -164,19 +166,27 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 #endif
 
 
-#ifdef HAVE_INT_NDO_VLAN_RX_ADD_VID
+static
+#if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
+int
+#else
+void
+#endif
+DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev,
 #ifdef NETIF_F_HW_VLAN_CTAG_RX
-static int DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev,
-				__always_unused __be16 proto, u16 vid);
-static int DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev,
-				__always_unused __be16 proto, u16 vid);
-#else
-static int DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev, u16 vid);
-static int DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid);
+                            __always_unused __be16 proto,
 #endif
+                            u16 vid);
+static
+#if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
+int
 #else
-static void DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev, u16 vid);
-static void DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev, u16 vid);
+void
 #endif
+DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev,
+#ifdef NETIF_F_HW_VLAN_CTAG_RX
+                             __always_unused __be16 proto,
+#endif
+                             u16 vid);
 
 #endif
