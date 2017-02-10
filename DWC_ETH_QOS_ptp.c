@@ -295,8 +295,13 @@ static struct ptp_clock_info DWC_ETH_QOS_ptp_clock_ops = {
 	.pps = 0,	/* indicates whether the clk supports a PPS callback */
 	.adjfreq = DWC_ETH_QOS_adjust_freq,
 	.adjtime = DWC_ETH_QOS_adjust_time,
-	.gettime = DWC_ETH_QOS_get_time,
-	.settime = DWC_ETH_QOS_set_time,
+#if ( LINUX_VERSION_CODE > KERNEL_VERSION(4,1,0) )
+	.gettime64 = DWC_ETH_QOS_get_time,
+	.settime64 = DWC_ETH_QOS_set_time,
+#else
+        .gettime = DWC_ETH_QOS_get_time,
+        .settime = DWC_ETH_QOS_set_time,
+#endif
 	.enable = DWC_ETH_QOS_enable,
 };
 
