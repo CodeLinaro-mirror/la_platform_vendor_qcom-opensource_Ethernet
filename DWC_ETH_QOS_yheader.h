@@ -219,7 +219,8 @@
 		no_of_bits--;\
 	};\
 } while(0)
-#define IPA_UC_REG_BASE	0x7962000 /* IPA uC base register address*/
+#define IPA2_UC_REG_BASE	0x7962000 /* IPA uC base register address*/
+#define IPA3_UC_REG_BASE	0x7B72000 /* IPA uC base register address*/
 #endif
 
 #ifdef NTN_POLLING_METHOD
@@ -1499,6 +1500,7 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	bool is_dev_ready;
 	struct work_struct ntn_ipa_rdy_work;
 	struct wakeup_source wlock;
+	UINT ipa_ver;
 };
 
 struct DWC_ETH_QOS_prv_data {

@@ -189,10 +189,10 @@ int DWC_ETH_QOS_ipa_offload_suspend(struct DWC_ETH_QOS_prv_data *pdata)
 	}
 
 	profile.max_supported_bandwidth_mbps = NTN_IPA_PIPE_MIN_BW;
-	ret = ipa_rm_set_perf_profile(IPA_RM_RESOURCE_ODU_ADAPT_CONS,
+	ret = ipa_rm_set_perf_profile(IPA_RM_RESOURCE_ETHERNET_CONS,
 					&profile);
 	if (ret)
-		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ODU_ADAPT_CONS err:%d\n",
+		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ETHERNET_CONS err:%d\n",
 				ret);
 
 	pdata->prv_ipa.ipa_offload_susp = true;
@@ -225,10 +225,10 @@ int DWC_ETH_QOS_ipa_offload_resume(struct DWC_ETH_QOS_prv_data *pdata)
 		pdata->prv_ipa.ipa_offload_conn = true;
 
 	profile.max_supported_bandwidth_mbps = NTN_IPA_PIPE_MAX_BW;
-	ret = ipa_rm_set_perf_profile(IPA_RM_RESOURCE_ODU_ADAPT_CONS,
+	ret = ipa_rm_set_perf_profile(IPA_RM_RESOURCE_ETHERNET_CONS,
 					&profile);
 	if (ret)
-		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ODU_ADAPT_CONS err:%d\n",
+		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ETHERNET_CONS err:%d\n",
 				ret);
 	/*Initialize DMA CHs for offload*/
 	ret = hw_if->init_offload(pdata);
@@ -474,7 +474,7 @@ int DWC_ETH_QOS_ipa_offload_connect(struct DWC_ETH_QOS_prv_data *pdata)
 
 	in.clnt_hndl = ntn_ipa->ipa_client_hndl;
 	/* Uplink Setup */
-	ul.client = IPA_CLIENT_ODU_PROD;
+	ul.client = IPA_CLIENT_ETHERNET_PROD;
 	ul.ring_base_pa = (phys_addr_t)GET_RX_DESC_DMA_ADDR(NTN_RX_DMA_CH_0, 0);
 	ul.ntn_ring_size = pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt;
 	ul.buff_pool_base_pa = virt_to_phys(GET_RX_BUFF_POOL_BASE_ADRR(NTN_RX_DMA_CH_0));
@@ -483,7 +483,7 @@ int DWC_ETH_QOS_ipa_offload_connect(struct DWC_ETH_QOS_prv_data *pdata)
 	ul.ntn_reg_base_ptr_pa = (phys_addr_t)NTN_REG_PHY_BASE_ADRS;
 
 	/* Downlink Setup */
-	dl.client = IPA_CLIENT_ODU_TETH_CONS;
+	dl.client = IPA_CLIENT_ETHERNET_CONS;
 	dl.ring_base_pa = (phys_addr_t)GET_TX_DESC_DMA_ADDR(NTN_TX_DMA_CH_2, 0);
 	dl.ntn_ring_size = pdata->tx_dma_ch[NTN_TX_DMA_CH_2].desc_cnt;
 	dl.buff_pool_base_pa = virt_to_phys(GET_TX_BUFF_DMA_POOL_BASE_ADRR(NTN_TX_DMA_CH_2));
@@ -511,17 +511,17 @@ int DWC_ETH_QOS_ipa_offload_connect(struct DWC_ETH_QOS_prv_data *pdata)
 
 	/* Set Perf Profile For PROD/CONS Pipes */
 	profile.max_supported_bandwidth_mbps = NTN_IPA_PIPE_MAX_BW;
-	ret = ipa_rm_set_perf_profile (IPA_RM_RESOURCE_ODU_ADAPT_PROD,
+	ret = ipa_rm_set_perf_profile (IPA_RM_RESOURCE_ETHERNET_PROD,
 					&profile);
 	if (ret) {
-		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ODU_ADAPT_PROD err:%d\n",
+		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ETHERNET_PROD err:%d\n",
 				ret);
 		return -1;
 	}
-	ret = ipa_rm_set_perf_profile (IPA_RM_RESOURCE_ODU_ADAPT_CONS,
+	ret = ipa_rm_set_perf_profile (IPA_RM_RESOURCE_ETHERNET_CONS,
 					&profile);
 	if (ret) {
-		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ODU_ADAPT_CONS err:%d\n",
+		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ETHERNET_CONS err:%d\n",
 				ret);
 		return -1;
 	}
@@ -849,7 +849,7 @@ static ssize_t read_ipa_offload_status(struct file *file,
 }
 
 static ssize_t suspend_resume_ipa_offload(struct file *file,
-	char __user *user_buf, size_t count, loff_t *ppos)
+	const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	s8 option = 0;
 	char in_buf[2];
