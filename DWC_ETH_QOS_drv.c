@@ -2202,8 +2202,13 @@ UINT DWC_ETH_QOS_get_total_desc_cnt(struct DWC_ETH_QOS_prv_data *pdata,
 
 #ifdef DWC_ETH_QOS_ENABLE_VLAN_TAG
 	desc_data->vlan_tag_present = 0;
+#if ( LINUX_VERSION_CODE > KERNEL_VERSION(4,1,0) )
+	if (skb_vlan_tag_present(skb)) {
+		USHORT vlan_tag = skb_vlan_tag_get(skb);
+#else
 	if (vlan_tx_tag_present(skb)) {
 		USHORT vlan_tag = vlan_tx_tag_get(skb);
+#endif
 		desc_data->vlan_tag_present = 1;
 		DBGPR_VLAN("%s:VLAN: Tag seen on TX Packet\n",__func__);
 		if (vlan_tag != desc_data->vlan_tag_id ||
