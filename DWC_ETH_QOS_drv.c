@@ -1867,6 +1867,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 #endif //NTN_POLLING_METHOD
 
 	hw_if->ntn_wrap_ts_valid_window_config(pdata->ntn_timestamp_valid_window, pdata);
+	hw_if->ntn_wrap_ts_ignore_config(1, pdata);
 
 	/* Disable early transmit complete and underflow interrupt enable bits
 	 * for performance */
