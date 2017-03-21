@@ -1384,6 +1384,7 @@ static const struct net_device_ops DWC_ETH_QOS_netdev_ops = {
 #endif
 	.ndo_vlan_rx_add_vid = DWC_ETH_QOS_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = DWC_ETH_QOS_vlan_rx_kill_vid,
+	.ndo_change_mtu         = DWC_ETH_QOS_change_mtu,
 };
 
 struct net_device_ops *DWC_ETH_QOS_get_netdev_ops(void)
@@ -1493,9 +1494,12 @@ static int DWC_ETH_QOS_alloc_rx_buf(UINT chInx, struct DWC_ETH_QOS_prv_data *pda
 
 static void DWC_ETH_QOS_configure_rx_fun_ptr(struct DWC_ETH_QOS_prv_data *pdata)
 {
+	int max_frame = 0;
 	DBGPR("-->DWC_ETH_QOS_configure_rx_fun_ptr\n");
+	max_frame = pdata->dev->mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;;
+	pdata->rx_buffer_len =  max_frame > DWC_ETH_QOS_ETH_FRAME_LEN ?
+                                   ALIGN(max_frame, 8) : DWC_ETH_QOS_ETH_FRAME_LEN;
 
-	pdata->rx_buffer_len = DWC_ETH_QOS_ETH_FRAME_LEN;
 	pdata->clean_rx = DWC_ETH_QOS_clean_rx_irq;
 	pdata->alloc_rx_buf = DWC_ETH_QOS_alloc_rx_buf;
 
@@ -3386,7 +3390,6 @@ static int DWC_ETH_QOS_set_features(struct net_device *dev, netdev_features_t fe
 		DBGPR_VLAN("%s:VLAN: State change - txvlan disable\n",__func__);
 	}
 #endif	/* DWC_ETH_QOS_ENABLE_VLAN_TAG */
-
 	DBGPR("<--DWC_ETH_QOS_set_features\n");
 
 	return 0;
@@ -3416,6 +3419,43 @@ static netdev_features_t DWC_ETH_QOS_fix_features(struct net_device *dev, netdev
 	DBGPR("<--DWC_ETH_QOS_fix_features: %#llx\n", features);
 
 	return features;
+}
+
+static int DWC_ETH_QOS_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(netdev);
+	int old_mtu   = netdev->mtu;
+	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
+
+	/*for MIN MTU, it may be possible that HW can add padded bytes to
+	  make it 60B. However, currently MIN MTU is not being supporting
+	  via this command
+        */
+	if ((max_frame < DWC_ETH_QOS_MIN_SUPPORTED_MTU) ||
+	    (max_frame > DWC_ETH_QOS_MAX_SUPPORTED_MTU)) {
+		NMSGPR_ERR("invalid MTU setting %s: %s: %d: %d\n",__FILE__,__FUNCTION__,__LINE__,max_frame);
+		return -EINVAL;
+	}
+	/*set MTU */
+	if (old_mtu != new_mtu && netif_running(netdev)) {
+		NDBGPR_L2("changing MTU from %d to %d\n", netdev->mtu, new_mtu);
+		netdev->mtu = new_mtu;
+		pdata->dev->mtu = new_mtu;
+		pdata->rx_buffer_len = max_frame > DWC_ETH_QOS_ETH_FRAME_LEN ?
+				   ALIGN(max_frame, 8) : DWC_ETH_QOS_ETH_FRAME_LEN;
+		netdev_update_features(netdev);
+		/*reconfigure or restart the mac */
+		DWC_ETH_QOS_close(netdev);
+		DWC_ETH_QOS_open(netdev);
+		/*program the MAC HW for giant pkt if max_frame> 1522 B*/
+		if ( max_frame > DWC_ETH_QOS_ETH_FRAME_LEN )
+		{
+		    MAC_MCR_GPSLCE_UdfWr((ULONG)0x1);
+		    MAC_MECR_GPSL_UdfWr((ULONG)0x1<<11);
+		}
+	}
+
+	return 0;
 }
 
 
