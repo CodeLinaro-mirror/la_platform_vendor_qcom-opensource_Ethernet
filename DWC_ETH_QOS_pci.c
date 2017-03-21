@@ -1331,11 +1331,19 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	kthread_stop(pdata->ddr_bw_task);
 	del_timer(&pdata->ddr_bw_timer);
 	msm_bus_scale_unregister_client(pdata->bus_client);
+	/* Deregister from PCI link events */
+	DWC_ETH_QOS_pci_event_deregister(pdev);
+
 	if (pdata->irq_number != 0) {
 		disable_irq_wake(dev->irq);
 		free_irq(pdata->irq_number, pdata);
 		pdata->irq_number = 0;
 	}
+
+	/*wait for worker thread completed*/
+	flush_work(&pdata->restartdev_work);
+	flush_work(&pdata->pci_recovery_work);
+	flush_work(&pdata->powerup_work);
 
 	if (1 == pdata->hw_feat.sma_sel)
 		DWC_ETH_QOS_mdio_unregister(dev);
@@ -1369,8 +1377,6 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 
 	desc_if->free_queue_struct(pdata);
 
-	/* Deregister from PCI link events */
-	DWC_ETH_QOS_pci_event_deregister(pdev);
 
 	/* Save the PCI link status and suspend it */
 	DWC_ETH_QOS_pci_suspend(pdev);
