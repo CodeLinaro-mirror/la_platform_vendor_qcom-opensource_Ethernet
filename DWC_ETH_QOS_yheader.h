@@ -472,7 +472,8 @@
 #define DWC_ETH_QOS_MAX_DATA_PER_TX_BUF (1 << 12)	/* for testing purpose: 4 KB Maximum data per buffer pointer(in Bytes) */
 #define DWC_ETH_QOS_MAX_DATA_PER_TXD (DWC_ETH_QOS_MAX_DATA_PER_TX_BUF * 2)	/* Maxmimum data per descriptor(in Bytes) */
 
-#define DWC_ETH_QOS_MAX_SUPPORTED_MTU (DWC_ETH_QOS_ETH_FRAME_LEN)
+#define DWC_ETH_QOS_MAX_MTU_SIZE (1 << 11)     /*2KB to support gaint packets*/
+#define DWC_ETH_QOS_MAX_SUPPORTED_MTU DWC_ETH_QOS_MAX_MTU_SIZE
 #define DWC_ETH_QOS_MIN_SUPPORTED_MTU (ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN)
 
 #define DWC_ETH_QOS_RDESC3_OWN	0x80000000
