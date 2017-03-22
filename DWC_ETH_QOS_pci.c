@@ -87,10 +87,17 @@
 #include <linux/msm-bus.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/jiffies.h>
+#include <linux/kthread.h>
+#include <linux/module.h>
+#include <linux/kernel.h>
+
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
 #include "DWC_ETH_QOS_ipa.h"
+
+static __ref int bw_kthread(void *arg);
 
 struct DWC_ETH_QOS_prv_data *gDWC_ETH_QOS_prv_data;
 
@@ -124,7 +131,7 @@ module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(fw_filename, "Firmware filename");
 
 
-int DWC_ETH_QOS_request_bus_bandwidth(struct DWC_ETH_QOS_prv_data *pdata, int bandwidth)
+static int DWC_ETH_QOS_request_bus_bandwidth(struct DWC_ETH_QOS_prv_data *pdata, int bandwidth)
 {
 	int ret = 0;
 
@@ -151,6 +158,70 @@ int DWC_ETH_QOS_request_bus_bandwidth(struct DWC_ETH_QOS_prv_data *pdata, int ba
 		pr_err("%s: Invalid request %d", __func__, bandwidth);
 		ret = -EINVAL;
 	}
+	return ret;
+}
+
+static void ddr_bw_task_wakeup(unsigned long data)
+{
+        struct DWC_ETH_QOS_prv_data *pdata =
+                (struct DWC_ETH_QOS_prv_data *)data;
+        complete(&pdata->ddr_bw_complete);
+}
+
+static __ref int bw_kthread(void *arg)
+{
+        struct DWC_ETH_QOS_prv_data *pdata =
+                (struct DWC_ETH_QOS_prv_data *)arg;
+        unsigned long delay_time = 0;
+	struct net_device *dev = pdata->dev;
+	int bandwidth = 0;
+        while (!kthread_should_stop()) {
+                while (wait_for_completion_interruptible(
+                        &pdata->ddr_bw_complete) != 0)
+			;
+                reinit_completion(&pdata->ddr_bw_complete);
+		delay_time = msecs_to_jiffies(DDR_VOTE_TIME);
+		if((dev->stats.rx_packets + MIN_PKT_CNT_FOR_DDR_MAX > (pdata->rx_pkt_change))
+				|| (dev->stats.tx_packets + MIN_PKT_CNT_FOR_DDR_MAX  > (pdata->tx_pkt_change))) {
+			if(bandwidth == 0) {
+				bandwidth = 1;
+				DWC_ETH_QOS_request_bus_bandwidth(pdata, NTN_BUS_WIDTH_HIGH);
+			}
+			pdata->rx_pkt_change = dev->stats.rx_packets;
+			pdata->tx_pkt_change = dev->stats.tx_packets;
+		}
+		else {
+			if(bandwidth == 1) {
+				bandwidth = 0;
+				DWC_ETH_QOS_request_bus_bandwidth(pdata, NTN_BUS_WIDTH_LOW);
+			}
+		}
+                mod_timer(&pdata->ddr_bw_timer, jiffies + delay_time);
+        }
+        return 0;
+}
+
+int DWC_ETH_QOS_init_ddr_bandwidth(struct DWC_ETH_QOS_prv_data *pdata)
+{
+        unsigned long delay_time = 0;
+	int ret = 0;
+
+	pdata->rx_pkt_change = 0;
+	pdata->tx_pkt_change = 0;
+
+	pdata->ddr_bw_task = kthread_create(bw_kthread, pdata,"ddr_bw_task");
+        if (IS_ERR(pdata->ddr_bw_task)) {
+                ret = PTR_ERR(pdata->ddr_bw_task);
+                return ret;
+        }
+	delay_time = msecs_to_jiffies(DDR_VOTE_TIME);
+	init_completion(&pdata->ddr_bw_complete);
+	wake_up_process(pdata->ddr_bw_task);
+        init_timer(&pdata->ddr_bw_timer);
+        pdata->ddr_bw_timer.data = (unsigned long)pdata;
+        pdata->ddr_bw_timer.function = ddr_bw_task_wakeup;
+        pdata->ddr_bw_timer.expires = jiffies + delay_time;
+        add_timer(&pdata->ddr_bw_timer);
 	return ret;
 }
 
@@ -1162,7 +1233,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	}
 	else
               pr_err("msm_bus_cl_get_pdata() failed\n");
-
+	DWC_ETH_QOS_init_ddr_bandwidth(pdata);
 	return 0;
 
  err_out_netdev_failed:
@@ -1243,6 +1314,9 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	int i;
 	DBGPR("--> DWC_ETH_QOS_remove\n");
 
+	kthread_stop(pdata->ddr_bw_task);
+	del_timer(&pdata->ddr_bw_timer);
+	msm_bus_scale_unregister_client(pdata->bus_client);
 	if (pdata->irq_number != 0) {
 		disable_irq_wake(dev->irq);
 		free_irq(pdata->irq_number, pdata);

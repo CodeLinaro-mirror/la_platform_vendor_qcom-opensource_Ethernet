@@ -408,6 +408,10 @@
 #define RX_BUF_SIZE 1568
 #define DWC_ETH_QOS_MAX_LRO_DESC 16
 #define DWC_ETH_QOS_MAX_LRO_AGGR 32
+#define MIN_PKT_CNT_FOR_DDR_MAX  10
+#define DDR_VOTE_TIME  2000
+#define NTN_BUS_WIDTH_HIGH 1
+#define NTN_BUS_WIDTH_LOW  0
 
 #define MIN_PACKET_SIZE 60
 #define IPA_ENABLE_OFFLOAD_MASK 0x1
@@ -1720,6 +1724,11 @@ struct DWC_ETH_QOS_prv_data {
 
 	unsigned int bus_client;
 	int current_bandwidth_vote;
+	struct task_struct *ddr_bw_task;
+	struct timer_list ddr_bw_timer;
+	struct completion ddr_bw_complete;
+	unsigned long rx_pkt_change;
+	unsigned long tx_pkt_change;
 };
 
 struct DWC_ETH_QOS_plt_data {
