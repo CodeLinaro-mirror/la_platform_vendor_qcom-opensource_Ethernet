@@ -403,7 +403,7 @@
 /* Obtained by trial and error  */
 #define MIN_RX_DESC_CNT 44
 #define INTR_MODERATE_CNT_AVB_TRAFFIC 8
-#define INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC 8
+#define INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC 32
 #define INTR_MODERATE_CNT_GPTP_TRAFFIC 1
 #define TX_BUF_SIZE 1536
 #define RX_BUF_SIZE 1568
@@ -593,7 +593,7 @@
  * delay in usecs is 1020 for 62.5MHz device clock */
 #define DWC_ETH_QOS_MAX_DMA_RIWT  0xff
 /* Max no of pkts to be received before an RX interrupt */
-#define DWC_ETH_QOS_RX_MAX_FRAMES 32
+#define DWC_ETH_QOS_RX_MAX_FRAMES 1
 
 #define DMA_BUSCFG_AXI_PBL_MASK 0xE
 
