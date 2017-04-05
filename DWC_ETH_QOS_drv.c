@@ -1808,9 +1808,6 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	netif_tx_start_all_queues(dev);
 
 	if (pdata->ipa_enabled) {
-		/* Helper flag for IPA Ready CB */
-		pdata->prv_ipa.is_dev_ready = true;
-
 		/* Configure IPA Related Stuff */
 		ret = ipa_register_ipa_ready_cb(DWC_ETH_QOS_ipa_uc_ready_cb,
 										(void *)pdata);
@@ -1835,6 +1832,9 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 					pdata->prv_ipa.ipa_offload_init = true;
 				}
 			}
+		}
+		else {
+			NMSGPR_INFO("%s:%d ipa not ready\n", __func__, __LINE__);
 		}
 
 		/* Configure IPA Related Stuff */
