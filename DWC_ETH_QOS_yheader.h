@@ -1490,6 +1490,7 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	struct dentry *debugfs_dir;
 
 	/* IPA state variables */
+	bool ipa_ready;
 	bool ipa_uc_ready;
 	bool ipa_offload_init;
 	bool ipa_offload_conn;
@@ -1497,7 +1498,6 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	bool ipa_offload_susp;
 
 	/* Dev state */
-	bool is_dev_ready;
 	struct work_struct ntn_ipa_rdy_work;
 	struct wakeup_source wlock;
 	UINT ipa_ver;
