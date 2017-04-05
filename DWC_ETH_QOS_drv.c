@@ -1816,33 +1816,18 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	netif_tx_start_all_queues(dev);
 
 	if (pdata->ipa_enabled) {
-		/* Helper flag for IPA Ready CB */
-		pdata->prv_ipa.is_dev_ready = true;
-
 		/* Configure IPA Related Stuff */
-		ret = ipa_register_ipa_ready_cb(DWC_ETH_QOS_ipa_uc_ready_cb,
-										(void *)pdata);
-		if (ret < 0) {
-			if (ret == -EEXIST) {
-				NMSGPR_ALERT("IPA uC is ready %d\n", ret);
-				pdata->prv_ipa.ipa_uc_ready = true;
-			} else {
-				NMSGPR_ERR("IPA uC ready registration failed %d\n", ret);
-				pdata->prv_ipa.ipa_uc_ready = false;
+		ret = DWC_ETH_QOS_ipa_ready(pdata);
+		if (pdata->prv_ipa.ipa_ready) {
+			NDBGPR_L1("%s:%d ipa ready\n", __func__, __LINE__);
+			ret = DWC_ETH_QOS_ipa_offload_init(pdata);
+			if (!ret) {
+				NDBGPR_L1("IPA Offload Initialized Successfully \n");
+				pdata->prv_ipa.ipa_offload_init = true;
 			}
-		} else if (ret == 0) {
-			NMSGPR_ALERT("IPA uC Not ready, cb registered successfully \n");
-			pdata->prv_ipa.ipa_uc_ready = false;
-
-			/* IPA ready, register Rx/Tx properties to avoid link_up race 
-			between IPACM and IPA uC ready */
-			if (!pdata->prv_ipa.ipa_offload_init) {
-				ret = DWC_ETH_QOS_ipa_offload_init(pdata);
-				if (!ret) {
-					NDBGPR_L1("IPA Offload Initialized Successfully \n");
-					pdata->prv_ipa.ipa_offload_init = true;
-				}
-			}
+		}
+		else {
+			NMSGPR_INFO("%s:%d ipa not ready\n", __func__, __LINE__);
 		}
 
 		/* Configure IPA Related Stuff */

@@ -62,6 +62,7 @@ void DWC_ETH_QOS_ipa_stats_read(struct DWC_ETH_QOS_prv_data *pdata);
 int DWC_ETH_QOS_ipa_offload_suspend(struct DWC_ETH_QOS_prv_data *pdata);
 int DWC_ETH_QOS_ipa_offload_resume(struct DWC_ETH_QOS_prv_data *pdata);
 
+int DWC_ETH_QOS_ipa_ready(struct DWC_ETH_QOS_prv_data *pdata);
 #else /* DWC_ETH_QOS_ENABLE_IPA */
 
 #define NTN_HOST_IPA_CAPABLE	0
@@ -100,7 +101,13 @@ static inline int DWC_ETH_QOS_ipa_offload_suspend(struct DWC_ETH_QOS_prv_data *p
 {
 	return -EPERM;
 }
+
 static inline int DWC_ETH_QOS_ipa_offload_resume(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	return -EPERM;
+}
+
+static inline int DWC_ETH_QOS_ipa_ready(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	return -EPERM;
 }
