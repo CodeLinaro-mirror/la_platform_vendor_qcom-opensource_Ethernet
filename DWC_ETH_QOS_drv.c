@@ -1766,6 +1766,19 @@ static void DWC_ETH_QOS_free_irq(struct net_device *dev)
 	}
 }
 
+static void DWC_ETH_QOS_disable_irq(struct net_device *dev)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+
+	if (pdata->irq_number != 0) {
+		disable_irq_wake(dev->irq);
+		NDBGPR_L1("DWC_ETH_QOS IRQ %d freed\n", pdata->irq_number);
+		disable_irq(pdata->irq_number);
+		pdata->irq_number = 0;
+	}
+}
+
+
 /*!
 * \brief API to open a deivce for data transmission & reception.
 *
@@ -5544,7 +5557,7 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 	DWC_ETH_QOS_stop_all_ch_tx_dma(pdata);
 	DWC_ETH_QOS_stop_all_ch_rx_dma(pdata);
 
-	DWC_ETH_QOS_free_irq(dev);
+	DWC_ETH_QOS_disable_irq(dev);
 
 	/* enable power down mode by programming the PMT regs */
 	if (wakeup_type & DWC_ETH_QOS_REMOTE_WAKEUP)

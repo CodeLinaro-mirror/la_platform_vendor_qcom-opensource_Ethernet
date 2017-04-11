@@ -1731,6 +1731,7 @@ struct DWC_ETH_QOS_prv_data {
 	struct completion ddr_bw_complete;
 	unsigned long rx_pkt_change;
 	unsigned long tx_pkt_change;
+	struct pci_saved_state *saved_state;
 };
 
 struct DWC_ETH_QOS_plt_data {
