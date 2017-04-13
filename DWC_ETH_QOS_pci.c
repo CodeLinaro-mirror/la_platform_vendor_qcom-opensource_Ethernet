@@ -642,11 +642,23 @@ static void DWC_ETH_QOS_config_tamap(struct pci_dev *pdev)
 	adrs_for_replacement = ( (unsigned long long)0x00000000 << 32);
 	no_of_bits = 28;
 	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced, adrs_for_replacement, no_of_bits, pdata);
+}
+
+static void DWC_ETH_QOS_config_ipareg_map(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	ULONG_LONG adrs_to_be_replaced, adrs_for_replacement;
+	UINT tmap_no, no_of_bits;
 
 	/* Configure TMAP 1 to access IPA uC Register in host memory */
 	tmap_no = 1;
 	adrs_to_be_replaced = NTN_PCIE_REGION_MEM_MAP_BASE;
-	adrs_for_replacement = IPA_UC_REG_BASE;
+	if(pdata->prv_ipa.ipa_ver >= IPA_HW_v3_0)
+		adrs_for_replacement = IPA3_UC_REG_BASE;
+	else
+		adrs_for_replacement = IPA2_UC_REG_BASE;
 	NTN_GET_TAMAP_MASK_BITS(NTN_HOST_TAMAP_MEM_LENGTH, no_of_bits);
 	NDBGPR_L1("TAMAP %d, adrs_to_be_replaced %llx adrs_for_replacement "
 		"%llx no_of_bits %d \n",tmap_no, adrs_to_be_replaced,
@@ -1034,6 +1046,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		hw_if->ntn_fw_ipa_supported(pdata) && NTN_HOST_IPA_CAPABLE;
 	NMSGPR_INFO("NTN IPA enabled: %d\n", pdata->ipa_enabled);
 	if (pdata->ipa_enabled) {
+		pdata->prv_ipa.ipa_ver = ipa_get_hw_type();
+		DWC_ETH_QOS_config_ipareg_map(pdev);
 		wakeup_source_init(&pdata->prv_ipa.wlock, "NTN_IPA_WS");
 		hw_if->enable_offload(pdata);
 	} else {

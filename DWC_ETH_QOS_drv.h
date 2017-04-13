@@ -101,6 +101,7 @@ static void DWC_ETH_QOS_poll_controller(struct net_device *);
 #endif				/*end of CONFIG_NET_POLL_CONTROLLER */
 
 static int DWC_ETH_QOS_set_features(struct net_device *dev, netdev_features_t features);
+static int DWC_ETH_QOS_change_mtu(struct net_device *dev, int new_mtu);
 static netdev_features_t DWC_ETH_QOS_fix_features(struct net_device *dev, netdev_features_t features);
 
 INT DWC_ETH_QOS_configure_remotewakeup(struct net_device *,
