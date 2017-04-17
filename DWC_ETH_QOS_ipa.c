@@ -349,6 +349,7 @@ static void ntn_ipa_notify_cb(void *priv, enum ipa_dp_evt_type evt,
 	} else {
 		NMSGPR_ERR("Unhandled Evt %d ",evt);
 		dev_kfree_skb_any(skb);
+		skb = NULL;
 		pdata->dev->stats.tx_dropped++;
 	}
 }
