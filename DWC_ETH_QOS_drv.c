@@ -2298,6 +2298,7 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len <= 0)
 	{
 		dev_kfree_skb_any(skb);
+		skb = NULL;
 		NMSGPR_ERR( "%s : Empty skb received from stack\n",
 			dev->name);
 		goto tx_netdev_return;
@@ -2311,6 +2312,7 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		NMSGPR_ERR( "%s : big packet = %d\n", dev->name,
 			(u16)skb->len);
 		dev_kfree_skb_any(skb);
+		skb = NULL;
 		dev->stats.tx_dropped++;
 		goto tx_netdev_return;
 	}
@@ -2364,6 +2366,7 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 	if (tso < 0) {
 		NMSGPR_ALERT( "Unable to handle TSO\n");
 		dev_kfree_skb_any(skb);
+		skb = NULL;
 		retval = NETDEV_TX_OK;
 		goto tx_netdev_return;
 	}
@@ -2378,6 +2381,7 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 	count = desc_if->map_tx_skb(dev, skb);
 	if (count == 0) {
 		dev_kfree_skb_any(skb);
+		skb = NULL;
 		retval = NETDEV_TX_OK;
 		goto tx_netdev_return;
 	}
