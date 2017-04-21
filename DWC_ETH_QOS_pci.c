@@ -1009,6 +1009,14 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			NDBGPR_L1("%s: fw_load_delay = %d msec\n", __func__, pdata->fw_load_delay);
 		}
 
+		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-irq-affinity-to-cpu", &pdata->irq_affinity_cpu_id);
+		if (ret) {
+			NMSGPR_ALERT("%s: Failed to find ntn-irq-affinity-to-cpu, defaulting to cpu 0\n", __func__);
+			pdata->irq_affinity_cpu_id = 0;
+		} else {
+			NDBGPR_L1("%s: ntn-irq-affinity-to-cpu = %d \n", __func__, pdata->irq_affinity_cpu_id);
+		}
+
 		pdata->pcierst_resx = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-pcierst-resx");
 		NDBGPR_L1("%s: pcierst_resx = %d\n", __func__, pdata->pcierst_resx);
 

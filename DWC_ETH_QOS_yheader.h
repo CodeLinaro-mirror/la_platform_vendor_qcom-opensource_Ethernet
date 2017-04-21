@@ -1732,6 +1732,7 @@ struct DWC_ETH_QOS_prv_data {
 	unsigned long rx_pkt_change;
 	unsigned long tx_pkt_change;
 	struct pci_saved_state *saved_state;
+	int irq_affinity_cpu_id;
 };
 
 struct DWC_ETH_QOS_plt_data {

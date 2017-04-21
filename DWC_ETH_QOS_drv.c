@@ -88,7 +88,6 @@
 #include "DWC_ETH_QOS_drv.h"
 #include "DWC_ETH_QOS_ipa.h"
 #include "DWC_ETH_QOS_yregacc.h"
-
 #define AVB_QUEUE_CLASS_A 1
 #define AVB_QUEUE_CLASS_B 2
 
@@ -1732,6 +1731,8 @@ static int DWC_ETH_QOS_request_irq(struct net_device *dev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	int ret = Y_SUCCESS;
+	int lret = Y_SUCCESS;
+	const struct cpumask *mask;
 
 	pdata->irq_number = dev->irq;
 
@@ -1749,6 +1750,19 @@ static int DWC_ETH_QOS_request_irq(struct net_device *dev)
 	if (ret != 0) {
 		NMSGPR_ALERT("DWC_ETH_QOS request_irq failed ret %d\n", ret);
 		ret = -EBUSY;
+	} else {
+		if (pdata->irq_affinity_cpu_id > 0) {
+			mask = get_cpu_mask(pdata->irq_affinity_cpu_id);
+			lret = irq_set_affinity_hint(pdata->irq_number, mask);
+			if (lret) {
+				NMSGPR_ALERT("Failed to set cpu affinity for ethernet irq:%d with cpu%d\n",
+					pdata->irq_number, pdata->irq_affinity_cpu_id);
+			} else {
+				NMSGPR_ALERT("CPU affinity hint set for ethernet irq:%d cpu:%d cpumask:0x%x\n",
+						pdata->irq_number, pdata->irq_affinity_cpu_id,
+						(1 << pdata->irq_affinity_cpu_id));
+			}
+		}
 	}
 
 	return ret;
