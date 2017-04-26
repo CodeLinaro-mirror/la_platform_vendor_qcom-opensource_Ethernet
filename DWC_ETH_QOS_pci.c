@@ -1246,6 +1246,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NMSGPR_ALERT( "carrier off till LINK is up\n");
 	}
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0) )
 	/* Register bus client */
         ntn_bus_pdata = msm_bus_cl_get_pdata(pldev);
 	if( ntn_bus_pdata != NULL ){
@@ -1256,6 +1257,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	else
               pr_err("msm_bus_cl_get_pdata() failed\n");
 	DWC_ETH_QOS_init_ddr_bandwidth(pdata);
+#endif
+
 	return 0;
 
  err_out_netdev_failed:
@@ -1336,9 +1339,12 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	int i;
 	DBGPR("--> DWC_ETH_QOS_remove\n");
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0) )
 	kthread_stop(pdata->ddr_bw_task);
 	del_timer(&pdata->ddr_bw_timer);
 	msm_bus_scale_unregister_client(pdata->bus_client);
+#endif
+
 	/* Deregister from PCI link events */
 	DWC_ETH_QOS_pci_event_deregister(pdev);
 
