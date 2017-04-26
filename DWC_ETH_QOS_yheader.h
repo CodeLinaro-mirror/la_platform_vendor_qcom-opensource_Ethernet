@@ -219,7 +219,8 @@
 		no_of_bits--;\
 	};\
 } while(0)
-#define IPA_UC_REG_BASE	0x7962000 /* IPA uC base register address*/
+#define IPA2_UC_REG_BASE	0x7962000 /* IPA uC base register address*/
+#define IPA3_UC_REG_BASE	0x7B72000 /* IPA uC base register address*/
 #endif
 
 #ifdef NTN_POLLING_METHOD
@@ -402,7 +403,7 @@
 /* Obtained by trial and error  */
 #define MIN_RX_DESC_CNT 44
 #define INTR_MODERATE_CNT_AVB_TRAFFIC 8
-#define INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC 8
+#define INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC 32
 #define INTR_MODERATE_CNT_GPTP_TRAFFIC 1
 #define TX_BUF_SIZE 1536
 #define RX_BUF_SIZE 1568
@@ -472,7 +473,8 @@
 #define DWC_ETH_QOS_MAX_DATA_PER_TX_BUF (1 << 12)	/* for testing purpose: 4 KB Maximum data per buffer pointer(in Bytes) */
 #define DWC_ETH_QOS_MAX_DATA_PER_TXD (DWC_ETH_QOS_MAX_DATA_PER_TX_BUF * 2)	/* Maxmimum data per descriptor(in Bytes) */
 
-#define DWC_ETH_QOS_MAX_SUPPORTED_MTU (DWC_ETH_QOS_ETH_FRAME_LEN)
+#define DWC_ETH_QOS_MAX_MTU_SIZE (1 << 11)     /*2KB to support gaint packets*/
+#define DWC_ETH_QOS_MAX_SUPPORTED_MTU DWC_ETH_QOS_MAX_MTU_SIZE
 #define DWC_ETH_QOS_MIN_SUPPORTED_MTU (ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN)
 
 #define DWC_ETH_QOS_RDESC3_OWN	0x80000000
@@ -591,7 +593,7 @@
  * delay in usecs is 1020 for 62.5MHz device clock */
 #define DWC_ETH_QOS_MAX_DMA_RIWT  0xff
 /* Max no of pkts to be received before an RX interrupt */
-#define DWC_ETH_QOS_RX_MAX_FRAMES 32
+#define DWC_ETH_QOS_RX_MAX_FRAMES 1
 
 #define DMA_BUSCFG_AXI_PBL_MASK 0xE
 
@@ -1488,6 +1490,7 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	struct dentry *debugfs_dir;
 
 	/* IPA state variables */
+	bool ipa_ready;
 	bool ipa_uc_ready;
 	bool ipa_offload_init;
 	bool ipa_offload_conn;
@@ -1495,9 +1498,9 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	bool ipa_offload_susp;
 
 	/* Dev state */
-	bool is_dev_ready;
 	struct work_struct ntn_ipa_rdy_work;
 	struct wakeup_source wlock;
+	UINT ipa_ver;
 };
 
 struct DWC_ETH_QOS_prv_data {
@@ -1541,7 +1544,7 @@ struct DWC_ETH_QOS_prv_data {
 	int oldduplex;
 	int phyaddr;
 	int bus_id;
-	u32 dev_state;
+	u64 dev_state;
 	u32 interface;
 
 	/* saving state for Wake-on-LAN */
