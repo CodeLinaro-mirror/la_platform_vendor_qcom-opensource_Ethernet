@@ -130,6 +130,9 @@ CHARP fw_filename = "";
 module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(fw_filename, "Firmware filename");
 
+static int rmii_mode = 0;
+module_param(rmii_mode, int, 0644);
+MODULE_PARM_DESC(rmii_mode, "Force RMII mode");
 
 static int DWC_ETH_QOS_request_bus_bandwidth(struct DWC_ETH_QOS_prv_data *pdata, int bandwidth)
 {
@@ -1108,6 +1111,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		pdata->enable_phy = !of_property_read_bool(pldev->dev.of_node, "qcom,ntn-disable-phy");
 		NDBGPR_L1("%s: enable_phy = %d\n", __func__, pdata->enable_phy);
 
+		pdata->rmii_mode = rmii_mode || of_property_read_bool(pldev->dev.of_node, "qcom,ntn-rmii-mode");
+		NDBGPR_L1("%s: rmii_mode = %d\n", __func__, pdata->rmii_mode);
+
 		/*
 		* Set the EAVB timestamp window according to the
 		* ntn-timestamp-valid-window setting in the device tree.
@@ -1169,10 +1175,14 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	DWC_ETH_QOS_config_tamap(pdev);
 #endif
 
-	/* issue clock enable to GMAC device */
-	hw_if->ntn_mac_clock_config(0x1, pdata);
-	/* issue software reset to GMAC device */
-	hw_if->exit(pdata);
+	/* PHY Mode (MII/RMII or default RGMII)
+	 * should be configured prior to GMAC clock enable/reset. */
+	hw_if->ntn_set_phy_intf(pdata);
+
+    /* issue clock enable to GMAC device */
+    hw_if->ntn_mac_clock_config(0x1, pdata);
+    /* issue software reset to GMAC device */
+    hw_if->exit(pdata);
 
 	//Assert TDM reset, in case if it is on.
 	reg_val = hw_if->ntn_reg_rd(0x1008, 0, pdata);
@@ -1350,10 +1360,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	DBGPR("<-- DWC_ETH_QOS_probe\n");
 
-	if (pdata->hw_feat.pcs_sel) {
-		netif_carrier_off(dev);
-		NMSGPR_ALERT( "carrier off till LINK is up\n");
-	}
+	netif_carrier_off(dev);
+	NDBGPR_L1("%s: Carrier off until the LINK is up\n", DEV_NAME);
 
 	/* Register bus client */
 	ntn_bus_pdata = msm_bus_cl_get_pdata(pldev);

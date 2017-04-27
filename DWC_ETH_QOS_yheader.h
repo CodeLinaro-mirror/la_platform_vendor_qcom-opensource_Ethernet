@@ -1052,6 +1052,7 @@ struct hw_if_struct {
 	INT(*ntn_set_tx_clk_125MHz)(struct DWC_ETH_QOS_prv_data *);
 	INT(*ntn_set_tx_clk_25MHz)(struct DWC_ETH_QOS_prv_data *);
 	INT(*ntn_set_tx_clk_2_5MHz)(struct DWC_ETH_QOS_prv_data *);
+	INT(*ntn_set_phy_intf)(struct DWC_ETH_QOS_prv_data *);
 
 	/* Read host initiated boot option */
 	UINT(*ntn_boot_host_initiated)(struct DWC_ETH_QOS_prv_data *);
@@ -1561,6 +1562,7 @@ struct DWC_ETH_QOS_prv_data {
 	struct mii_bus *mii;
 	struct phy_device *phydev;
 	struct delayed_work phy_dwork;
+	bool rmii_mode;
 	int oldlink;
 	int speed;
 	int oldduplex;
