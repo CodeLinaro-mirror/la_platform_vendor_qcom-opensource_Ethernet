@@ -321,6 +321,9 @@ static void parse_config_file(USHORT mdio_bus_id)
 	oldfs = get_fs();
 	set_fs(get_ds());
 	filep = filp_open("/etc/ntn_config.ini", flags, 0600);
+	/* Try in /data */
+	if (IS_ERR(filep))
+		filep = filp_open("/data/ntn_config.ini", flags, 0600);
 	set_fs(oldfs);
 	if(IS_ERR(filep)) {
 		NMSGPR_ALERT( "Mac configuration file not found\n");
