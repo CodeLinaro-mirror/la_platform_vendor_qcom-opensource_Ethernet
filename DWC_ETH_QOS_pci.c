@@ -490,8 +490,36 @@ static int DWC_ETH_QOS_panic_notifier(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+static int DWC_ETH_QOS_reboot_notifier(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	struct DWC_ETH_QOS_plt_data *plt_data = NULL;
+	struct net_device *dev = NULL;
+	struct DWC_ETH_QOS_prv_data *pdata = NULL;
+
+	list_for_each_entry(plt_data, &ntn_plt_data_list, node) {
+		dev = pci_get_drvdata(plt_data->pcidev);
+		if (dev) {
+			pdata = netdev_priv(dev);
+			if (pdata) {
+				if (pdata->irq_number != 0) {
+					disable_irq_wake(pdata->dev->irq);
+					free_irq(pdata->irq_number, pdata);
+					pdata->irq_number = 0;
+				}
+			}
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
 static struct notifier_block DWC_ETH_QOS_panic_blk = {
 	.notifier_call  = DWC_ETH_QOS_panic_notifier,
+};
+
+static struct notifier_block DWC_ETH_QOS_reboot_blk = {
+	.notifier_call  = DWC_ETH_QOS_reboot_notifier,
 };
 
 #ifdef CONFIG_PCI_MSM
@@ -1216,10 +1244,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	DWC_ETH_QOS_init_rx_coalesce(pdata);
 
-#ifdef DWC_ETH_QOS_CONFIG_PTP
-	DWC_ETH_QOS_ptp_init(pdata);
-#endif	/* end of DWC_ETH_QOS_CONFIG_PTP */
-
 	spin_lock_init(&pdata->lock);
 	mutex_init(&pdata->mlock);
 	spin_lock_init(&pdata->tx_lock);
@@ -1235,6 +1259,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		    DEV_NAME);
 		goto err_out_netdev_failed;
 	}
+
+#ifdef DWC_ETH_QOS_CONFIG_PTP
+	DWC_ETH_QOS_ptp_init(pdata);
+#endif	/* end of DWC_ETH_QOS_CONFIG_PTP */
 
 	/* Initialize PCI link status and register for status changes */
 	DWC_ETH_QOS_pci_event_register(pdev);
@@ -1385,11 +1413,6 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 
 	desc_if->free_queue_struct(pdata);
 
-
-	/* Save the PCI link status and suspend it */
-	DWC_ETH_QOS_pci_suspend(pdev);
-
-
 	pci_disable_msi(pdev);
 	pci_set_drvdata(pdev, NULL);
 
@@ -1404,6 +1427,9 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	free_netdev(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
+
+	/* Save the PCI link status and suspend it */
+	DWC_ETH_QOS_pci_suspend(pdev);
 
 	DBGPR("<-- DWC_ETH_QOS_remove\n");
 
@@ -1640,6 +1666,7 @@ int DWC_ETH_QOS_init_module(void)
 		NMSGPR_ALERT( "DWC_ETH_QOS:driver registration failed");
 		return ret;
 	}
+	register_reboot_notifier(&DWC_ETH_QOS_reboot_blk);
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 			&DWC_ETH_QOS_panic_blk);
@@ -1659,9 +1686,28 @@ int DWC_ETH_QOS_init_module(void)
 void DWC_ETH_QOS_exit_module(void)
 {
 	DBGPR("-->DWC_ETH_QOS_exit_module\n");
+	struct DWC_ETH_QOS_plt_data *plt_data = NULL;
+	struct net_device *dev = NULL;
+	struct DWC_ETH_QOS_prv_data *pdata = NULL;
+
+	list_for_each_entry(plt_data, &ntn_plt_data_list, node) {
+		dev = pci_get_drvdata(plt_data->pcidev);
+		if (dev) {
+			pdata = netdev_priv(dev);
+			if (pdata) {
+				if (pdata->irq_number != 0) {
+					disable_irq_wake(pdata->dev->irq);
+					free_irq(pdata->irq_number, pdata);
+					pdata->irq_number = 0;
+				}
+			}
+		}
+	}
 
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &DWC_ETH_QOS_panic_blk);
+	unregister_reboot_notifier(&DWC_ETH_QOS_reboot_blk);
+
 	pci_unregister_driver(&DWC_ETH_QOS_pci_driver);
 
 	DBGPR( "<--DWC_ETH_QOS_exit_module\n");

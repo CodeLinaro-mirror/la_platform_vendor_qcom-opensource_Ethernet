@@ -1822,12 +1822,6 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		phy_connect_direct(dev, pdata->phydev, DWC_ETH_QOS_adjust_link,
 				   pdata->interface);
 
-	if (DWC_ETH_QOS_request_irq(dev) != 0) {
-		NMSGPR_ALERT("Unable to register IRQ %d\n", pdata->irq_number);
-		ret = -EBUSY;
-		goto err_irq_0;
-	}
-
 	ret = desc_if->alloc_buff_and_desc(pdata);
 	if (ret < 0) {
 		NMSGPR_ALERT(
@@ -1896,6 +1890,12 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	hw_if->ntn_wrap_ts_valid_window_config(pdata->ntn_timestamp_valid_window, pdata);
 	hw_if->ntn_wrap_ts_ignore_config(1, pdata);
 
+	if (DWC_ETH_QOS_request_irq(dev) != 0) {
+		NMSGPR_ALERT("Unable to register IRQ %d\n", pdata->irq_number);
+		ret = -EBUSY;
+		goto err_irq_0;
+	}
+
 	/* Disable early transmit complete and underflow interrupt enable bits
 	 * for performance */
 	DMA_TXCHINTMASK_ETCEN_UdfWr(0, 0);
@@ -1935,12 +1935,17 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 
 	DBGPR("-->DWC_ETH_QOS_close\n");
 
+	netif_carrier_off(dev);
+
+	DWC_ETH_QOS_free_irq(dev);
+
 	if (pdata->eee_enabled)
 		del_timer_sync(&pdata->eee_ctrl_timer);
 
 	if (pdata->enable_phy && pdata->phydev)
 		phy_stop(pdata->phydev);
 
+	hw_if->exit(pdata);
 	netif_tx_disable(dev);
 	DWC_ETH_QOS_all_ch_napi_disable(pdata);
 
@@ -1951,7 +1956,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	}
 
 	/* issue software reset to device */
-	hw_if->exit(pdata);
+	//hw_if->exit(pdata);
 	desc_if->tx_free_mem(pdata);
 	desc_if->rx_free_mem(pdata);
 	DWC_ETH_QOS_free_irq(dev);
@@ -5562,6 +5567,7 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 
 	mutex_lock(&pdata->pmt_lock);
 
+	DWC_ETH_QOS_disable_irq(dev);
 	if (pdata->enable_phy && pdata->phydev)
 		phy_stop(pdata->phydev);
 
@@ -5574,8 +5580,6 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 	/* stop DMA TX/RX */
 	DWC_ETH_QOS_stop_all_ch_tx_dma(pdata);
 	DWC_ETH_QOS_stop_all_ch_rx_dma(pdata);
-
-	DWC_ETH_QOS_disable_irq(dev);
 
 	/* enable power down mode by programming the PMT regs */
 	if (wakeup_type & DWC_ETH_QOS_REMOTE_WAKEUP)

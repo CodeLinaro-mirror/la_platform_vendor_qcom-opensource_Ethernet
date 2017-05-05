@@ -286,6 +286,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/reboot.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/io.h>
