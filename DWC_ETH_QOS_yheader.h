@@ -1824,6 +1824,35 @@ void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
 
 /* For debug prints*/
 #define DRV_NAME "DWC_ETH_QOS_drv.c"
+#define dev_name_ipa_rx "IPA_RX"
+#define dev_name_emac_rx "EMAC_RX"
+#define dev_name_ipa_tx "IPA_TX"
+#define dev_name_emac_tx "EMAC_TX"
+
+#define PRINT_MAC(eth_ptr,count) \
+do {\
+   int i;\
+   unsigned char* ptr = eth_ptr;\
+   for ( i = 0;i <= (count);i++,(ptr)++)\
+   {\
+     printk("%02x%c",*ptr,i == (count)?' ':':');\
+   }\
+   printk("\n");\
+}while(0)
+
+#define PRINT_MAC_INFO( skb, _hw, _dir )\
+do {\
+	struct ethhdr* eth;\
+	skb_reset_mac_header(skb);\
+	eth = eth_hdr(skb);\
+	printk("eth type of pkt from %s: 0x%04x \n ",dev_name_##_hw##_##_dir,ntohs(eth->h_proto) );\
+	printk("Dst Mac address of pkt from %s:  ",dev_name_##_hw##_##_dir );\
+	PRINT_MAC(eth->h_dest,5);\
+	printk("Src Mac address of the pkt from %s:  ",dev_name_##_hw##_##_dir );\
+	PRINT_MAC(eth->h_source,5);\
+	printk("Dump of next 4B of skb->data from %s:  ",dev_name_##_hw##_##_dir );\
+	PRINT_MAC((unsigned char*)(skb->data)+ETH_HLEN,3 );\
+}while(0)
 
 #ifdef RELEASE_PACKAGE
 #undef NTN_DEBUG_L1
