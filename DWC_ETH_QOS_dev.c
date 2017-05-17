@@ -1916,7 +1916,7 @@ static INT configure_mac_for_vlan_pkt(struct DWC_ETH_QOS_prv_data *pdata)
 #ifdef NTN_DRV_TEST_LOOPBACK
 	MAC_VLANTR_EVLS_UdfWr(0x0);
 #else
-	MAC_VLANTR_EVLS_UdfWr(0x3);
+	MAC_VLANTR_EVLS_UdfWr(0x0);
 #endif
 	/* Enable operation on the outer VLAN Tag, if present */
 	MAC_VLANTR_ERIVLT_UdfWr(0);
