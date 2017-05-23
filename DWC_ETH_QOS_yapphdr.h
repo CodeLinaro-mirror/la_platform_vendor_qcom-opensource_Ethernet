@@ -348,6 +348,9 @@ struct ifr_data_struct {
 	void *ptr;
 	unsigned int adrs;
 	int bar_num;
+	uint32_t unit;
+	uint32_t addr;
+	uint32_t data;
 };
 
 #define NTN_TDM_IN  0

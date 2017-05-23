@@ -4264,7 +4264,11 @@ static INT ntn_set_tx_clk_25MHz(struct DWC_ETH_QOS_prv_data *pdata)
 
     NTN_NEMACCTL_RgRd(reg_val);
 	reg_val &= NTN_NEMACCTL_TX_CLK_MASK;
-	reg_val |= NTN_NEMACCTL_TX_CLK_25MHz;
+  if (pdata->rmii_mode)
+    reg_val |= NTN_NEMACCTL_TX_CLK_25MHz_RMII;
+  else
+    reg_val |= NTN_NEMACCTL_TX_CLK_25MHz;
+
 	NDBGPR_L2("NEMACCTL Reg Value : %x\n", reg_val);
     NTN_NEMACCTL_RgWr(reg_val);
 
@@ -4282,6 +4286,27 @@ static INT ntn_set_tx_clk_2_5MHz(struct DWC_ETH_QOS_prv_data *pdata)
     NTN_NEMACCTL_RgWr(reg_val);
 
 	return Y_SUCCESS;
+}
+
+/*!
+ * \brief Sets the interface for the PHY
+ * \param[in]
+ * \return register
+ */
+static INT ntn_set_phy_intf(struct DWC_ETH_QOS_prv_data *pdata)
+{
+  UINT reg_val;
+
+  NTN_NEMACCTL_RgRd(reg_val);
+  reg_val &= NTN_NEMACCTL_PHY_INTF_MASK;
+  if (pdata->rmii_mode)
+    reg_val |= NTN_NEMACCTL_PHY_INTF_RMII;
+  else
+    reg_val |= NTN_NEMACCTL_PHY_INTF_RGMII;
+  NDBGPR_L2("NEMACCTL Reg Value : %x\n", reg_val);
+  NTN_NEMACCTL_RgWr(reg_val);
+
+  return Y_SUCCESS;
 }
 
 static UINT ntn_boot_host_initiated(struct DWC_ETH_QOS_prv_data *pdata)
@@ -4370,10 +4395,17 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
 
         DBGPR("-->DWC_ETH_QOS_yinit\n");
 
-        /* Initialize for 1Gbps, Full Duplex and 125 MHz */
+        if (pdata->rmii_mode) {
+          /* Initialize for 100Mbps and 25 MHz */
+          set_mii_speed_100(pdata);
+          ntn_set_tx_clk_25MHz(pdata);
+        } else {
+          /* Initialize for 1Gbps and 125 MHz */
+          set_gmii_speed(pdata);
+          ntn_set_tx_clk_125MHz(pdata);
+        }
+        /* Initialize for Full Duplex */
         set_full_duplex(pdata);
-        set_gmii_speed(pdata);
-        ntn_set_tx_clk_125MHz(pdata);
 
         /* reset mmc counters */
         MMC_CNTRL_RgWr(0x1);
@@ -4683,6 +4715,9 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 
 	/* Configure PME pin for WOL */
 	hw_if->ntn_config_pme = ntn_config_pme;
+
+	/* Config Control register for PHY Interface Mode (MII/RMII or default RGMII) */
+	hw_if->ntn_set_phy_intf = ntn_set_phy_intf;
 
 	DBGPR("<--DWC_ETH_QOS_init_function_ptrs_dev\n");
 }
