@@ -1562,7 +1562,7 @@ struct DWC_ETH_QOS_prv_data {
 	struct mii_bus *mii;
 	struct phy_device *phydev;
 	struct delayed_work phy_dwork;
-	bool rmii_mode;
+	u32 rmii_mode;
 	int oldlink;
 	int speed;
 	int oldduplex;

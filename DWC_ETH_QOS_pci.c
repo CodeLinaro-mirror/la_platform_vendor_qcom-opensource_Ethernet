@@ -1111,7 +1111,12 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		pdata->enable_phy = !of_property_read_bool(pldev->dev.of_node, "qcom,ntn-disable-phy");
 		NDBGPR_L1("%s: enable_phy = %d\n", __func__, pdata->enable_phy);
 
-		pdata->rmii_mode = rmii_mode || of_property_read_bool(pldev->dev.of_node, "qcom,ntn-rmii-mode");
+		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-rmii-mode", &pdata->rmii_mode);
+		if (ret) {
+			NDBGPR_L1("%s: Failed to find rmii_mode in the device"
+				  " tree, using module parameter\n",__func__);
+			pdata->rmii_mode = rmii_mode;
+		}
 		NDBGPR_L1("%s: rmii_mode = %d\n", __func__, pdata->rmii_mode);
 
 		/*
