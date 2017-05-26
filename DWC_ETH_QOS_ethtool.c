@@ -906,11 +906,11 @@ static int DWC_ETH_QOS_set_wol(struct net_device *dev,
 	if (wol->wolopts) {
 		NMSGPR_ALERT( "Wakeup enable\n");
 		device_set_wakeup_enable(&pdata->pdev->dev, 1);
-		enable_irq_wake(pdata->irq_number);
+		//enable_irq_wake(pdata->irq_number);
 	} else {
 		NMSGPR_ALERT( "Wakeup disable\n");
 		device_set_wakeup_enable(&pdata->pdev->dev, 0);
-		disable_irq_wake(pdata->irq_number);
+		//disable_irq_wake(pdata->irq_number);
 	}
 
 	spin_lock_irq(&pdata->lock);

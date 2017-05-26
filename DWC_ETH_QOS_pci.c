@@ -1349,7 +1349,7 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	DWC_ETH_QOS_pci_event_deregister(pdev);
 
 	if (pdata->irq_number != 0) {
-		disable_irq_wake(dev->irq);
+		//disable_irq_wake(dev->irq);
 		free_irq(pdata->irq_number, pdata);
 		pdata->irq_number = 0;
 	}
