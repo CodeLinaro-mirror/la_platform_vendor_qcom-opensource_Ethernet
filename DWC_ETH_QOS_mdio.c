@@ -668,7 +668,11 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 	new_bus->priv = dev;
 	new_bus->phy_mask = 0;
 	new_bus->parent = &pdata->pdev->dev;
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0) )
 	ret = mdiobus_register(new_bus);
+#else
+	ret = __mdiobus_register(new_bus, NULL);
+#endif
 	if (ret != 0) {
 		NMSGPR_ALERT( "%s: Cannot register as MDIO bus\n",
 		    new_bus->name);
