@@ -86,6 +86,12 @@
 
 /* Private IOCTL for handling device specific task */
 #define DWC_ETH_QOS_PRV_IOCTL	SIOCDEVPRIVATE
+#define DWC_ETH_QOS_PRV_IOCTL_IPA	SIOCDEVPRIVATE+1
+/* IOCTL cmd to Neutrino to register the RX/TX properties with VLAN hdr*/
+enum{
+ DWC_ETH_QOS_IPA_VLAN_DISABLE_CMD= 0,
+ DWC_ETH_QOS_IPA_VLAN_ENABLE_CMD=1,
+};
 
 /* Macros for register Read & Write */
 #define NTN_REG_RD 0
@@ -351,6 +357,13 @@ struct ifr_data_struct {
 	uint32_t unit;
 	uint32_t addr;
 	uint32_t data;
+};
+
+struct ifr_data_struct_ipa {
+	unsigned int chInx_tx_ipa;
+	unsigned int chInx_rx_ipa;
+	unsigned int cmd;
+	unsigned short vlan_id;
 };
 
 #define NTN_TDM_IN  0
