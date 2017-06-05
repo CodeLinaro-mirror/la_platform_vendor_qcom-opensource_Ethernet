@@ -1489,6 +1489,8 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	/* Dev state */
 	bool is_dev_ready;
 	struct work_struct ntn_ipa_rdy_work;
+	bool vlan_enable;
+	unsigned short vlan_id;
 };
 
 struct DWC_ETH_QOS_prv_data {
