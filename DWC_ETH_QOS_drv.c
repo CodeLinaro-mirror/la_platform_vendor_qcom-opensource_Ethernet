@@ -4823,6 +4823,61 @@ static int NTN_PPSOUT_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data
 }
 #endif
 
+static int DWC_ETH_QOS_handle_prv_ioctl_ipa(struct DWC_ETH_QOS_prv_data *pdata,
+					struct ifreq *ifr)
+{
+		struct ifr_data_struct_ipa *ipa_ioctl_data;
+		int ret = 0;
+		int chInx_tx_ipa, chInx_rx_ipa;
+		unsigned long missing;
+
+		DBGPR("-->DWC_ETH_QOS_handle_prv_ioctl_ipa\n");
+
+		if ( !ifr || !ifr->ifr_ifru.ifru_data  )
+			   return -EINVAL;
+
+		ipa_ioctl_data = kzalloc(sizeof(struct ifr_data_struct_ipa), GFP_KERNEL);
+		if (!ipa_ioctl_data)
+			   return -ENOMEM;
+
+		missing = copy_from_user(ipa_ioctl_data, ifr->ifr_ifru.ifru_data, sizeof(struct ifr_data_struct_ipa));
+		if (missing)
+		   return -EFAULT;
+
+		chInx_tx_ipa = ipa_ioctl_data->chInx_tx_ipa;
+		chInx_rx_ipa = ipa_ioctl_data->chInx_rx_ipa;
+
+		if ( (chInx_tx_ipa != NTN_TX_DMA_CH_2) ||
+			(chInx_rx_ipa != NTN_RX_DMA_CH_0) )
+		{
+			NMSGPR_ERR("the RX/TX channels passed are not owned by IPA,correct channels to \
+				pass TX: %d RX: %d \n",NTN_TX_DMA_CH_2,NTN_RX_DMA_CH_0);
+			return DWC_ETH_QOS_CONFIG_FAIL;
+		}
+
+		switch ( ipa_ioctl_data->cmd ){
+
+		case DWC_ETH_QOS_IPA_VLAN_ENABLE_CMD:
+		   pdata->prv_ipa.vlan_enable = true;
+		   if ( ipa_ioctl_data->vlan_id ){
+				pdata->prv_ipa.vlan_id = ipa_ioctl_data->vlan_id;
+			ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
+		   }
+		   else
+			NMSGPR_ERR("INVALID VLAN-ID: %d passed in the IOCTL cmd \n",ipa_ioctl_data->vlan_id);
+		   break;
+		case DWC_ETH_QOS_IPA_VLAN_DISABLE_CMD:
+		   pdata->prv_ipa.vlan_enable = false;
+		   pdata->prv_ipa.vlan_id = 0;
+			   ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
+		   break;
+
+		default:
+		   ret = -EOPNOTSUPP;
+		   NMSGPR_ERR( "Unsupported IPA IOCTL call\n");
+		}
+		return ret;
+}
 /*!
  * \brief Driver IOCTL routine
  *
@@ -5568,6 +5623,14 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 			return -EFAULT;
 		}
 		break;
+
+	case DWC_ETH_QOS_PRV_IOCTL_IPA:
+		if ( !pdata->prv_ipa.ipa_ready || !pdata->prv_ipa.ipa_uc_ready ) {
+			NMSGPR_INFO("IPA or IPA uc is not ready \n");
+			break;
+		}
+		ret = DWC_ETH_QOS_handle_prv_ioctl_ipa(pdata, ifr);
+        break;
 
 	case SIOCSHWTSTAMP:
 		ret = DWC_ETH_QOS_handle_hwtstamp_ioctl(pdata, ifr);
