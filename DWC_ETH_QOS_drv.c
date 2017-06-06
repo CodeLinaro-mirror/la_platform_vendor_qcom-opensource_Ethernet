@@ -399,11 +399,14 @@ static void DWC_ETH_QOS_rx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 				rx_desc->RDES2, rx_desc->RDES3);
 			if (pdata->ipa_enabled) {
 				rx_buf_ptrs = GET_RX_BUF_PTR(chInx, i);
-				NMSGPR_ALERT("\t skb mempool %p skb rx buf %p ,"
-					     "skb len %d skb dma %p base %p\n",
-					     (void *)GET_RX_BUFF_DMA_ADDR(chInx, i),
-					     rx_buf_ptrs->skb, rx_buf_ptrs->len,
-					     (void *)rx_buf_ptrs->dma, (void *)(base_ptr + i));
+				if ((rx_buf_ptrs != NULL)  &&
+				     (GET_RX_BUFF_POOL_BASE_ADRR(chInx) != NULL)) {
+					NMSGPR_ALERT("\t skb mempool %p skb rx buf %p ,"
+						     "skb len %d skb dma %p base %p\n",
+						     (void *)GET_RX_BUFF_DMA_ADDR(chInx, i),
+						     rx_buf_ptrs->skb, rx_buf_ptrs->len,
+						     (void *)rx_buf_ptrs->dma, (void *)(base_ptr + i));
+				}
 			}
 		}
 	}
@@ -5240,6 +5243,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct ifr_data_struct *req = ifr->ifr_ifru.ifru_data;
+	struct ifr_data_struct req_pvt;
 	struct mii_ioctl_data *data = if_mii(ifr);
 	unsigned int reg_val = 0;
 	int ret = 0;
@@ -5275,8 +5279,17 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	case DWC_ETH_QOS_PRV_IOCTL:
-		ret = DWC_ETH_QOS_handle_prv_ioctl(pdata, req);
-		req->command_error = ret;
+		if (copy_from_user(&req_pvt, req,
+				sizeof(struct ifr_data_struct))) {
+			NMSGPR_ERR("DWC_ETH_QOS_ioctl copy from user error\n");
+			return -EFAULT;
+		}
+		ret = DWC_ETH_QOS_handle_prv_ioctl(pdata, &req_pvt);
+		if (copy_to_user(&req->command_error, &ret,
+				sizeof(req->command_error))) {
+			NMSGPR_ERR("DWC_ETH_QOS_ioctl copy to user error\n");
+			return -EFAULT;
+		}
 		break;
 
 	case SIOCSHWTSTAMP:
