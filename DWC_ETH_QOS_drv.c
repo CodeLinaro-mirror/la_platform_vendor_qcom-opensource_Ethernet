@@ -1098,6 +1098,7 @@ void DWC_ETH_QOS_get_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	char *str = NULL;
+	int phy_mode;
 
 	DBGPR("-->DWC_ETH_QOS_print_all_hw_features\n");
 
@@ -1169,7 +1170,13 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 	DBGPR( "Source Address or VLAN Insertion Enable     : %s\n",
 		pdata->hw_feat.sa_vlan_ins ? "YES" : "NO");
 
-	switch (pdata->hw_feat.act_phy_sel) {
+	if (pdata->rmii_mode) {
+		phy_mode = DWC_ETH_QOS_RMII;
+	} else {
+		phy_mode = pdata->hw_feat.act_phy_sel;
+	}
+
+	switch (phy_mode) {
 	case 0:
 		str = "GMII/MII";
 		break;
@@ -7256,7 +7263,10 @@ phy_interface_t DWC_ETH_QOS_get_phy_interface(struct DWC_ETH_QOS_prv_data *pdata
 
 	DBGPR("-->DWC_ETH_QOS_get_phy_interface\n");
 
-	if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_GMII_MII) {
+	if (pdata->rmii_mode || pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_RMII) {
+		NDBGPR_L2("Phy is RMII\n");
+		ret = PHY_INTERFACE_MODE_RMII;
+	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_GMII_MII) {
 		if (pdata->hw_feat.gmii_sel){
 			NDBGPR_L2("Phy is GMII\n");
 			ret = PHY_INTERFACE_MODE_GMII;
@@ -7274,9 +7284,6 @@ phy_interface_t DWC_ETH_QOS_get_phy_interface(struct DWC_ETH_QOS_prv_data *pdata
 	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_TBI) {
 		NDBGPR_L2("Phy is TBI\n");
 		ret = PHY_INTERFACE_MODE_TBI;
-	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_RMII) {
-		NDBGPR_L2("Phy is RMII\n");
-		ret = PHY_INTERFACE_MODE_RMII;
 	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_RTBI) {
 		NDBGPR_L2("Phy is RTBI\n");
 		ret = PHY_INTERFACE_MODE_RTBI;
