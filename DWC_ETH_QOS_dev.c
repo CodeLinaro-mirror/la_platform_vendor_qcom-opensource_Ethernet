@@ -2690,7 +2690,7 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data, struct DWC_
 	MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 	varMAC_GMIIAR = varMAC_GMIIAR & (ULONG) (0x12);
 	varMAC_GMIIAR =
-	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x2) << 8)
+	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x3) << 8)
 	    | ((0x1) << 2) | ((0x1) << 0);
 	MAC_GMIIAR_RgWr(varMAC_GMIIAR);
 
@@ -2758,7 +2758,7 @@ static INT read_phy_regs(INT phy_id, INT phy_reg, INT *phy_reg_data, struct DWC_
 	MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 	varMAC_GMIIAR = varMAC_GMIIAR & (ULONG) (0x12);
 	varMAC_GMIIAR =
-	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x2) << 8)
+	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x3) << 8)
 	    | ((0x3) << 2) | ((0x1) << 0);
 	MAC_GMIIAR_RgWr(varMAC_GMIIAR);
 
