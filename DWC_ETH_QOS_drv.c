@@ -2938,6 +2938,7 @@ static inline void DWC_ETH_QOS_get_rx_vlan(struct DWC_ETH_QOS_prv_data *pdata,
 			struct s_RX_NORMAL_DESC *rx_normal_desc)
 {
 	USHORT vlan_tag = 0;
+	ULONG vlan_tag_strip = 0;
 
 	if ((pdata->dev_state & NETIF_F_HW_VLAN_CTAG_RX) == NETIF_F_HW_VLAN_CTAG_RX) {
 		/* Receive Status RDES0 Valid ? */
@@ -2947,9 +2948,14 @@ static inline void DWC_ETH_QOS_get_rx_vlan(struct DWC_ETH_QOS_prv_data *pdata,
 			DBGPR_VLAN("%s:VLAN: RDES3.DWC_ETH_QOS_RDESC3_RS0V\n",__func__);
 			if (((rx_normal_desc->RDES3 & DWC_ETH_QOS_RDESC3_LT) == 0x40000)
 				|| ((rx_normal_desc->RDES3 & DWC_ETH_QOS_RDESC3_LT) == 0x50000)) {
-				vlan_tag = rx_normal_desc->RDES0 & 0xffff;
-				/* insert VLAN tag into skb */
-				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+                               /* read the VLAN tag stripping register */
+                                MAC_VLANTR_EVLS_UdfRd(vlan_tag_strip);
+                                if ( vlan_tag_strip )
+                                {
+				    vlan_tag = rx_normal_desc->RDES0 & 0xffff;
+				    /* insert VLAN tag into skb */
+				    __vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+                                }
 				pdata->xstats.rx_vlan_pkt_n++;
 				DBGPR_VLAN("%s:VLAN: RDES3.DWC_ETH_QOS_RDESC3_LT, TAG=%x\n",__func__,vlan_tag);
 			}
