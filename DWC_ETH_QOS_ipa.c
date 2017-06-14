@@ -118,7 +118,7 @@ int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 
 	/* De-configure IPA Related Stuff */
 	if (pdata->prv_ipa.ipa_offload_conn) {
-		ret = DWC_ETH_QOS_ipa_offload_disconnect(pdata);
+		ret = DWC_ETH_QOS_ipa_offload_suspend(pdata);
 		if (ret) {
 			NMSGPR_ERR("IPA Offload Disconnect Failed, err:%d\n", ret);
 			return ret;
@@ -209,13 +209,12 @@ int DWC_ETH_QOS_ipa_offload_suspend(struct DWC_ETH_QOS_prv_data *pdata)
 int DWC_ETH_QOS_ipa_offload_resume(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
-	struct desc_if_struct *desc_if = &(pdata->desc_if);
 	int ret = Y_SUCCESS;
 	struct ipa_rm_perf_profile profile;
 
 	NDBGPR_L1("Resume/enable IPA offload\n");
-	desc_if->wrapper_tx_desc_init_single_q(pdata, NTN_TX_DMA_CH_2);
-	desc_if->wrapper_rx_desc_init_single_q(pdata, NTN_RX_DMA_CH_0);
+	hw_if->tx_desc_init(pdata, NTN_TX_DMA_CH_2);
+	hw_if->rx_desc_init(pdata, NTN_RX_DMA_CH_0);
 
 	NDBGPR_L1("DWC_ETH_QOS_ipa_offload_connect\n");
 	ret = DWC_ETH_QOS_ipa_offload_connect(pdata);
