@@ -346,7 +346,7 @@ int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
 	memset(&out, 0, sizeof(out));
 
 	/* Building ETH Header */
-	if ( !pdata->prv_ipa.vlan_enable ) {
+	if ( !pdata->prv_ipa.vlan_id ) {
 		memset(&ntn_l2_hdr_v4, 0, sizeof(ntn_l2_hdr_v4));
 		memset(&ntn_l2_hdr_v6, 0, sizeof(ntn_l2_hdr_v6));
 		memcpy(&ntn_l2_hdr_v4.h_source, pdata->dev->dev_addr, ETH_ALEN);
@@ -358,7 +358,7 @@ int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
 		in.hdr_info[1].hdr = (u8 *)&ntn_l2_hdr_v6;
 		in.hdr_info[1].hdr_len = ETH_HLEN;
 	}
-	if ( pdata->prv_ipa.vlan_enable ) {
+	if ( pdata->prv_ipa.vlan_id > MIN_VLAN_ID && pdata->prv_ipa.vlan_id <= MAX_VLAN_ID ) {
 		memset(&ntn_vlan_hdr_v4, 0, sizeof(ntn_vlan_hdr_v4));
 		memset(&ntn_vlan_hdr_v6, 0, sizeof(ntn_vlan_hdr_v6));
 		memcpy(&ntn_vlan_hdr_v4.h_source, pdata->dev->dev_addr, ETH_ALEN);
