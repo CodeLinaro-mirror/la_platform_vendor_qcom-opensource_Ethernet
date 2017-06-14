@@ -241,6 +241,9 @@
 #define NTN_DMA_RX_CH_CNT	(6)
 #define NTN_TX_Q_CNT		(3)
 #define NTN_RX_Q_CNT		(4)
+/*VLAN ids range for IPA offload*/
+#define MIN_VLAN_ID 1
+#define MAX_VLAN_ID 4094
 
 /*PHY address invalid value*/
 #define NTN_INVALID_PHY_ADDR   0xFFFF
