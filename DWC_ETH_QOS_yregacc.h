@@ -18844,7 +18844,7 @@
 
 /*#define MAC_HFR0_SAVLANINS_Mask (ULONG)(~(~0<<(1)))*/
 
-#define MAC_HFR0_SAVLANINS_Mask (ULONG)(0x1)
+#define MAC_HFR0_SAVLANINS_Mask (ULONG)(0x0)
 
 #define MAC_HFR0_SAVLANINS_UdfRd(data) do {\
 		MAC_HFR0_RgRd(data);\
@@ -29312,6 +29312,10 @@
 #define NTN_NEMACCTL_TX_CLK_2_5MHz    	   (0x3)
 #define NTN_NEMACCTL_TX_CLK_25MHz_RMII     (0x6)
 #define NTN_NEMACCTL_TX_CLK_2_5MHz_RMII    (0x7)
+#define NTN_NEMACCTL_PHY_INTF_MASK         (~0x38)
+#define NTN_NEMACCTL_PHY_INTF_MII          (0x00)
+#define NTN_NEMACCTL_PHY_INTF_RGMII        (0x08)
+#define NTN_NEMACCTL_PHY_INTF_RMII         (0x20)
 
 /******************************************************************************/
 /**                          Neutrino M3 SRAM Debug Memory                   **/

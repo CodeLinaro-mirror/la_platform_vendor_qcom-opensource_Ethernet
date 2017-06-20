@@ -400,11 +400,14 @@ static void DWC_ETH_QOS_rx_desc_mang_ds_dump(struct DWC_ETH_QOS_prv_data *pdata)
 				rx_desc->RDES2, rx_desc->RDES3);
 			if (pdata->ipa_enabled) {
 				rx_buf_ptrs = GET_RX_BUF_PTR(chInx, i);
-				NMSGPR_ALERT("\t skb mempool %p skb rx buf %p ,"
-					     "skb len %d skb dma %p base %p\n",
-					     (void *)GET_RX_BUFF_DMA_ADDR(chInx, i),
-					     rx_buf_ptrs->skb, rx_buf_ptrs->len,
-					     (void *)rx_buf_ptrs->dma, (void *)(base_ptr + i));
+				if ((rx_buf_ptrs != NULL)  &&
+				     (GET_RX_BUFF_POOL_BASE_ADRR(chInx) != NULL)) {
+					NMSGPR_ALERT("\t skb mempool %p skb rx buf %p ,"
+						     "skb len %d skb dma %p base %p\n",
+						     (void *)GET_RX_BUFF_DMA_ADDR(chInx, i),
+						     rx_buf_ptrs->skb, rx_buf_ptrs->len,
+						     (void *)rx_buf_ptrs->dma, (void *)(base_ptr + i));
+				}
 			}
 		}
 	}
@@ -745,7 +748,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		}
 		if (GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RS_LPOS, DMA_RXCHSTS_RS_HPOS) & 1) {
 			pdata->xstats.rx_process_stopped_irq_n[chInx]++;
-				NMSGPR_ALERT( "RX Stopped for Channel = %d\n", chInx);
+				NDBGPR_L2("RX Stopped for Channel = %d\n", chInx);
 			DWC_ETH_QOS_GStatus = -E_DMA_RX_TS;
 		}
 		if (GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_FE_LPOS, DMA_RXCHSTS_FE_HPOS) & 1) {
@@ -753,12 +756,13 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 			DWC_ETH_QOS_GStatus = -E_DMA_RX_FE;
 
 			DMA_RXCHSTS_FESTS_UdfRd(chInx, varBitField);
-			NMSGPR_ALERT( "RX Fatal Bus error Status %#lx\n", varBitField);
+			NDBGPR_L2("RX Fatal Bus error Status %#lx\n", varBitField);
 
 			DMA_RXCHSTS_CHSTS_UdfRd(chInx, varBitField);
-			NMSGPR_ALERT( "RX Channel Status %#lx\n", varBitField);
+			NDBGPR_L2("RX Channel Status %#lx\n", varBitField);
 
-			DWC_ETH_QOS_restart_dev(pdata, chInx);
+			pdata->restart_channel_idx = chInx;
+			schedule_work(&pdata->restartdev_work);
 		}
 
 			chSts = GET_VALUE(var_raw_DMA_RXCHSTS, DMA_RXCHSTS_CHSTS_LPOS, DMA_RXCHSTS_CHSTS_HPOS);
@@ -769,7 +773,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 					break;
 				case DMA_RXCHSTS_CHSTS_STOP:
 					DMA_RXCHCTL_RgRd(chInx, temp);
-					NMSGPR_ALERT( "RX Channel %d Stopped : CTL = %lx\n", chInx, temp);
+					NDBGPR_L2("RX Channel %d Stopped : CTL = %lx\n", chInx, temp);
 					break;
 			}
     	}
@@ -809,7 +813,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		}
 		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TS_LPOS, DMA_TXCHSTS_TS_HPOS) & 1) {
 			pdata->xstats.tx_process_stopped_irq_n[chInx]++;
-				NMSGPR_ALERT( "TX Stopped for Channel = %d\n", chInx);
+				NDBGPR_L2("TX Stopped for Channel = %d\n", chInx);
 			DWC_ETH_QOS_GStatus = -E_DMA_TX_TS;
 		}
 		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_UNF_LPOS, DMA_TXCHSTS_UNF_HPOS) & 1) {
@@ -824,19 +828,20 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 			DWC_ETH_QOS_GStatus = -E_DMA_TX_FE;
 
                         DMA_TXCHSTS_FESTS_UdfRd(chInx, varBitField);
-            NMSGPR_ALERT( "TX Fatal Bus error Status %#lx\n", varBitField);
+            NDBGPR_L2("TX Fatal Bus error Status %#lx\n", varBitField);
 
                         DMA_TXCHSTS_CHSTS_UdfRd(chInx, varBitField);
-            NMSGPR_ALERT( "TX Channel Status %#lx\n", varBitField);
+            NDBGPR_L2("TX Channel Status %#lx\n", varBitField);
 
-			DWC_ETH_QOS_restart_dev(pdata, chInx);
+			pdata->restart_channel_idx = chInx;
+			schedule_work(&pdata->restartdev_work);
 		}
 
 		if ( (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_ETC_LPOS, DMA_TXCHSTS_ETC_HPOS) & 1) ){
 			NDBGPR_L2( "ETC Interrupt is not handled\n");
 		}
 		if ( (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_CDE_LPOS, DMA_TXCHSTS_CDE_HPOS) & 1) ){
-			NMSGPR_ALERT( "CDE Interrupt is not handled\n");
+			NDBGPR_L2("CDE Interrupt is not handled\n");
 		}
 
 			chSts = GET_VALUE(var_raw_DMA_TXCHSTS, DMA_TXCHSTS_CHSTS_LPOS, DMA_TXCHSTS_CHSTS_HPOS);
@@ -846,10 +851,10 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 					//NMSGPR_ALERT( "TX Channel %d Suspended\n", chInx);
 					break;
 				case DMA_TXCHSTS_CHSTS_STOP:
-					NMSGPR_ALERT( "TX Channel %d Stopped\n", chInx);
+					NDBGPR_L2("TX Channel %d Stopped\n", chInx);
 					break;
-			default:
-				break;
+				default:
+				    break;
 			}
 
     }
@@ -877,7 +882,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		/* RGMII/SMII interrupt */
 		if (GET_VALUE(varMAC_ISR, MAC_ISR_RGSMIIS_LPOS, MAC_ISR_RGSMIIS_HPOS) & 1) {
 			MAC_PCS_RgRd(varMAC_PCS);
-			NMSGPR_ALERT( "RGMII/SMII interrupt: MAC_PCS = %#lx\n", varMAC_PCS);
+			NDBGPR_L2("RGMII/SMII interrupt: MAC_PCS = %#lx\n", varMAC_PCS);
 			if ((varMAC_PCS & 0x80000) == 0x80000) {
 				pdata->pcs_link = 1;
 				netif_carrier_on(dev);
@@ -910,7 +915,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 		/* PCS Link Status interrupt */
 		if (GET_VALUE(varMAC_ISR, MAC_ISR_PCSLCHGIS_LPOS, MAC_ISR_PCSLCHGIS_HPOS) & 1) {
-			NMSGPR_ALERT( "PCS Link Status interrupt\n");
+			NDBGPR_L2("PCS Link Status interrupt\n");
 			MAC_ANS_RgRd(varMAC_ANS);
 			if (GET_VALUE(varMAC_ANS, MAC_ANS_LS_LPOS, MAC_ANS_LS_HPOS) & 1) {
 				NMSGPR_ALERT( "Link: Up\n");
@@ -925,7 +930,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 		/* PCS Auto-Negotiation Complete interrupt */
 		if (GET_VALUE(varMAC_ISR, MAC_ISR_PCSANCIS_LPOS, MAC_ISR_PCSANCIS_HPOS) & 1) {
-			NMSGPR_ALERT( "PCS Auto-Negotiation Complete interrupt\n");
+			NDBGPR_L2("PCS Auto-Negotiation Complete interrupt\n");
 			MAC_ANS_RgRd(varMAC_ANS);
 		}
 
@@ -937,12 +942,12 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 	/* Handle MAC LPI interrupts */
 	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_LPI_LPOS, NTN_INTC_INTSTATUS_MAC_LPI_HPOS)) {
-		NMSGPR_ALERT( "Neutrino INTC MAC LPI status bit is set.\n");
+		NDBGPR_L2("Neutrino INTC MAC LPI status bit is set.\n");
         }
 
 	/* Handle MAC PM interrupts */
 	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_PM_LPOS, NTN_INTC_INTSTATUS_MAC_PM_HPOS)) {
-		NMSGPR_ALERT( "Neutrino INTC MAC PM status bit is set.\n");
+		NDBGPR_L2("Neutrino INTC MAC PM status bit is set.\n");
         }
 
 	/* Handle TDM interrupts */
@@ -951,25 +956,25 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		NTN_INTC_TDMSTATUS_RgWr(var_NTN_INTC_TDMSTATUS);
 
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_IP_0_OVERFLOW){
-			NMSGPR_ALERT( "Neutrino TDM Input 0 Overflow detected.\n");
+			NDBGPR_L2("Neutrino TDM Input 0 Overflow detected.\n");
 		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_IP_1_OVERFLOW){
-			NMSGPR_ALERT( "Neutrino TDM Input 1 Overflow detected.\n");
+			NDBGPR_L2("Neutrino TDM Input 1 Overflow detected.\n");
 		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_IP_2_OVERFLOW){
-			NMSGPR_ALERT( "Neutrino TDM Input 2 Overflow detected.\n");
+			NDBGPR_L2("Neutrino TDM Input 2 Overflow detected.\n");
 		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_IP_3_OVERFLOW){
-			NMSGPR_ALERT( "Neutrino TDM Input 3 Overflow detected.\n");
+			NDBGPR_L2("Neutrino TDM Input 3 Overflow detected.\n");
 		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_OP_OVERFLOW){
-			NMSGPR_ALERT( "Neutrino TDM Output Overflow detected.\n");
+			NDBGPR_L2("Neutrino TDM Output Overflow detected.\n");
 		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_OP_UNDERFLOW){
-			NMSGPR_ALERT( "Neutrino TDM Output Underflow detected.\n");
+			NDBGPR_L2("Neutrino TDM Output Underflow detected.\n");
 		}
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_GENERAL_ERROR){
-			NMSGPR_ALERT( "Neutrino TDM General error detected.\n");
+			NDBGPR_L2("Neutrino TDM General error detected.\n");
 		}
         }
 
@@ -1098,6 +1103,7 @@ void DWC_ETH_QOS_get_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	char *str = NULL;
+	int phy_mode;
 
 	DBGPR("-->DWC_ETH_QOS_print_all_hw_features\n");
 
@@ -1169,7 +1175,13 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata)
 	DBGPR( "Source Address or VLAN Insertion Enable     : %s\n",
 		pdata->hw_feat.sa_vlan_ins ? "YES" : "NO");
 
-	switch (pdata->hw_feat.act_phy_sel) {
+	if (pdata->rmii_mode) {
+		phy_mode = DWC_ETH_QOS_RMII;
+	} else {
+		phy_mode = pdata->hw_feat.act_phy_sel;
+	}
+
+	switch (phy_mode) {
 	case 0:
 		str = "GMII/MII";
 		break;
@@ -2926,6 +2938,7 @@ static inline void DWC_ETH_QOS_get_rx_vlan(struct DWC_ETH_QOS_prv_data *pdata,
 			struct s_RX_NORMAL_DESC *rx_normal_desc)
 {
 	USHORT vlan_tag = 0;
+	ULONG vlan_tag_strip = 0;
 
 	if ((pdata->dev_state & NETIF_F_HW_VLAN_CTAG_RX) == NETIF_F_HW_VLAN_CTAG_RX) {
 		/* Receive Status RDES0 Valid ? */
@@ -2935,9 +2948,14 @@ static inline void DWC_ETH_QOS_get_rx_vlan(struct DWC_ETH_QOS_prv_data *pdata,
 			DBGPR_VLAN("%s:VLAN: RDES3.DWC_ETH_QOS_RDESC3_RS0V\n",__func__);
 			if (((rx_normal_desc->RDES3 & DWC_ETH_QOS_RDESC3_LT) == 0x40000)
 				|| ((rx_normal_desc->RDES3 & DWC_ETH_QOS_RDESC3_LT) == 0x50000)) {
-				vlan_tag = rx_normal_desc->RDES0 & 0xffff;
-				/* insert VLAN tag into skb */
-				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+                               /* read the VLAN tag stripping register */
+                                MAC_VLANTR_EVLS_UdfRd(vlan_tag_strip);
+                                if ( vlan_tag_strip )
+                                {
+				    vlan_tag = rx_normal_desc->RDES0 & 0xffff;
+				    /* insert VLAN tag into skb */
+				    __vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
+                                }
 				pdata->xstats.rx_vlan_pkt_n++;
 				DBGPR_VLAN("%s:VLAN: RDES3.DWC_ETH_QOS_RDESC3_LT, TAG=%x\n",__func__,vlan_tag);
 			}
@@ -4561,7 +4579,61 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
         return ret;
 }
 
+static int DWC_ETH_QOS_handle_prv_ioctl_ipa(struct DWC_ETH_QOS_prv_data *pdata,
+					struct ifreq *ifr)
+{
+		struct ifr_data_struct_ipa *ipa_ioctl_data;
+		int ret = 0;
+		int chInx_tx_ipa, chInx_rx_ipa;
+		unsigned long missing;
 
+		DBGPR("-->DWC_ETH_QOS_handle_prv_ioctl_ipa\n");
+
+		if ( !ifr || !ifr->ifr_ifru.ifru_data  )
+			   return -EINVAL;
+
+		ipa_ioctl_data = kzalloc(sizeof(struct ifr_data_struct_ipa), GFP_KERNEL);
+		if (!ipa_ioctl_data)
+			   return -ENOMEM;
+
+		missing = copy_from_user(ipa_ioctl_data, ifr->ifr_ifru.ifru_data, sizeof(struct ifr_data_struct_ipa));
+		if (missing)
+		   return -EFAULT;
+
+		chInx_tx_ipa = ipa_ioctl_data->chInx_tx_ipa;
+		chInx_rx_ipa = ipa_ioctl_data->chInx_rx_ipa;
+
+		if ( (chInx_tx_ipa != NTN_TX_DMA_CH_2) ||
+			(chInx_rx_ipa != NTN_RX_DMA_CH_0) )
+		{
+			NMSGPR_ERR("the RX/TX channels passed are not owned by IPA,correct channels to \
+				pass TX: %d RX: %d \n",NTN_TX_DMA_CH_2,NTN_RX_DMA_CH_0);
+			return DWC_ETH_QOS_CONFIG_FAIL;
+		}
+
+		switch ( ipa_ioctl_data->cmd ){
+
+		case DWC_ETH_QOS_IPA_VLAN_ENABLE_CMD:
+		   pdata->prv_ipa.vlan_enable = true;
+		   if ( ipa_ioctl_data->vlan_id ){
+				pdata->prv_ipa.vlan_id = ipa_ioctl_data->vlan_id;
+			ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
+		   }
+		   else
+			NMSGPR_ERR("INVALID VLAN-ID: %d passed in the IOCTL cmd \n",ipa_ioctl_data->vlan_id);
+		   break;
+		case DWC_ETH_QOS_IPA_VLAN_DISABLE_CMD:
+		   pdata->prv_ipa.vlan_enable = false;
+		   pdata->prv_ipa.vlan_id = 0;
+			   ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
+		   break;
+
+		default:
+		   ret = -EOPNOTSUPP;
+		   NMSGPR_ERR( "Unsupported IPA IOCTL call\n");
+		}
+		return ret;
+}
 /*!
  * \brief Driver IOCTL routine
  *
@@ -5227,6 +5299,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct ifr_data_struct *req = ifr->ifr_ifru.ifru_data;
+	struct ifr_data_struct req_pvt;
 	struct mii_ioctl_data *data = if_mii(ifr);
 	unsigned int reg_val = 0;
 	int ret = 0;
@@ -5238,7 +5311,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return -EINVAL;
 	}
 
-	spin_lock(&pdata->lock);
+	mutex_lock(&pdata->mlock);
 	switch (cmd) {
 	case SIOCGMIIPHY:
 		data->phy_id = pdata->phyaddr;
@@ -5262,9 +5335,26 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	case DWC_ETH_QOS_PRV_IOCTL:
-		ret = DWC_ETH_QOS_handle_prv_ioctl(pdata, req);
-		req->command_error = ret;
+		if (copy_from_user(&req_pvt, req,
+				sizeof(struct ifr_data_struct))) {
+			NMSGPR_ERR("DWC_ETH_QOS_ioctl copy from user error\n");
+			return -EFAULT;
+		}
+		ret = DWC_ETH_QOS_handle_prv_ioctl(pdata, &req_pvt);
+		if (copy_to_user(&req->command_error, &ret,
+				sizeof(req->command_error))) {
+			NMSGPR_ERR("DWC_ETH_QOS_ioctl copy to user error\n");
+			return -EFAULT;
+		}
 		break;
+
+	case DWC_ETH_QOS_PRV_IOCTL_IPA:
+		if ( !pdata->prv_ipa.ipa_ready || !pdata->prv_ipa.ipa_uc_ready ) {
+			NMSGPR_INFO("IPA or IPA uc is not ready \n");
+			break;
+		}
+		ret = DWC_ETH_QOS_handle_prv_ioctl_ipa(pdata, ifr);
+        break;
 
 	case SIOCSHWTSTAMP:
 		ret = DWC_ETH_QOS_handle_hwtstamp_ioctl(pdata, ifr);
@@ -5274,7 +5364,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		ret = -EOPNOTSUPP;
 		NDBGPR_L1( "Unsupported IOCTL call\n");
 	}
-	spin_unlock(&pdata->lock);
+	mutex_unlock(&pdata->mlock);
 
 	DBGPR("<--DWC_ETH_QOS_ioctl\n");
 
@@ -5603,6 +5693,16 @@ void DWC_ETH_QOS_powerup_handler(struct work_struct *work)
 	DBGPR("<--DWC_ETH_QOS_powerup_handler\n");
 	DWC_ETH_QOS_powerup(pdata->dev, DWC_ETH_QOS_IOCTL_CONTEXT);
 	DBGPR("-->DWC_ETH_QOS_powerup_handler\n");
+}
+
+/* Work function to call restart device */
+void DWC_ETH_QOS_restart_dev_handler(struct work_struct *work)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = container_of(work,
+		struct DWC_ETH_QOS_prv_data, restartdev_work);
+	DBGPR("-->DWC_ETH_QOS_restart_dev_handler\n");
+	DWC_ETH_QOS_restart_dev(pdata, pdata->restart_channel_idx);
+	DBGPR("<--DWC_ETH_QOS_restart_dev_handler\n");
 }
 
 /*!
@@ -7256,7 +7356,10 @@ phy_interface_t DWC_ETH_QOS_get_phy_interface(struct DWC_ETH_QOS_prv_data *pdata
 
 	DBGPR("-->DWC_ETH_QOS_get_phy_interface\n");
 
-	if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_GMII_MII) {
+	if (pdata->rmii_mode || pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_RMII) {
+		NDBGPR_L2("Phy is RMII\n");
+		ret = PHY_INTERFACE_MODE_RMII;
+	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_GMII_MII) {
 		if (pdata->hw_feat.gmii_sel){
 			NDBGPR_L2("Phy is GMII\n");
 			ret = PHY_INTERFACE_MODE_GMII;
@@ -7274,9 +7377,6 @@ phy_interface_t DWC_ETH_QOS_get_phy_interface(struct DWC_ETH_QOS_prv_data *pdata
 	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_TBI) {
 		NDBGPR_L2("Phy is TBI\n");
 		ret = PHY_INTERFACE_MODE_TBI;
-	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_RMII) {
-		NDBGPR_L2("Phy is RMII\n");
-		ret = PHY_INTERFACE_MODE_RMII;
 	} else if (pdata->hw_feat.act_phy_sel == DWC_ETH_QOS_RTBI) {
 		NDBGPR_L2("Phy is RTBI\n");
 		ret = PHY_INTERFACE_MODE_RTBI;

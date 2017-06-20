@@ -1909,7 +1909,7 @@ static INT configure_mac_for_vlan_pkt(struct DWC_ETH_QOS_prv_data *pdata)
 #ifdef NTN_DRV_TEST_LOOPBACK
 	MAC_VLANTR_EVLS_UdfWr(0x0);
 #else
-	MAC_VLANTR_EVLS_UdfWr(0x3);
+	MAC_VLANTR_EVLS_UdfWr(0x0);
 #endif
 	/* Enable operation on the outer VLAN Tag, if present */
 	MAC_VLANTR_ERIVLT_UdfWr(0);
@@ -2690,7 +2690,7 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data, struct DWC_
 	MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 	varMAC_GMIIAR = varMAC_GMIIAR & (ULONG) (0x12);
 	varMAC_GMIIAR =
-	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x2) << 8)
+	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x3) << 8)
 	    | ((0x1) << 2) | ((0x1) << 0);
 	MAC_GMIIAR_RgWr(varMAC_GMIIAR);
 
@@ -2758,7 +2758,7 @@ static INT read_phy_regs(INT phy_id, INT phy_reg, INT *phy_reg_data, struct DWC_
 	MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 	varMAC_GMIIAR = varMAC_GMIIAR & (ULONG) (0x12);
 	varMAC_GMIIAR =
-	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x2) << 8)
+	    varMAC_GMIIAR | ((phy_id) << 21) | ((phy_reg) << 16) | ((0x3) << 8)
 	    | ((0x3) << 2) | ((0x1) << 0);
 	MAC_GMIIAR_RgWr(varMAC_GMIIAR);
 
@@ -3987,7 +3987,9 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
                  * as 65 is not a valid channel it want route any multicast packet to channel. This will
                  * avoid RX DMA stall issue that was observed in past. */
 		//regval = ioread32((void*)(dwc_eth_ntn_reg_pci_base_addr + 0x3004));
-		regval = 0x02FF0000;
+		/* Configure the register value to 0xFFFF0000, so  all VLAN
+		   unbridged IP packets are still sent to IPA */
+		regval = 0xFFFF0000;
 		//regval = (regval & 0x00FF0000) | 0x02000000;
 		iowrite32(regval, (void*)(pdata->dev->base_addr + 0x3004));
 	}
@@ -4264,7 +4266,11 @@ static INT ntn_set_tx_clk_25MHz(struct DWC_ETH_QOS_prv_data *pdata)
 
     NTN_NEMACCTL_RgRd(reg_val);
 	reg_val &= NTN_NEMACCTL_TX_CLK_MASK;
-	reg_val |= NTN_NEMACCTL_TX_CLK_25MHz;
+  if (pdata->rmii_mode)
+    reg_val |= NTN_NEMACCTL_TX_CLK_25MHz_RMII;
+  else
+    reg_val |= NTN_NEMACCTL_TX_CLK_25MHz;
+
 	NDBGPR_L2("NEMACCTL Reg Value : %x\n", reg_val);
     NTN_NEMACCTL_RgWr(reg_val);
 
@@ -4282,6 +4288,27 @@ static INT ntn_set_tx_clk_2_5MHz(struct DWC_ETH_QOS_prv_data *pdata)
     NTN_NEMACCTL_RgWr(reg_val);
 
 	return Y_SUCCESS;
+}
+
+/*!
+ * \brief Sets the interface for the PHY
+ * \param[in]
+ * \return register
+ */
+static INT ntn_set_phy_intf(struct DWC_ETH_QOS_prv_data *pdata)
+{
+  UINT reg_val;
+
+  NTN_NEMACCTL_RgRd(reg_val);
+  reg_val &= NTN_NEMACCTL_PHY_INTF_MASK;
+  if (pdata->rmii_mode)
+    reg_val |= NTN_NEMACCTL_PHY_INTF_RMII;
+  else
+    reg_val |= NTN_NEMACCTL_PHY_INTF_RGMII;
+  NDBGPR_L2("NEMACCTL Reg Value : %x\n", reg_val);
+  NTN_NEMACCTL_RgWr(reg_val);
+
+  return Y_SUCCESS;
 }
 
 static UINT ntn_boot_host_initiated(struct DWC_ETH_QOS_prv_data *pdata)
@@ -4370,10 +4397,17 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
 
         DBGPR("-->DWC_ETH_QOS_yinit\n");
 
-        /* Initialize for 1Gbps, Full Duplex and 125 MHz */
+        if (pdata->rmii_mode) {
+          /* Initialize for 100Mbps and 25 MHz */
+          set_mii_speed_100(pdata);
+          ntn_set_tx_clk_25MHz(pdata);
+        } else {
+          /* Initialize for 1Gbps and 125 MHz */
+          set_gmii_speed(pdata);
+          ntn_set_tx_clk_125MHz(pdata);
+        }
+        /* Initialize for Full Duplex */
         set_full_duplex(pdata);
-        set_gmii_speed(pdata);
-        ntn_set_tx_clk_125MHz(pdata);
 
         /* reset mmc counters */
         MMC_CNTRL_RgWr(0x1);
@@ -4683,6 +4717,9 @@ void DWC_ETH_QOS_init_function_ptrs_dev(struct hw_if_struct *hw_if)
 
 	/* Configure PME pin for WOL */
 	hw_if->ntn_config_pme = ntn_config_pme;
+
+	/* Config Control register for PHY Interface Mode (MII/RMII or default RGMII) */
+	hw_if->ntn_set_phy_intf = ntn_set_phy_intf;
 
 	DBGPR("<--DWC_ETH_QOS_init_function_ptrs_dev\n");
 }

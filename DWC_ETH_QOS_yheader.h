@@ -1033,6 +1033,7 @@ struct hw_if_struct {
 	INT(*ntn_set_tx_clk_125MHz)(struct DWC_ETH_QOS_prv_data *);
 	INT(*ntn_set_tx_clk_25MHz)(struct DWC_ETH_QOS_prv_data *);
 	INT(*ntn_set_tx_clk_2_5MHz)(struct DWC_ETH_QOS_prv_data *);
+	INT(*ntn_set_phy_intf)(struct DWC_ETH_QOS_prv_data *);
 
 	/* Read host initiated boot option */
 	UINT(*ntn_boot_host_initiated)(struct DWC_ETH_QOS_prv_data *);
@@ -1501,6 +1502,8 @@ struct DWC_ETH_QOS_prv_ipa_data {
 	struct work_struct ntn_ipa_rdy_work;
 	struct wakeup_source wlock;
 	UINT ipa_ver;
+	bool vlan_enable;
+	unsigned short vlan_id;
 };
 
 struct DWC_ETH_QOS_prv_data {
@@ -1511,6 +1514,7 @@ struct DWC_ETH_QOS_prv_data {
 	UINT fw_ver_cap;
 
 	spinlock_t lock;
+	struct mutex mlock;
 	spinlock_t tx_lock;
 	struct mutex pmt_lock;
 	spinlock_t fqtss_lock;
@@ -1539,6 +1543,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	struct mii_bus *mii;
 	struct phy_device *phydev;
+	u32 rmii_mode;
 	int oldlink;
 	int speed;
 	int oldduplex;
@@ -1713,6 +1718,10 @@ struct DWC_ETH_QOS_prv_data {
 	/* Workqueue used in PMT interrupt handler */
 	struct work_struct powerup_work;
 
+	/* Workqueue used in Fatal interrupt handler*/
+	struct work_struct restartdev_work;
+	unsigned int restart_channel_idx;
+
 	/* mdio bus id */
 	USHORT mdio_bus_id;
 
@@ -1771,6 +1780,7 @@ void DWC_ETH_QOS_print_all_hw_features(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_configure_flow_ctrl(struct DWC_ETH_QOS_prv_data *pdata);
 INT DWC_ETH_QOS_powerup(struct net_device *, UINT);
 void DWC_ETH_QOS_powerup_handler(struct work_struct *work);
+void DWC_ETH_QOS_restart_dev_handler(struct work_struct *work);
 INT DWC_ETH_QOS_powerdown(struct net_device *, UINT, UINT);
 u32 DWC_ETH_QOS_usec2riwt(u32 usec, struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_init_rx_coalesce(struct DWC_ETH_QOS_prv_data *pdata);
@@ -1802,6 +1812,35 @@ void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
 
 /* For debug prints*/
 #define DRV_NAME "DWC_ETH_QOS_drv.c"
+#define dev_name_ipa_rx "IPA_RX"
+#define dev_name_emac_rx "EMAC_RX"
+#define dev_name_ipa_tx "IPA_TX"
+#define dev_name_emac_tx "EMAC_TX"
+
+#define PRINT_MAC(eth_ptr,count) \
+do {\
+   int i;\
+   unsigned char* ptr = eth_ptr;\
+   for ( i = 0;i <= (count);i++,(ptr)++)\
+   {\
+     printk("%02x%c",*ptr,i == (count)?' ':':');\
+   }\
+   printk("\n");\
+}while(0)
+
+#define PRINT_MAC_INFO( skb, _hw, _dir )\
+do {\
+	struct ethhdr* eth;\
+	skb_reset_mac_header(skb);\
+	eth = eth_hdr(skb);\
+	printk("eth type of pkt from %s: 0x%04x \n ",dev_name_##_hw##_##_dir,ntohs(eth->h_proto) );\
+	printk("Dst Mac address of pkt from %s:  ",dev_name_##_hw##_##_dir );\
+	PRINT_MAC(eth->h_dest,5);\
+	printk("Src Mac address of the pkt from %s:  ",dev_name_##_hw##_##_dir );\
+	PRINT_MAC(eth->h_source,5);\
+	printk("Dump of next 4B of skb->data from %s:  ",dev_name_##_hw##_##_dir );\
+	PRINT_MAC((unsigned char*)(skb->data)+ETH_HLEN,3 );\
+}while(0)
 
 #ifdef RELEASE_PACKAGE
 #undef NTN_DEBUG_L1
