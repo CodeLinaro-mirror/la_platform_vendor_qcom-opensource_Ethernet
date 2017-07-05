@@ -1257,6 +1257,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
               pr_err("msm_bus_cl_get_pdata() failed\n");
 	DWC_ETH_QOS_init_ddr_bandwidth(pdata);
 
+	device_disable_async_suspend(&pdev->dev);
 	return 0;
 
  err_out_netdev_failed:
