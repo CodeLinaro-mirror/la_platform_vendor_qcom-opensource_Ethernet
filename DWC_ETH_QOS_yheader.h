@@ -499,6 +499,8 @@
 #define DWC_ETH_QOS_COPYBREAK_DEFAULT 256
 #define DWC_ETH_QOS_SYSCLOCK	125000000 /* System clock is 125MHz */
 
+#define DWC_ETH_QOS_DEFAULT_PTP_CLOCK 50000000
+
 #define DWC_ETH_QOS_SYSTIMEPERIOD	16 /* System time period is 16ns */
 
 /* Helper macros for TX descriptor handling */
@@ -1733,6 +1735,9 @@ struct DWC_ETH_QOS_prv_data {
 	unsigned long tx_pkt_change;
 	struct pci_saved_state *saved_state;
 	int irq_affinity_cpu_id;
+	/*ptp clock frequency set by NTN_PTPCLK_Config ioctl
+	default value is 50MHz*/
+	unsigned int ptpclk_freq;
 };
 
 struct DWC_ETH_QOS_plt_data {

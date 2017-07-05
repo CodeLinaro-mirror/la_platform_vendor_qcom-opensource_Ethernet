@@ -985,15 +985,24 @@ static INT config_sub_second_increment(ULONG ptp_clock, struct DWC_ETH_QOS_prv_d
 
   /* convert the PTP_CLOCK to nano second */
   /*  formula is : ((1/ptp_clock) * 1000000000) */
-	/*  where, ptp_clock = 50MHz if FINE correction */
-	/*  and ptp_clock = DWC_ETH_QOS_SYSCLOCK if COARSE correction */
+  /*  ptp_clock = DWC_ETH_QOS_SYSCLOCK if COARSE correction */
+#ifdef CONFIG_PPS_OUTPUT
   if (GET_VALUE(varMAC_TCR, MAC_TCR_TSCFUPDT_LPOS, MAC_TCR_TSCFUPDT_HPOS) == 1) {
-    val = ((1 * 1000000000ull) / 50000000);
-  }
-  else {
+	NDBGPR_L1("%s: Using PTP clock %ld MHz\n", __func__, ptp_clock);
     val = ((1 * 1000000000ull) / ptp_clock);
   }
-
+  else {
+	NDBGPR_L1("%s: Using SYSCLOCK for coarse correction\n", __func__);
+    val = ((1 * 1000000000ull) / DWC_ETH_QOS_SYSCLOCK );
+  }
+#else
+	if (GET_VALUE(varMAC_TCR, MAC_TCR_TSCFUPDT_LPOS, MAC_TCR_TSCFUPDT_HPOS) == 1) {
+      val = ((1 * 1000000000ull) / 50000000);
+    }
+    else {
+      val = ((1 * 1000000000ull) / ptp_clock);
+    }
+#endif
   /* 0.465ns accurecy */
   if (GET_VALUE(varMAC_TCR, MAC_TCR_TSCTRLSSR_LPOS, MAC_TCR_TSCTRLSSR_HPOS) == 0) {
     val = (val * 1000) / 465;
