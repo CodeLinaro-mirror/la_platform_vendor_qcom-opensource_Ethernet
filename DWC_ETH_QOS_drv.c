@@ -1909,6 +1909,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	DWC_ETH_QOS_all_ch_napi_disable(pdata);
 
 	if (pdata->ipa_enabled) {
+		ipa_uc_offload_dereg_rdyCB(IPA_UC_NTN);
 		ret = DWC_ETH_QOS_disable_ipa_offload(pdata);
 		if (ret)
 			return ret;
