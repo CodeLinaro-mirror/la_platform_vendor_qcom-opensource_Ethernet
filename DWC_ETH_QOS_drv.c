@@ -429,7 +429,7 @@ static void DWC_ETH_QOS_restart_phy(struct DWC_ETH_QOS_prv_data *pdata)
 	pdata->oldduplex = -1;
 
 	if (pdata->phydev)
-		phy_start_aneg(pdata->phydev);
+		genphy_config_aneg(pdata->phydev);
 
 	DBGPR("<--DWC_ETH_QOS_restart_phy\n");
 }
@@ -546,6 +546,7 @@ static void DWC_ETH_QOS_restart_dev(struct DWC_ETH_QOS_prv_data *pdata,
 	hw_if->init(pdata);
 
 	DWC_ETH_QOS_restart_phy(pdata);
+	pdata->phydev->state = PHY_UP;
 
 	netif_wake_subqueue(pdata->dev, chInx);
 
@@ -1588,7 +1589,7 @@ static void DWC_ETH_QOS_default_tx_confs_single_q(
 	desc_data->context_setup = 0;
 	desc_data->default_mss = 0;
 
-	NMSGPR_INFO("OSF on/off : %d for channel Idx %d\n", desc_data->osf_on, chInx);
+	NDBGPR_L1("OSF on/off : %d for channel Idx %d\n", desc_data->osf_on, chInx);
 	DBGPR("<--DWC_ETH_QOS_default_tx_confs_single_q\n");
 }
 
@@ -1707,7 +1708,9 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 
 	DWC_ETH_QOS_set_rx_mode(dev);
 
+#ifndef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_config_phy_aneg(pdata, 0, 0);
+#endif
 
 	desc_if->wrapper_tx_desc_init(pdata);
 	desc_if->wrapper_rx_desc_init(pdata);
@@ -1720,10 +1723,14 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 	/* initializes MAC and DMA */
 	hw_if->init(pdata);
 
+#ifndef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_config_phy_aneg(pdata, 1, 0);
+#endif
 
+	/*
 	if (pdata->enable_phy && pdata->phydev)
 		phy_start(pdata->phydev);
+	*/
 
 	pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
 
@@ -1807,11 +1814,17 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 
 	DBGPR("-->DWC_ETH_QOS_open\n");
 
+	/* Read mac address from mac.ini file */
+#ifdef DWC_ETH_QOS_BUILTIN
+	DWC_ETH_QOS_parse_config_file(pdata, pdata->mdio_bus_id);
+#endif
+
 	/* Connect the phy to the network device */
+	/*
 	if (pdata->enable_phy && pdata->phydev)
 		phy_connect_direct(dev, pdata->phydev, DWC_ETH_QOS_adjust_link,
 				   pdata->interface);
-
+	*/
 	if (DWC_ETH_QOS_request_irq(dev) != 0) {
 		NMSGPR_ALERT("Unable to register IRQ %d\n", pdata->irq_number);
 		ret = -EBUSY;
@@ -1825,6 +1838,11 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		ret = -ENOMEM;
 		goto err_out_desc_buf_alloc_failed;
 	}
+
+	/*
+	if (pdata->enable_phy && pdata->phydev)
+		genphy_resume(pdata->phydev);
+	*/
 
 	DWC_ETH_QOS_init_common(dev);
 
@@ -1890,6 +1908,39 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	 * for performance */
 	DMA_TXCHINTMASK_ETCEN_UdfWr(0, 0);
 	DMA_TXCHINTMASK_UNFEN_UdfWr(0, 0);
+	netif_carrier_on(pdata->dev);
+
+	if (pdata->enable_phy && pdata->phydev) {
+		pdata->phydev->attached_dev = dev;
+		pdata->phydev->state = PHY_UP;
+		genphy_read_status(pdata->phydev);
+
+		if (pdata->phydev->link) {
+			if (pdata->phydev->duplex)
+				hw_if->set_full_duplex(pdata);
+			else
+				hw_if->set_half_duplex(pdata);
+
+			switch (pdata->phydev->speed) {
+			case SPEED_1000:
+				hw_if->set_gmii_speed(pdata);
+				hw_if->ntn_set_tx_clk_125MHz(pdata);
+				break;
+			case SPEED_100:
+				hw_if->set_mii_speed_100(pdata);
+				hw_if->ntn_set_tx_clk_25MHz(pdata);
+				break;
+			case SPEED_10:
+				hw_if->set_mii_speed_10(pdata);
+				hw_if->ntn_set_tx_clk_2_5MHz(pdata);
+				break;
+			}
+		} else {
+			NMSGPR_INFO("PHY link still is not up, resume it!!!!\r\n");
+			genphy_resume(pdata->phydev);
+		}
+		schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
+	}
 
 	DBGPR("<--DWC_ETH_QOS_open, %d\n", ret);
 
@@ -1929,7 +1980,7 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 		del_timer_sync(&pdata->eee_ctrl_timer);
 
 	if (pdata->enable_phy && pdata->phydev)
-		phy_stop(pdata->phydev);
+		genphy_suspend(pdata->phydev);
 
 	netif_tx_disable(dev);
 	DWC_ETH_QOS_all_ch_napi_disable(pdata);
@@ -1948,12 +1999,17 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 
 	/* Release the phy by killing the phy state machine and disconnecting
 	 * from it */
+	/*
 	if (pdata->enable_phy && pdata->phydev)
 		phy_disconnect(pdata->phydev);
+	*/
 
 #ifdef NTN_POLLING_METHOD
 	cancel_delayed_work_sync(&task);
 #endif //NTN_POLLING_METHOD
+
+	if (pdata->enable_phy && pdata->phydev)
+		pdata->phydev->state = PHY_DOWN;
 
 	DBGPR("<--DWC_ETH_QOS_close\n");
 
@@ -5596,7 +5652,7 @@ DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev,
 	int crc32_val = 0;
 	unsigned int enb_12bit_vhash;
 
-	NMSGPR_ALERT( "-->DWC_ETH_QOS_vlan_rx_kill_vid: vid = %d\n",
+	DBGPR( "-->DWC_ETH_QOS_vlan_rx_kill_vid: vid = %d\n",
 		vid);
 
 	if (pdata->vlan_hash_filtering) {
@@ -5621,7 +5677,7 @@ DWC_ETH_QOS_vlan_rx_kill_vid(struct net_device *dev,
 		pdata->vlan_ht_or_id = 1;
 	}
 
-	NMSGPR_ALERT( "<--DWC_ETH_QOS_vlan_rx_kill_vid\n");
+	DBGPR( "<--DWC_ETH_QOS_vlan_rx_kill_vid\n");
 
 #if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
 	return 0;
@@ -5662,7 +5718,7 @@ DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev,
 	int crc32_val = 0;
 	unsigned int enb_12bit_vhash;
 
-	NMSGPR_ALERT( "-->DWC_ETH_QOS_vlan_rx_add_vid: vid = %d\n",
+	DBGPR( "-->DWC_ETH_QOS_vlan_rx_add_vid: vid = %d\n",
 		vid);
 
 	if (pdata->vlan_hash_filtering) {
@@ -5691,7 +5747,7 @@ DWC_ETH_QOS_vlan_rx_add_vid(struct net_device *dev,
 		pdata->vlan_ht_or_id = vid;
 	}
 
-	NMSGPR_ALERT( "<--DWC_ETH_QOS_vlan_rx_add_vid\n");
+	DBGPR( "<--DWC_ETH_QOS_vlan_rx_add_vid\n");
 
 #if defined(HAVE_INT_NDO_VLAN_RX_ADD_VID) || defined(NETIF_F_HW_VLAN_CTAG_RX)
 	return 0;
@@ -5741,8 +5797,10 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 
 	mutex_lock(&pdata->pmt_lock);
 
+	/*
 	if (pdata->enable_phy && pdata->phydev)
 		phy_stop(pdata->phydev);
+	*/
 
 	if (caller == DWC_ETH_QOS_DRIVER_CONTEXT)
 		netif_device_detach(dev);
@@ -5779,6 +5837,9 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 
 	if (caller == DWC_ETH_QOS_IOCTL_CONTEXT)
 		pdata->power_down = 1;
+
+	if (pdata->enable_phy && pdata->phydev)
+		pdata->phydev->state = PHY_DOWN;
 
 	mutex_unlock(&pdata->pmt_lock);
 
@@ -5878,7 +5939,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 		/* Re-initialize the MAC since it can get reset during WOL */
 		hw_if->init(pdata);
 		if (pdata->enable_phy && pdata->phydev)
-			phy_start(pdata->phydev);
+			genphy_restart_aneg(pdata->phydev);
 	}
 
 	/* enable MAC TX/RX */
@@ -5894,6 +5955,9 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	DWC_ETH_QOS_napi_enable_mq(pdata);
 
 	netif_tx_start_all_queues(dev);
+
+	if (pdata->enable_phy && pdata->phydev)
+		pdata->phydev->state = PHY_UP;
 
 	mutex_unlock(&pdata->pmt_lock);
 

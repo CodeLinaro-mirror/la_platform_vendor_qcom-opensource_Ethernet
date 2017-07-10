@@ -405,9 +405,11 @@ void dump_phy_registers(struct DWC_ETH_QOS_prv_data *pdata)
 *
 * \return void
 */
-void DWC_ETH_QOS_adjust_link(struct net_device *dev)
+void DWC_ETH_QOS_adjust_link(struct work_struct *work)
 {
-	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
+	struct DWC_ETH_QOS_prv_data *pdata = container_of(work,
+					struct DWC_ETH_QOS_prv_data,
+					phy_dwork.work);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	struct phy_device *phydev = pdata->phydev;
 	//unsigned long flags;
@@ -432,6 +434,11 @@ void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 	}
 
 	//spin_lock_irqsave(&pdata->lock, flags);
+	if (phydev->state != PHY_UP) {
+		schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
+		return;
+	}
+	genphy_read_status(phydev);
 
 	if (phydev->link) {
 		/* Now we make sure that we can be in full duplex mode.
@@ -488,12 +495,14 @@ void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 		if (!pdata->oldlink) {
 			new_state = 1;
 			pdata->oldlink = 1;
+			netif_carrier_on(pdata->dev);
 		}
 	} else if (pdata->oldlink) {
 		new_state = 1;
 		pdata->oldlink = 0;
 		pdata->speed = 0;
 		pdata->oldduplex = -1;
+		netif_carrier_off(pdata->dev);
 	}
 
 	if (new_state)
@@ -505,7 +514,10 @@ void DWC_ETH_QOS_adjust_link(struct net_device *dev)
 	/* At this stage, it could be need to setup the EEE or adjust some
 	 * MAC related HW registers.
 	 * */
-	pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
+	if (!pdata->eee_active)
+		pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
+
+	schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
 
 	//spin_unlock_irqrestore(&pdata->lock, flags);
 
@@ -529,8 +541,6 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
-	char phy_id_fmt[MII_BUS_ID_SIZE + 3];
-	char bus_id[MII_BUS_ID_SIZE];
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_init_phy\n");
 
@@ -539,29 +549,24 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 		return -ENODEV;
 	}
 
-	pdata->oldlink = 0;
-	pdata->speed = 0;
-	pdata->oldduplex = -1;
-
-	snprintf(bus_id, MII_BUS_ID_SIZE, "dwc_phy-%x", pdata->bus_id);
-
-	snprintf(phy_id_fmt, MII_BUS_ID_SIZE + 3, PHY_ID_FMT, bus_id,
-		 pdata->phyaddr);
-
-	DBGPR_MDIO("trying to attach to %s\n", phy_id_fmt);
-
-	phydev = phy_connect(dev, phy_id_fmt, DWC_ETH_QOS_adjust_link,
-			     pdata->interface);
-
-	if (IS_ERR(phydev)) {
-		NMSGPR_ALERT( "%s: Could not attach to PHY\n", dev->name);
+	phydev = kzalloc(sizeof(*phydev), GFP_KERNEL);
+	if (NULL == phydev) {
+		NMSGPR_ALERT("%s: PHY device create failed.\n", __func__);
 		return PTR_ERR(phydev);
 	}
 
-	if (phydev->phy_id == 0) {
-		phy_disconnect(phydev);
-		return -ENODEV;
-	}
+	phydev->speed = SPEED_10;
+	phydev->duplex = 0;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+	phydev->link = 0;
+	phydev->interface = pdata->interface;
+	phydev->autoneg = AUTONEG_ENABLE;
+	phydev->addr = pdata->phyaddr;
+	phydev->phy_id = pdata->phyaddr;
+	phydev->state = PHY_READY;
+	phydev->bus = pdata->mii;
+	mutex_init(&phydev->lock);
 
 	if ((pdata->interface == PHY_INTERFACE_MODE_GMII) ||
 		(pdata->interface == PHY_INTERFACE_MODE_RGMII)) {
@@ -577,12 +582,7 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 	}
 
 	phydev->advertising = phydev->supported;
-
-	DBGPR_MDIO("%s: attached to PHY (UID 0x%x) Link = %d\n", dev->name,
-	      phydev->phy_id, phydev->link);
-
 	pdata->phydev = phydev;
-	phy_start(pdata->phydev);
 
 	DBGPR_MDIO("<--DWC_ETH_QOS_init_phy\n");
 
@@ -611,45 +611,50 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_mdio_register\n");
 
-        if (!pdata->enable_phy) {
-                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
-                return -ENODEV;
-        }
-
-	/* find the phy ID or phy address which is connected to our MAC */
-	do{
-		for (phyaddr = 0; phyaddr < 32; phyaddr++) {
-			int phy_reg_read_status, mii_status;
-
-			phy_reg_read_status =
-			    DWC_ETH_QOS_mdio_read_direct(pdata, phyaddr, MII_BMSR,
-				&mii_status);
-			if (phy_reg_read_status == 0) {
-				if (mii_status != 0x0000 && mii_status != 0xffff) {
-					NMSGPR_ALERT( "%s: Phy detected at"\
-					    " ID/ADDR %d\n", DEV_NAME, phyaddr);
-					phy_detected = 1;
-					break;
-				}
-			} else if (phy_reg_read_status < 0) {
-				NMSGPR_ALERT( "%s: Error reading the phy register"\
-				    " MII_BMSR for phy ID/ADDR %d\n",
-				    DEV_NAME, phyaddr);
-			}
-		}
-		if(phy_detected) {
-			break;
-		}
-		phyCheckLoop++;
-	}while(phyCheckLoop < 100);
-
-	if (!phy_detected) {
-		NMSGPR_ALERT( "%s: No phy could be detected\n", DEV_NAME);
-		return -ENOLINK;
+    if (!pdata->enable_phy) {
+		NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		return -ENODEV;
 	}
 
-	pdata->phyaddr = phyaddr;
+	if (pdata->phyaddr == NTN_INVALID_PHY_ADDR) {
+		/* find the phy ID or phy address which is connected to our MAC */
+		do{
+			for (phyaddr = 0; phyaddr < 32; phyaddr++) {
+				int phy_reg_read_status, mii_status;
+
+				phy_reg_read_status =
+				    DWC_ETH_QOS_mdio_read_direct(pdata, phyaddr, MII_BMSR,
+					&mii_status);
+				if (phy_reg_read_status == 0) {
+					if (mii_status != 0x0000 && mii_status != 0xffff) {
+						NMSGPR_ALERT( "%s: Phy detected at"\
+						    " ID/ADDR %d\n", DEV_NAME, phyaddr);
+						phy_detected = 1;
+						break;
+					}
+				} else if (phy_reg_read_status < 0) {
+					NMSGPR_ALERT( "%s: Error reading the phy register"\
+					    " MII_BMSR for phy ID/ADDR %d\n",
+					    DEV_NAME, phyaddr);
+				}
+			}
+			if(phy_detected) {
+				break;
+			}
+			phyCheckLoop++;
+		}while(phyCheckLoop < 100);
+
+		if (!phy_detected) {
+			NMSGPR_ALERT( "%s: No phy could be detected\n", DEV_NAME);
+			return -ENOLINK;
+		}
+		pdata->phyaddr = phyaddr;
+	}
+
 	pdata->bus_id = pdata->mdio_bus_id;
+	pdata->oldlink = 0;
+	pdata->speed = 0;
+	pdata->oldduplex = -1;
 
 	DBGPHY_REGS(pdata);
 
@@ -668,17 +673,8 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 	new_bus->priv = dev;
 	new_bus->phy_mask = 0;
 	new_bus->parent = &pdata->pdev->dev;
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(4,1,0) )
-	ret = mdiobus_register(new_bus);
-#else
-	ret = __mdiobus_register(new_bus, NULL);
-#endif
-	if (ret != 0) {
-		NMSGPR_ALERT( "%s: Cannot register as MDIO bus\n",
-		    new_bus->name);
-		mdiobus_free(new_bus);
-		return ret;
-	}
+	mutex_init(&new_bus->mdio_lock);
+
 	pdata->mii = new_bus;
 
 	ret = DWC_ETH_QOS_init_phy(dev);
@@ -719,17 +715,15 @@ void DWC_ETH_QOS_mdio_unregister(struct net_device *dev)
         }
 
 	if (pdata->phydev) {
-		phy_stop(pdata->phydev);
-		if (pdata->phydev->attached_dev)
-			phy_disconnect(pdata->phydev);
-		phy_device_free(pdata->phydev);
+		kfree(pdata->phydev);
 		pdata->phydev = NULL;
 	}
 
-	mdiobus_unregister(pdata->mii);
-	pdata->mii->priv = NULL;
-	mdiobus_free(pdata->mii);
-	pdata->mii = NULL;
+	if (pdata->mii) {
+		pdata->mii->priv = NULL;
+		mdiobus_free(pdata->mii);
+		pdata->mii = NULL;
+	}
 
 	DBGPR_MDIO("<--DWC_ETH_QOS_mdio_unregister\n");
 }
