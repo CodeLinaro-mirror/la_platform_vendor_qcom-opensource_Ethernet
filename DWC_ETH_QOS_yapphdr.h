@@ -84,6 +84,8 @@
 #define DWC_ETH_QOS_MAX_TX_DMA_CH_CNT 	(DWC_ETH_QOS_MAX_TX_QUEUE_CNT + 2)
 #define DWC_ETH_QOS_MAX_RX_DMA_CH_CNT 	(DWC_ETH_QOS_MAX_RX_QUEUE_CNT + 2)
 
+#define CONFIG_PPS_OUTPUT   // for PPS Output
+
 /* Private IOCTL for handling device specific task */
 #define DWC_ETH_QOS_PRV_IOCTL	SIOCDEVPRIVATE
 
@@ -188,6 +190,12 @@
 #define NTN_DWC_GET_FREE_TX_DESC_CNT_CMD 	46
 /* To configure the TDM-Ethernet path*/
 #define NTN_DWC_TDM_CONFIG_CMD 	47
+
+/* To configure PPS output */
+#ifdef CONFIG_PPS_OUTPUT
+#define DWC_ETH_QOS_CONFIG_PTPCLK_CMD           48
+#define DWC_ETH_QOS_CONFIG_PPSOUT_CMD           49
+#endif
 
 #define DWC_ETH_QOS_RWK_FILTER_LENGTH	8
 
@@ -352,6 +360,16 @@ struct ifr_data_struct {
 
 #define NTN_TDM_IN  0
 #define NTN_TDM_OUT 1
+
+#ifdef CONFIG_PPS_OUTPUT
+struct NTN_PPS_Config
+{
+	unsigned int ptpclk_freq;
+	unsigned int ppsout_freq;
+	unsigned int ppsout_ch;
+	unsigned int ppsout_duty;
+};
+#endif
 
 struct NTN_TDM_Config
 {

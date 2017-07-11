@@ -1179,7 +1179,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	netdev_set_default_ethtool_ops(dev, DWC_ETH_QOS_get_ethtool_ops());
 #endif	//3.16.0
 
-	DWC_ETH_QOS_reset_ethtool_stats(pdata);
+	//DWC_ETH_QOS_reset_ethtool_stats(pdata);
 
 	if (pdata->hw_feat.tso_en) {
 		dev->hw_features = NETIF_F_TSO;
@@ -1218,6 +1218,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 #ifdef DWC_ETH_QOS_CONFIG_PTP
 	DWC_ETH_QOS_ptp_init(pdata);
+	/*default ptp clock frequency set to 50Mhz*/
+	pdata->ptpclk_freq = DWC_ETH_QOS_DEFAULT_PTP_CLOCK;
 #endif	/* end of DWC_ETH_QOS_CONFIG_PTP */
 
 	spin_lock_init(&pdata->lock);
