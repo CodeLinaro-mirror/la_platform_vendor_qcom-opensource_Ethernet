@@ -2291,6 +2291,7 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	UINT varvlan_pkt;
 #endif
 	int tso;
+	skb_orphan(skb);
 
 	spin_lock_irqsave(&pdata->tx_lock, flags);
 	/* Fetch TX Channel no */
@@ -3096,7 +3097,7 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 			if (!(RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_ES) &&
 			    (RX_NORMAL_DESC->RDES3 & DWC_ETH_QOS_RDESC3_LD)) {
 				/* pkt_len = pkt_len - 4; */ /* CRC stripping */
-
+#ifdef DWC_ETH_QOS_COPYBREAK_ENABLED
 				/* code added for copybreak, this should improve
 				 * performance for small pkts with large amount
 				 * of reassembly being done in the stack
@@ -3117,6 +3118,7 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 						/* just continue with the old skb */
 					}
 				}
+#endif
 				skb_put(skb, pkt_len);
 
 				DWC_ETH_QOS_config_rx_csum(pdata, skb,
