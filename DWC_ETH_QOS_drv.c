@@ -5350,6 +5350,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 	case DWC_ETH_QOS_PRV_IOCTL_IPA:
 		if ( !pdata->prv_ipa.ipa_ready || !pdata->prv_ipa.ipa_uc_ready ) {
+			ret = -EAGAIN;
 			NMSGPR_INFO("IPA or IPA uc is not ready \n");
 			break;
 		}
