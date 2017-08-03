@@ -801,6 +801,13 @@ typedef enum {
 	eDWC_ETH_QOS_32k = 0x7f
 } eDWC_ETH_QOS_mtl_fifo_size;
 
+typedef enum {
+	DWC_ETH_QOS_PHY_SPEED_AUTO = 0x0,
+	DWC_ETH_QOS_PHY_SPEED_1000M = 0x1,
+	DWC_ETH_QOS_PHY_SPEED_100M = 0x2,
+	DWC_ETH_QOS_PHY_SPEED_10M = 0x3,
+} DWC_ETH_QOS_phy_speed_mode;
+
 /* do forward declaration of private data structure */
 struct DWC_ETH_QOS_prv_data;
 struct DWC_ETH_QOS_tx_wrapper_descriptor;
@@ -1546,6 +1553,7 @@ struct DWC_ETH_QOS_prv_data {
 	UCHAR rx_q_for_host[NTN_RX_Q_CNT];
 	UCHAR rx_dma_ch_for_host[NTN_DMA_RX_CH_CNT];
 
+	DWC_ETH_QOS_phy_speed_mode phy_speed_mode;
 	struct mii_bus *mii;
 	struct phy_device *phydev;
 	struct delayed_work phy_dwork;

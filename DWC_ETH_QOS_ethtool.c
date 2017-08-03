@@ -820,13 +820,23 @@ static int DWC_ETH_QOS_setsettings(struct net_device *dev,
 			hw_if->control_an(0, 0, pdata);
 		spin_unlock_irq(&pdata->lock);
 	} else {
-	        if (pdata->enable_phy) {
-		        mutex_lock(&pdata->mlock);
-		        // makes call to phy_start_aneg
-		        ret = phy_ethtool_sset(pdata->phydev, cmd);
-		        mutex_unlock(&pdata->mlock);
+		if (pdata->enable_phy) {
+			mutex_lock(&pdata->mlock);
+			// makes call to phy_start_aneg
+			if (cmd->autoneg == AUTONEG_ENABLE) {
+				pdata->phydev->autoneg = AUTONEG_ENABLE;
+				pdata->phydev->advertising |= ADVERTISED_Autoneg;
+			} else {
+				pdata->phydev->autoneg = AUTONEG_DISABLE;
+				pdata->phydev->speed = ethtool_cmd_speed(cmd);
+				pdata->phydev->duplex = cmd->duplex;
+				pdata->phydev->advertising &= ~ADVERTISED_Autoneg;
+			}
+			ret = genphy_config_aneg(pdata->phydev);
+			//ret = phy_ethtool_sset(pdata->phydev, cmd);
+			mutex_unlock(&pdata->mlock);
 		} else {
-		        NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+			NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
 		}
 	}
 
