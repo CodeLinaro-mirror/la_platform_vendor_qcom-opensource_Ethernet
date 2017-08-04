@@ -796,7 +796,7 @@ static void DWC_ETH_QOS_wrapper_rx_descriptor_init_single_q(
 
 		wmb();
 	}
-	NMSGPR_INFO("Allocated %d buffers for RX Channel: %d \n",pdata->rx_dma_ch[chInx].desc_cnt,chInx);
+	NDBGPR_L1("Allocated %d buffers for RX Channel: %d \n",pdata->rx_dma_ch[chInx].desc_cnt,chInx);
 	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0)
 		NMSGPR_INFO("Assign virtual memory pool address for RX CH0 for %d desc\n",
 					pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt);
