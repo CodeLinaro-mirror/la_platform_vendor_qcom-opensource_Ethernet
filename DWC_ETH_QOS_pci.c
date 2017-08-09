@@ -170,35 +170,33 @@ static void ddr_bw_task_wakeup(unsigned long data)
 
 static __ref int bw_kthread(void *arg)
 {
-        struct DWC_ETH_QOS_prv_data *pdata =
+	struct DWC_ETH_QOS_prv_data *pdata =
                 (struct DWC_ETH_QOS_prv_data *)arg;
-        unsigned long delay_time = 0;
+	unsigned long delay_time = 0;
 	struct net_device *dev = pdata->dev;
-	int bandwidth = 0;
-        while (!kthread_should_stop()) {
-                while (wait_for_completion_interruptible(
-                        &pdata->ddr_bw_complete) != 0)
-			;
-                reinit_completion(&pdata->ddr_bw_complete);
-		delay_time = msecs_to_jiffies(DDR_VOTE_TIME);
-		if((dev->stats.rx_packets + MIN_PKT_CNT_FOR_DDR_MAX > (pdata->rx_pkt_change))
-				|| (dev->stats.tx_packets + MIN_PKT_CNT_FOR_DDR_MAX  > (pdata->tx_pkt_change))) {
-			if(bandwidth == 0) {
-				bandwidth = 1;
-				DWC_ETH_QOS_request_bus_bandwidth(pdata, NTN_BUS_WIDTH_HIGH);
+	while (!kthread_should_stop()) {
+		while (wait_for_completion_interruptible(
+                        &pdata->ddr_bw_complete) != 0);
+			reinit_completion(&pdata->ddr_bw_complete);
+			delay_time = msecs_to_jiffies(DDR_VOTE_TIME);
+			if((dev->stats.rx_packets  > (pdata->prev_rx_pkt_cnt + MIN_PKT_CNT_FOR_DDR_MAX))
+					|| (dev->stats.tx_packets > (pdata->prev_tx_pkt_cnt + MIN_PKT_CNT_FOR_DDR_MAX))) {
+				if(pdata->bandwidth == 0) {
+					pdata->bandwidth = 1;
+					DWC_ETH_QOS_request_bus_bandwidth(pdata, NTN_BUS_WIDTH_HIGH);
+				}
 			}
-			pdata->rx_pkt_change = dev->stats.rx_packets;
-			pdata->tx_pkt_change = dev->stats.tx_packets;
-		}
-		else {
-			if(bandwidth == 1) {
-				bandwidth = 0;
-				DWC_ETH_QOS_request_bus_bandwidth(pdata, NTN_BUS_WIDTH_LOW);
+			else {
+				if(pdata->bandwidth == 1) {
+					pdata->bandwidth = 0;
+					DWC_ETH_QOS_request_bus_bandwidth(pdata, NTN_BUS_WIDTH_LOW);
+				}
 			}
+			pdata->prev_rx_pkt_cnt = dev->stats.rx_packets;
+			pdata->prev_tx_pkt_cnt = dev->stats.tx_packets;
+			mod_timer(&pdata->ddr_bw_timer, jiffies + delay_time);
 		}
-                mod_timer(&pdata->ddr_bw_timer, jiffies + delay_time);
-        }
-        return 0;
+	return 0;
 }
 
 int DWC_ETH_QOS_init_ddr_bandwidth(struct DWC_ETH_QOS_prv_data *pdata)
@@ -206,8 +204,9 @@ int DWC_ETH_QOS_init_ddr_bandwidth(struct DWC_ETH_QOS_prv_data *pdata)
         unsigned long delay_time = 0;
 	int ret = 0;
 
-	pdata->rx_pkt_change = 0;
-	pdata->tx_pkt_change = 0;
+	pdata->prev_rx_pkt_cnt = 0;
+	pdata->prev_tx_pkt_cnt = 0;
+	pdata->bandwidth = 0;
 
 	pdata->ddr_bw_task = kthread_create(bw_kthread, pdata,"ddr_bw_task");
         if (IS_ERR(pdata->ddr_bw_task)) {
