@@ -412,7 +412,10 @@
 #define RX_BUF_SIZE 1568
 #define DWC_ETH_QOS_MAX_LRO_DESC 16
 #define DWC_ETH_QOS_MAX_LRO_AGGR 32
-#define MIN_PKT_CNT_FOR_DDR_MAX  10
+/* Tuned for MAX DDR vote for bandwitdh more than 10Mbps,
+ * assuming 1500 bytes is the max packet size
+ */
+#define MIN_PKT_CNT_FOR_DDR_MAX  (((10*1024*1024)/8)/1500)
 #define DDR_VOTE_TIME  2000
 #define NTN_BUS_WIDTH_HIGH 1
 #define NTN_BUS_WIDTH_LOW  0
@@ -1745,13 +1748,14 @@ struct DWC_ETH_QOS_prv_data {
 	struct task_struct *ddr_bw_task;
 	struct timer_list ddr_bw_timer;
 	struct completion ddr_bw_complete;
-	unsigned long rx_pkt_change;
-	unsigned long tx_pkt_change;
+	unsigned long prev_rx_pkt_cnt;
+	unsigned long prev_tx_pkt_cnt;
 	struct pci_saved_state *saved_state;
 	int irq_affinity_cpu_id;
 	/*ptp clock frequency set by NTN_PTPCLK_Config ioctl
 	default value is 50MHz*/
 	unsigned int ptpclk_freq;
+	int bandwidth;
 };
 
 struct DWC_ETH_QOS_plt_data {
