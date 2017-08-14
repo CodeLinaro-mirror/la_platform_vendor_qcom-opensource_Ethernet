@@ -1,14 +1,30 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are
+* met:
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above
+*       copyright notice, this list of conditions and the following
+*       disclaimer in the documentation and/or other materials provided
+*       with the distribution.
+*     * Neither the name of The Linux Foundation nor the names of its
+*       contributors may be used to endorse or promote products derived
+*       from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+* ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+* SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+* BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+* WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+* OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*/
 
 /*!@file: DWC_ETH_QOS_plt_init.c
  * @brief: Driver functions.
@@ -29,6 +45,7 @@
 #include <linux/esoc_client.h>
 #include <linux/pinctrl/consumer.h>
 #include "DWC_ETH_QOS_yheader.h"
+#include <soc/qcom/boot_stats.h>
 
 #ifdef CONFIG_PCI_MSM
 #include <linux/msm_pcie.h>
@@ -282,6 +299,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	plt_data->pldev = pdev;
 
+#ifndef DWC_ETH_QOS_BUILTIN
 	/* Neutrino board init */
 	ret = DWC_ETH_QOS_init_regulators(dev, plt_data);
 	if (ret) {
@@ -304,6 +322,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 		NDBGPR_L1("%s: ntn_rst_delay = %d msec\n", __func__, plt_data->ntn_rst_delay);
 	}
 	msleep(plt_data->ntn_rst_delay);
+#endif
 
 	/* read bus number */
 	ret = of_property_read_u32(dev->of_node, "qcom,ntn-bus-num", &plt_data->bus_num);
@@ -326,7 +345,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 			NMSGPR_ALERT( "%s: Failed to enable PCIe RC%x!\n", __func__, plt_data->rc_num);
 			goto DWC_ETH_QOS_err_pcie_probe;
 		} else {
-			NMSGPR_ALERT( "%s: PCIe enumeration for RC number %d successful!\n", __func__, plt_data->rc_num);
+			NDBGPR_L1( "%s: PCIe enumeration for RC number %d successful!\n", __func__, plt_data->rc_num);
 		}
 	}
 
@@ -336,7 +355,9 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	return ret;
 
 DWC_ETH_QOS_err_pcie_probe:
+#ifndef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_free_regs_and_gpios(plt_data);
+#endif
 	dev_info(dev, "probe failed");
 	return ret;
 }
@@ -347,12 +368,14 @@ static int DWC_ETH_QOS_pcie_remove(struct platform_device *pdev)
 	struct DWC_ETH_QOS_plt_data *plt_data;
 	DBGPR( "Entry:%s.\n", __func__);
 
+#ifndef DWC_ETH_QOS_BUILTIN
 	list_for_each_entry(plt_data, &ntn_plt_data_list, node) {
 		if (plt_data->pldev == pdev) {
 			DWC_ETH_QOS_free_regs_and_gpios(plt_data);
 			break;
 		}
 	}
+#endif
 
 	DBGPR( "Exit:%s.\n", __func__);
 	return ret;
@@ -379,15 +402,15 @@ static int __init DWC_ETH_QOS_pcie_init(void)
 	int ret = 0;
 
 	INIT_LIST_HEAD(&ntn_plt_data_list);
-	DBGPR("Entry:%s.\n", __func__);
+	DBGPR( "Entry:%s.\n", __func__);
+	place_marker("M - DRIVER Ethernet Init");
 	ret = platform_driver_register(&DWC_ETH_QOS_pcie_driver);
 
 	if (ret == 0) {
 		/* register Ethernet modules */
 		ret = DWC_ETH_QOS_init_module();
 	}
-
-
+	place_marker("M - DRIVER Ethernet Ready");
 	DBGPR( "Exit:%s.\n", __func__);
 	return ret;
 }
@@ -400,5 +423,5 @@ static void __exit DWC_ETH_QOS_pcie_exit(void)
 	DBGPR( "Exit:%s.\n", __func__);
 }
 
-module_init(DWC_ETH_QOS_pcie_init);
+fs_initcall(DWC_ETH_QOS_pcie_init);
 module_exit(DWC_ETH_QOS_pcie_exit);
