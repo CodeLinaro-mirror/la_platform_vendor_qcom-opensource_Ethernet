@@ -347,7 +347,7 @@ static int DWC_ETH_QOS_phy_init_eee(struct phy_device *phydev,
 		int status;//, idx;
 
 		/* Read phy status to properly get the right settings */
-		status = genphy_read_status(phydev);
+		status = phy_read_status(phydev);
 		if (status)
 			return status;
 

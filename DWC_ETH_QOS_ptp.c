@@ -363,7 +363,7 @@ int DWC_ETH_QOS_ptp_init(struct DWC_ETH_QOS_prv_data *pdata)
 		pdata->ptp_clock = NULL;
 		NMSGPR_ALERT( "ptp_clock_register() failed\n");
 	} else
-		DBGPR_PTP( "Added PTP HW clock successfully\n");
+		NMSGPR_ALERT( "Added PTP HW clock successfully\n");
 
 	ret = device_create_file(&pdata->pdev->dev, &dev_attr_ptp_clock);
 
