@@ -241,6 +241,12 @@
 #define NTN_DMA_RX_CH_CNT	(6)
 #define NTN_TX_Q_CNT		(3)
 #define NTN_RX_Q_CNT		(4)
+/*VLAN ids range for IPA offload*/
+#define MIN_VLAN_ID 1
+#define MAX_VLAN_ID 4094
+
+/*PHY address invalid value*/
+#define NTN_INVALID_PHY_ADDR   0xFFFF
 
 /**************************** Neutrino Defines Ends Here ***************************/
 
@@ -1543,6 +1549,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	struct mii_bus *mii;
 	struct phy_device *phydev;
+	struct delayed_work phy_dwork;
 	u32 rmii_mode;
 	int oldlink;
 	int speed;
@@ -1551,6 +1558,8 @@ struct DWC_ETH_QOS_prv_data {
 	int bus_id;
 	u64 dev_state;
 	u32 interface;
+	struct mutex mac_lock;
+	bool mac_written;
 
 	/* saving state for Wake-on-LAN */
 	int wolopts;
@@ -1806,9 +1815,10 @@ bool DWC_ETH_QOS_eee_init(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_handle_eee_interrupt(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_disable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_enable_eee_mode(struct DWC_ETH_QOS_prv_data *pdata);
-void DWC_ETH_QOS_adjust_link(struct net_device *dev);
+void DWC_ETH_QOS_adjust_link(struct work_struct *work);
 void DWC_ETH_QOS_enable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_parse_config_file(struct DWC_ETH_QOS_prv_data *pdata,USHORT mdio_bus_id);
 
 /* For debug prints*/
 #define DRV_NAME "DWC_ETH_QOS_drv.c"
