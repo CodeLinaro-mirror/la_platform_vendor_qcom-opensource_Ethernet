@@ -468,7 +468,7 @@
 		"<error>"))
 
 #define DWC_ETH_QOS_MAC_ADDR_LEN 6
-#define DWC_ETH_QOS_ETH_FRAME_LEN (ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
+#define DWC_ETH_QOS_ETH_FRAME_LEN (1<<11)
 
 #define DWC_ETH_QOS_ETH_FRAME_LEN_IPA	(1<<11) /*IPA can support 2KB max pkt length*/
 
