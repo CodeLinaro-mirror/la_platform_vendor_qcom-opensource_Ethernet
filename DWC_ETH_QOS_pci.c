@@ -294,7 +294,7 @@ void extract_macid(char *string)
 {
 	char *token_m = NULL;
 	int j = 0;
-        int mac_id = 0;
+	int mac_id = 0;
 
 	/* Extract MAC ID byte by byte */
 	token_m = strsep(&string, ":");
@@ -874,6 +874,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
 	ULONG phy_mem_adrs;
 #endif
+	struct ip_params *pparams;
+	unsigned char mac_addr[17] = {'E','8',':','E','0',':','B','7',':','B','5',':','7','D',':','F','8'};
+	int speed = 0;
 
 	NDBGPR_L1("Debug version\n");
 
@@ -946,6 +949,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		ret = -EIO;
 		goto err_out_map_failed;
 	}
+
 	/*
 	{
 	unsigned int rd_val;
@@ -1174,6 +1178,39 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		}
 	} else {
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
+	}
+	//read ip parameters from neutrino SRAM
+	pparams = (struct ip_params *)(dwc_eth_ntn_SRAM_pci_base_addr_virt + NTN_M3_IP_PARAM_START);
+	NDBGPR_L1("pparams->magic_cookie = %s",pparams->magic_cookie);
+	if(0 == strncmp(NTN_MR_IP_PARAMS_MAGIC_COOKIE,pparams->magic_cookie,strlen(NTN_MR_IP_PARAMS_MAGIC_COOKIE)))
+	{
+		NDBGPR_L1("mac_addr = %s\n", pparams->mac_addr);
+		NDBGPR_L1("link_speed = %s\n", pparams->link_speed);
+		NDBGPR_L1("ip_addr = %s\n", pparams->ip_addr);
+		memcpy(&mac_addr,pparams->mac_addr,sizeof(mac_addr));
+		NDBGPR_L1( "default MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+		extract_macid((char *)&mac_addr);
+		NDBGPR_L1( "New MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+		sscanf((char *)&pparams->link_speed, "%d", &speed);
+		NDBGPR_L1("%s link_speed = %d, \n",__func__, speed);
+		//set the speed read from neutrino sram
+		switch(speed) {
+			case 10:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_10M);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_10M;
+				break;
+			case 100:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_100M);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_100M;
+				break;
+			case 1000:
+			default:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_AUTO);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+				break;
+		}
 	}
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
