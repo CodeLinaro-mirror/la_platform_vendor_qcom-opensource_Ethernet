@@ -293,6 +293,7 @@ static void parse_config_file(USHORT mdio_bus_id)
 	if(IS_ERR(filep)) {
 		NMSGPR_ALERT( "Mac configuration file not found\n");
 		NMSGPR_ALERT( "Using Default MAC Address\n");
+		kfree(data);
 		return;
 	}
 	else  {
