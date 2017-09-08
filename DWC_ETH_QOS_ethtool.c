@@ -615,7 +615,7 @@ static int DWC_ETH_QOS_set_pauseparam(struct net_device *dev,
 		phydev->autoneg = pause->autoneg;
 		if (phydev->autoneg) {
 			if (netif_running(dev))
-				ret = phy_start_aneg(phydev);
+				ret = genphy_config_aneg(phydev);
 		} else {
 			DWC_ETH_QOS_configure_flow_ctrl(pdata);
 		}

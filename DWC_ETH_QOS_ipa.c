@@ -1,14 +1,30 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are
+* met:
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above
+*       copyright notice, this list of conditions and the following
+*       disclaimer in the documentation and/or other materials provided
+*       with the distribution.
+*     * Neither the name of The Linux Foundation nor the names of its
+*       contributors may be used to endorse or promote products derived
+*       from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED "AS IS" AND ANY EXPRESS OR IMPLIED
+* WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT
+* ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+* CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+* SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+* BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+* WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+* OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
+* IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+*/
 
 #include "DWC_ETH_QOS_ipa.h"
 
@@ -171,7 +187,6 @@ int DWC_ETH_QOS_disable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 int DWC_ETH_QOS_disable_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata, int chInx_tx_ipa, int chInx_rx_ipa)
 {
 		struct hw_if_struct *hw_if = &(pdata->hw_if);
-		struct desc_if_struct *desc_if = &(pdata->desc_if);
 		int ret = Y_SUCCESS;
 
 		/*stop the IPA owned DMA channels */
@@ -195,8 +210,8 @@ int DWC_ETH_QOS_disable_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata, i
 					 return ret;
 		}
 		else {
-			 desc_if->wrapper_tx_desc_init_single_q(pdata, chInx_tx_ipa);
-			 desc_if->wrapper_rx_desc_init_single_q(pdata, chInx_rx_ipa);
+			 hw_if->tx_desc_init(pdata, chInx_tx_ipa);
+			 hw_if->rx_desc_init(pdata, chInx_rx_ipa);
 
 			 /*if VLAN-id is passed, then make the VLAN+ETH hdr
 			   and register the RX/TX properties*/
@@ -518,7 +533,7 @@ int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
 	memset(&out, 0, sizeof(out));
 
 	/* Building ETH Header */
-	if ( !pdata->prv_ipa.vlan_enable ) {
+	if ( !pdata->prv_ipa.vlan_id ) {
 		memset(&ntn_l2_hdr_v4, 0, sizeof(ntn_l2_hdr_v4));
 		memset(&ntn_l2_hdr_v6, 0, sizeof(ntn_l2_hdr_v6));
 		memcpy(&ntn_l2_hdr_v4.h_source, pdata->dev->dev_addr, ETH_ALEN);
@@ -530,7 +545,7 @@ int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
 		in.hdr_info[1].hdr = (u8 *)&ntn_l2_hdr_v6;
 		in.hdr_info[1].hdr_len = ETH_HLEN;
 	}
-	if ( pdata->prv_ipa.vlan_enable ) {
+	if ( pdata->prv_ipa.vlan_id > MIN_VLAN_ID && pdata->prv_ipa.vlan_id <= MAX_VLAN_ID ) {
 		memset(&ntn_vlan_hdr_v4, 0, sizeof(ntn_vlan_hdr_v4));
 		memset(&ntn_vlan_hdr_v6, 0, sizeof(ntn_vlan_hdr_v6));
 		memcpy(&ntn_vlan_hdr_v4.h_source, pdata->dev->dev_addr, ETH_ALEN);
