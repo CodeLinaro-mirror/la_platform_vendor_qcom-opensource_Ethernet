@@ -2294,6 +2294,8 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	int tso;
 
+	if (ip_hdr(skb)->protocol == IPPROTO_ICMP)
+		skb_orphan(skb);
 	spin_lock_irqsave(&pdata->tx_lock, flags);
 	/* Fetch TX Channel no */
 	desc_data = GET_TX_WRAPPER_DESC(chInx);
