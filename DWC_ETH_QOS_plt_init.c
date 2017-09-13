@@ -45,7 +45,6 @@
 #include <linux/esoc_client.h>
 #include <linux/pinctrl/consumer.h>
 #include "DWC_ETH_QOS_yheader.h"
-#include <soc/qcom/boot_stats.h>
 
 #ifdef CONFIG_PCI_MSM
 #include <linux/msm_pcie.h>
@@ -299,7 +298,6 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 
 	plt_data->pldev = pdev;
 
-#ifndef DWC_ETH_QOS_BUILTIN
 	/* Neutrino board init */
 	ret = DWC_ETH_QOS_init_regulators(dev, plt_data);
 	if (ret) {
@@ -322,7 +320,6 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 		NDBGPR_L1("%s: ntn_rst_delay = %d msec\n", __func__, plt_data->ntn_rst_delay);
 	}
 	msleep(plt_data->ntn_rst_delay);
-#endif
 
 	/* read bus number */
 	ret = of_property_read_u32(dev->of_node, "qcom,ntn-bus-num", &plt_data->bus_num);
@@ -345,7 +342,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 			NMSGPR_ALERT( "%s: Failed to enable PCIe RC%x!\n", __func__, plt_data->rc_num);
 			goto DWC_ETH_QOS_err_pcie_probe;
 		} else {
-			NDBGPR_L1( "%s: PCIe enumeration for RC number %d successful!\n", __func__, plt_data->rc_num);
+			NMSGPR_ALERT( "%s: PCIe enumeration for RC number %d successful!\n", __func__, plt_data->rc_num);
 		}
 	}
 
@@ -355,9 +352,7 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	return ret;
 
 DWC_ETH_QOS_err_pcie_probe:
-#ifndef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_free_regs_and_gpios(plt_data);
-#endif
 	dev_info(dev, "probe failed");
 	return ret;
 }
@@ -368,14 +363,12 @@ static int DWC_ETH_QOS_pcie_remove(struct platform_device *pdev)
 	struct DWC_ETH_QOS_plt_data *plt_data;
 	DBGPR( "Entry:%s.\n", __func__);
 
-#ifndef DWC_ETH_QOS_BUILTIN
 	list_for_each_entry(plt_data, &ntn_plt_data_list, node) {
 		if (plt_data->pldev == pdev) {
 			DWC_ETH_QOS_free_regs_and_gpios(plt_data);
 			break;
 		}
 	}
-#endif
 
 	DBGPR( "Exit:%s.\n", __func__);
 	return ret;
@@ -402,15 +395,15 @@ static int __init DWC_ETH_QOS_pcie_init(void)
 	int ret = 0;
 
 	INIT_LIST_HEAD(&ntn_plt_data_list);
-	DBGPR( "Entry:%s.\n", __func__);
-	place_marker("M - DRIVER Ethernet Init");
+	DBGPR("Entry:%s.\n", __func__);
 	ret = platform_driver_register(&DWC_ETH_QOS_pcie_driver);
 
 	if (ret == 0) {
 		/* register Ethernet modules */
 		ret = DWC_ETH_QOS_init_module();
 	}
-	place_marker("M - DRIVER Ethernet Ready");
+
+
 	DBGPR( "Exit:%s.\n", __func__);
 	return ret;
 }
@@ -423,5 +416,5 @@ static void __exit DWC_ETH_QOS_pcie_exit(void)
 	DBGPR( "Exit:%s.\n", __func__);
 }
 
-fs_initcall(DWC_ETH_QOS_pcie_init);
+module_init(DWC_ETH_QOS_pcie_init);
 module_exit(DWC_ETH_QOS_pcie_exit);

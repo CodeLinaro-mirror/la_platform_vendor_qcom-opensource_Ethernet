@@ -3907,10 +3907,10 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 
 		if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_TX) == DWC_ETH_QOS_FLOW_CTRL_TX) {
 			enable_tx_flow_ctrl(qInx, pdata);
-			NDBGPR_L1("TX flow control for Queue(%d): ENABLED \n",qInx);
+			NMSGPR_INFO("TX flow control for Queue(%d): ENABLED \n",qInx);
 		} else {
 			disable_tx_flow_ctrl(qInx, pdata);
-			NDBGPR_L1("TX flow control for Queue(%d): DISABLED \n",qInx);
+			NMSGPR_INFO("TX flow control for Queue(%d): DISABLED \n",qInx);
 		}
 	}
 
@@ -3962,10 +3962,10 @@ static INT configure_mac(struct DWC_ETH_QOS_prv_data *pdata)
 	/* Set Rx flow control parameters */
 	if ((pdata->flow_ctrl & DWC_ETH_QOS_FLOW_CTRL_RX) == DWC_ETH_QOS_FLOW_CTRL_RX) {
 		enable_rx_flow_ctrl(pdata);
-		NDBGPR_L1("RX flow control ENABLED \n");
+		NMSGPR_INFO("RX flow control ENABLED \n");
 	} else {
 		disable_rx_flow_ctrl(pdata);
-		NDBGPR_L1("RX flow control DISABLED \n");
+		NMSGPR_INFO("RX flow control DISABLED \n");
 	}
 
 	MAC_MCR_JE_UdfWr(0x0);
@@ -4396,6 +4396,18 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
         UINT qInx, chInx;
 
         DBGPR("-->DWC_ETH_QOS_yinit\n");
+
+        if (pdata->rmii_mode) {
+          /* Initialize for 100Mbps and 25 MHz */
+          set_mii_speed_100(pdata);
+          ntn_set_tx_clk_25MHz(pdata);
+        } else {
+          /* Initialize for 1Gbps and 125 MHz */
+          set_gmii_speed(pdata);
+          ntn_set_tx_clk_125MHz(pdata);
+        }
+        /* Initialize for Full Duplex */
+        set_full_duplex(pdata);
 
         /* reset mmc counters */
         MMC_CNTRL_RgWr(0x1);
