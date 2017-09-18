@@ -123,7 +123,8 @@ static int DWC_ETH_QOS_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 	addend = neg_adj ? (addend - diff) : (addend + diff);
 
 	spin_lock_irqsave(&pdata->ptp_lock, flags);
-
+	if(pdata->enable_logging)
+		NMSGPR_ALERT("%s addend = 0x%x\n", __func__,addend);
 	hw_if->config_addend(addend, pdata);
 
 	spin_unlock_irqrestore(&pdata->ptp_lock, flags);

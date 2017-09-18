@@ -726,7 +726,8 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 		if ((GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RC_LPOS, DMA_RXCHSTS_RC_HPOS) & 1) ||
 			(GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_UNF_LPOS, DMA_RXCHSTS_UNF_HPOS) & 1)) {
-
+				if(pdata->measureRx_enable)
+					NMSGPR_ALERT("%s: Packet received \n",__func__);
 				if (!napi_sched) {
 					rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
 					napi_sched = 1;
@@ -809,6 +810,8 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TC_LPOS, DMA_TXCHSTS_TC_HPOS) & 1) {
 			pdata->xstats.tx_normal_irq_n[chInx]++;
+			if(pdata->measureTx_enable)
+				NMSGPR_ALERT( "%s: Transmit complete interrupt received\n",__func__);
 			DWC_ETH_QOS_tx_interrupt(dev, pdata, chInx);
 		}
 		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TS_LPOS, DMA_TXCHSTS_TS_HPOS) & 1) {
@@ -2363,6 +2366,8 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb_orphan(skb);
 
 	spin_lock_irqsave(&pdata->tx_lock, flags);
+	if(pdata->measureTx_enable)
+		NMSGPR_ALERT( "%s: Packet received in the driver from network stack\n",__func__);
 	/* Fetch TX Channel no */
 	desc_data = GET_TX_WRAPPER_DESC(chInx);
 
@@ -3373,6 +3378,8 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *napi, int budget)
 			/*lro_flush_all(&rx_dma_ch->lro_mgr); */
 			}
 	}
+	if(pdata->measureRx_enable)
+		NMSGPR_ALERT("%s: Packet handed over to NW stack \n",__func__);
 
 	/* If we processed all pkts, we are done;
 	 * tell the kernel & re-enable interrupt */

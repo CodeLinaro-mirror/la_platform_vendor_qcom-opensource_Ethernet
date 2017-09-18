@@ -91,7 +91,7 @@
 #include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-
+#include <linux/debugfs.h>
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
@@ -827,6 +827,125 @@ static int DWC_ETH_QOS_mac_addr_sysfs_remove(struct DWC_ETH_QOS_prv_data *pdata)
 }
 #endif
 
+static ssize_t read_logging_enable_status(struct file *file,
+	char __user *user_buf, size_t count, loff_t *ppos)
+{
+
+	unsigned int len = 0, buf_len = 5;
+	char buf[5];
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+
+	if (pdata->enable_logging)
+		len += scnprintf(buf + len, buf_len - len, "1\n");
+	else
+		len += scnprintf(buf + len, buf_len - len, "0\n");
+
+	if (len > buf_len)
+		len = buf_len;
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_logging_enable(struct file *file,
+	const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+	sscanf(user_buf, "%d", &pdata->enable_logging);
+	if(1 == pdata->enable_logging)
+		NMSGPR_ALERT( "DWC_ETH_QOS debug logging_enabled\n");
+	else
+		NMSGPR_ALERT( "DWC_ETH_QOS debug logging disabled\n");
+	return count;
+}
+
+static ssize_t read_measureRx_enable_status(struct file *file,
+	char __user *user_buf, size_t count, loff_t *ppos)
+{
+
+	unsigned int len = 0, buf_len = 5;
+	char buf[5];
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+
+	if (pdata->measureRx_enable)
+		len += scnprintf(buf + len, buf_len - len, "1\n");
+	else
+		len += scnprintf(buf + len, buf_len - len, "0\n");
+
+	if (len > buf_len)
+		len = buf_len;
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_measureRx_enable(struct file *file,
+	const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+	sscanf(user_buf, "%d", &pdata->measureRx_enable);
+	if(1 == pdata->measureRx_enable)
+		NMSGPR_ALERT( "DWC_ETH_QOS measuring Rx time enabled\n");
+	else
+		NMSGPR_ALERT( "DWC_ETH_QOS measuring Rx time disabled\n");
+	return count;
+}
+
+static ssize_t read_measureTx_enable_status(struct file *file,
+	char __user *user_buf, size_t count, loff_t *ppos)
+{
+
+	unsigned int len = 0, buf_len = 5;
+	char buf[5];
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+
+	if (pdata->measureTx_enable)
+		len += scnprintf(buf + len, buf_len - len, "1\n");
+	else
+		len += scnprintf(buf + len, buf_len - len, "0\n");
+
+	if (len > buf_len)
+		len = buf_len;
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_measureTx_enable(struct file *file,
+	const char __user *user_buf, size_t count, loff_t *ppos)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = file->private_data;
+	sscanf(user_buf, "%d", &pdata->measureTx_enable);
+	if(1 == pdata->measureTx_enable) {
+		NMSGPR_ALERT( "DWC_ETH_QOS measuring Tx time enabled\n");
+		pdata->regular_ip_traffic_tx_intr_moderation = 1;
+	}
+	else
+		NMSGPR_ALERT( "DWC_ETH_QOS measuring Tx time disabled\n");
+	return count;
+}
+
+static const struct file_operations fops_ntn_logging_en = {
+	.read = read_logging_enable_status,
+	.write = write_logging_enable,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations fops_ntn_measureRx = {
+	.read = read_measureRx_enable_status,
+	.write = write_measureRx_enable,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations fops_ntn_measureTx = {
+	.read = read_measureTx_enable_status,
+	.write = write_measureTx_enable,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 /*!
 * \brief API to initialize the device.
 *
@@ -877,6 +996,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	struct ip_params *pparams;
 	unsigned char mac_addr[17] = {'E','8',':','E','0',':','B','7',':','B','5',':','7','D',':','F','8'};
 	int speed = 0;
+	struct dentry *debugfs_dir;
+	struct dentry *debugfs_logen;
+	struct dentry *debugfs_measureRx;
+	struct dentry *debugfs_measureTx;
 
 	NDBGPR_L1("Debug version\n");
 
@@ -1419,7 +1542,29 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 #ifdef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_mac_addr_sysfs_init(pdata);
 #endif
+	debugfs_dir = debugfs_create_dir("eth", NULL);
+	if (debugfs_dir) {
+		debugfs_logen = debugfs_create_file("enable_logging", (S_IRUSR|S_IWUSR),
+					debugfs_dir, pdata, &fops_ntn_logging_en);
+		if (!debugfs_logen || IS_ERR(debugfs_logen)) {
+			NMSGPR_ERR( "%s: Cannot create debugfs debugfs_logen \n", __func__);
+		}
 
+		debugfs_measureRx = debugfs_create_file("en_measureRx", (S_IRUSR|S_IWUSR),
+						debugfs_dir, pdata, &fops_ntn_measureRx);
+		if (!debugfs_measureRx || IS_ERR(debugfs_measureRx)) {
+			NMSGPR_ERR( "%s: Cannot create debugfs debugfs_measureRx \n", __func__);
+		}
+
+		debugfs_measureTx = debugfs_create_file("en_measureTx", (S_IRUSR|S_IWUSR),
+						debugfs_dir, pdata, &fops_ntn_measureTx);
+		if (!debugfs_measureTx || IS_ERR(debugfs_measureTx)) {
+			NMSGPR_ERR( "%s: Cannot create debugfs debugfs_measureTx \n", __func__);
+		}
+	} else {
+		NMSGPR_ERR( "Cannot create debugfs dir \n");
+	}
+	pdata->regular_ip_traffic_tx_intr_moderation = INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC;
 	return 0;
 
  err_out_netdev_failed:
