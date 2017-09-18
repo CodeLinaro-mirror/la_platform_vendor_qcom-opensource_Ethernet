@@ -250,6 +250,46 @@ int DWC_ETH_QOS_ipa_offload_resume(struct DWC_ETH_QOS_prv_data *pdata)
 	pdata->prv_ipa.ipa_offload_susp = false;
 	return ret;
 }
+
+static int DWC_ETH_QOS_ipa_uc_ready(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	struct ipa_uc_ready_params param;
+	int ret;
+
+	param.is_uC_ready = false;
+	param.priv = pdata;
+	param.notify = DWC_ETH_QOS_ipa_uc_ready_cb;
+	param.proto = IPA_UC_NTN;
+
+	ret = ipa_uc_offload_reg_rdyCB(&param);
+	if (ret == 0 && param.is_uC_ready) {
+		NDBGPR_L1("%s:%d ipa uc ready\n", __func__, __LINE__);
+		pdata->prv_ipa.ipa_uc_ready = true;
+	}
+
+	return ret;
+}
+
+static void DWC_ETH_QOS_ipa_ready_wq(struct work_struct *work)
+{
+	struct DWC_ETH_QOS_prv_ipa_data *ntn_ipa = container_of(work,
+				struct DWC_ETH_QOS_prv_ipa_data, ntn_ipa_rdy_work);
+	struct DWC_ETH_QOS_prv_data *pdata = container_of(ntn_ipa,
+					struct DWC_ETH_QOS_prv_data, prv_ipa);
+	int ret;
+
+	pdata->prv_ipa.ipa_ready = true;
+	ret = DWC_ETH_QOS_ipa_offload_init(pdata);
+	if (!ret) {
+		NMSGPR_INFO("IPA Offload Initialized Successfully \n");
+		pdata->prv_ipa.ipa_offload_init = true;
+	}
+
+	ret = DWC_ETH_QOS_ipa_uc_ready(pdata);
+	if (ret == 0 && pdata->prv_ipa.ipa_uc_ready)
+		DWC_ETH_QOS_enable_ipa_offload(pdata);
+}
+
 static void DWC_ETH_QOS_ipaUcRdy_wq(struct work_struct *work)
 {
 	struct DWC_ETH_QOS_prv_ipa_data *ntn_ipa = container_of(work,
@@ -257,10 +297,35 @@ static void DWC_ETH_QOS_ipaUcRdy_wq(struct work_struct *work)
 	struct DWC_ETH_QOS_prv_data *pdata = container_of(ntn_ipa,
 					struct DWC_ETH_QOS_prv_data, prv_ipa);
 
-	if (ntn_ipa->is_dev_ready)
-		DWC_ETH_QOS_enable_ipa_offload(pdata);
-
+	pdata->prv_ipa.ipa_uc_ready = true;
+	DWC_ETH_QOS_enable_ipa_offload(pdata);
 }
+/**
+ * DWC_ETH_QOS_ipa_ready_cb() - Callback register with IPA to
+ * indicate if IPA is ready to receive configuration commands.
+ * If IPA is not ready no IPA configuration commands should be
+ * set.
+ *
+ * IN: @pdata: NTN private structure handle that will be passed by IPA.
+ * OUT: NULL
+ */
+static void DWC_ETH_QOS_ipa_ready_cb(void *user_data)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = (struct DWC_ETH_QOS_prv_data *)user_data;
+	struct DWC_ETH_QOS_prv_ipa_data *ntn_ipa = &pdata->prv_ipa;
+
+	if(!pdata) {
+		NMSGPR_ERR("%s Null Param pdata %p \n", __func__, pdata);
+		return;
+	}
+
+	NDBGPR_L1("%s Received IPA ready callback\n",__func__);
+	pdata->prv_ipa.ipa_ready = true;
+	INIT_WORK(&ntn_ipa->ntn_ipa_rdy_work, DWC_ETH_QOS_ipa_ready_wq);
+	queue_work(system_unbound_wq, &ntn_ipa->ntn_ipa_rdy_work);
+	return;
+}
+
 /**
  * DWC_ETH_QOS_ipa_uc_ready_cb() - Callback register with IPA to indicate
  * if IPA (and IPA uC) is ready to receive configuration commands.
@@ -281,10 +346,10 @@ void DWC_ETH_QOS_ipa_uc_ready_cb(void *user_data)
 
 	NDBGPR_L1("%s Received IPA ready callback\n",__func__);
 	pdata->prv_ipa.ipa_uc_ready = true;
-	if (ntn_ipa->is_dev_ready) {
-		INIT_WORK(&ntn_ipa->ntn_ipa_rdy_work, DWC_ETH_QOS_ipaUcRdy_wq);
-		queue_work(system_unbound_wq, &ntn_ipa->ntn_ipa_rdy_work);
-	}
+
+	INIT_WORK(&ntn_ipa->ntn_ipa_rdy_work, DWC_ETH_QOS_ipaUcRdy_wq);
+	queue_work(system_unbound_wq, &ntn_ipa->ntn_ipa_rdy_work);
+
 	return;
 }
 
@@ -969,4 +1034,29 @@ int DWC_ETH_QOS_ipa_cleanup_debugfs(struct DWC_ETH_QOS_prv_data *pdata)
 
 	NDBGPR_L1("IPA debugfs Deleted Successfully \n");
 	return 0;
+}
+int DWC_ETH_QOS_ipa_ready(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int ret = 0;
+
+	if (pdata->prv_ipa.ipa_ver >= IPA_HW_v3_0) {
+		ret = ipa_register_ipa_ready_cb(DWC_ETH_QOS_ipa_ready_cb,
+										(void *)pdata);
+		if (ret == -ENXIO) {
+			NMSGPR_ERR("%s: IPA driver context is not even ready\n", __func__);
+			pdata->prv_ipa.ipa_ready = false;
+			return ret;
+		}
+
+		if (ret != -EEXIST) {
+			NDBGPR_L1("%s:%d register ipa ready cb\n", __func__, __LINE__);
+			return ret;
+		}
+	}
+
+	pdata->prv_ipa.ipa_ready = true;
+	NDBGPR_L1("%s:%d ipa ready\n", __func__, __LINE__);
+	ret = DWC_ETH_QOS_ipa_uc_ready(pdata);
+
+	return ret;
 }
