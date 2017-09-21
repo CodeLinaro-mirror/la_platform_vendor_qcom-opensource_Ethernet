@@ -3400,12 +3400,12 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		if (ethertype == NTN_GPTP_ETH_TYPE) {
 			TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, INTR_MODERATE_CNT_GPTP_TRAFFIC);
 		} else {
-			TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC)));
+			TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % pdata->regular_ip_traffic_tx_intr_moderation)));
 		}
 	} else if (chInx == NTN_TX_DMA_CH_3 || chInx == NTN_TX_DMA_CH_4) {
 		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % INTR_MODERATE_CNT_AVB_TRAFFIC)));
 	} else {
-		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC)));
+		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % pdata->regular_ip_traffic_tx_intr_moderation)));
 	}
 #endif
 

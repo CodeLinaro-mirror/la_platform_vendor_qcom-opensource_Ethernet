@@ -1764,6 +1764,10 @@ struct DWC_ETH_QOS_prv_data {
 	default value is 50MHz*/
 	unsigned int ptpclk_freq;
 	int bandwidth;
+	int enable_logging;
+	int measureRx_enable;
+	int measureTx_enable;
+	UINT regular_ip_traffic_tx_intr_moderation;
 };
 
 struct DWC_ETH_QOS_plt_data {
