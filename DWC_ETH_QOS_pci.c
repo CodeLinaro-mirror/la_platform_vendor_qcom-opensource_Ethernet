@@ -1224,6 +1224,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	spin_lock_init(&pdata->lock);
 	mutex_init(&pdata->mlock);
+	mutex_init(&pdata->eee_lock);
 	spin_lock_init(&pdata->tx_lock);
 	mutex_init(&pdata->pmt_lock);
 	spin_lock_init(&pdata->fqtss_lock);

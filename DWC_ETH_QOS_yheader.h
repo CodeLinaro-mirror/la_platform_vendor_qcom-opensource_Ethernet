@@ -1739,6 +1739,7 @@ struct DWC_ETH_QOS_prv_data {
 	/*ptp clock frequency set by NTN_PTPCLK_Config ioctl
 	default value is 50MHz*/
 	unsigned int ptpclk_freq;
+	struct mutex eee_lock;
 };
 
 struct DWC_ETH_QOS_plt_data {

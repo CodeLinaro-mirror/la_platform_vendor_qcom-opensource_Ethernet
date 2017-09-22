@@ -425,7 +425,7 @@ bool DWC_ETH_QOS_eee_init(struct DWC_ETH_QOS_prv_data *pdata)
 	bool ret = false;
 
 	DBGPR_EEE("-->DWC_ETH_QOS_eee_init\n");
-
+	mutex_lock(&pdata->eee_lock);
 	/* HW supports the EEE feature */
 	if (pdata->hw_feat.eee_sel) {
 #ifndef DWC_ETH_QOS_CUSTOMIZED_EEE_TEST
@@ -466,11 +466,10 @@ bool DWC_ETH_QOS_eee_init(struct DWC_ETH_QOS_prv_data *pdata)
 	}
 
 	DBGPR_EEE("<--DWC_ETH_QOS_eee_init\n");
-
 #ifndef DWC_ETH_QOS_CUSTOMIZED_EEE_TEST
  phy_eee_failed:
 #endif
-
+	mutex_unlock(&pdata->eee_lock);
 	return ret;
 }
 
