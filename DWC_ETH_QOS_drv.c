@@ -1700,7 +1700,7 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 	DBGPR("-->DWC_ETH_QOS_init_common\n");
 
 	/* default configuration */
-	DWC_ETH_QOS_default_common_confs(pdata);
+	//DWC_ETH_QOS_default_common_confs(pdata);
 	DWC_ETH_QOS_default_tx_confs(pdata);
 	DWC_ETH_QOS_default_rx_confs(pdata);
 	DWC_ETH_QOS_configure_rx_fun_ptr(pdata);
@@ -1819,6 +1819,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	struct hw_if_struct *hw_if = &pdata->hw_if;
 
 	DBGPR("-->DWC_ETH_QOS_open\n");
+	DWC_ETH_QOS_default_common_confs(pdata);
 
 	/* Connect the phy to the network device */
 	if (pdata->enable_phy && pdata->phydev)
