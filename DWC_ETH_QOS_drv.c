@@ -4598,19 +4598,25 @@ static int DWC_ETH_QOS_handle_prv_ioctl_ipa(struct DWC_ETH_QOS_prv_data *pdata,
 	switch ( ipa_ioctl_data->cmd ){
 
 		case DWC_ETH_QOS_IPA_VLAN_ENABLE_CMD:
-			pdata->prv_ipa.vlan_enable = true;
-			if ( ipa_ioctl_data->vlan_id ){
-				pdata->prv_ipa.vlan_id = ipa_ioctl_data->vlan_id;
-				ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
-			}
-			else
-				NMSGPR_ERR("INVALID VLAN-ID: %d passed in the IOCTL cmd \n",ipa_ioctl_data->vlan_id);
-			break;
+		   if (!pdata->prv_ipa.vlan_enable) {
+			   if (ipa_ioctl_data->vlan_id > MIN_VLAN_ID && ipa_ioctl_data->vlan_id <= MAX_VLAN_ID){
+				   pdata->prv_ipa.vlan_id = ipa_ioctl_data->vlan_id;
+				   ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
+				   if (!ret)
+					pdata->prv_ipa.vlan_enable = true;
+		   }
+		   else
+			NMSGPR_ERR("INVALID VLAN-ID: %d passed in the IOCTL cmd \n",ipa_ioctl_data->vlan_id);
+		   }
+		   break;
 		case DWC_ETH_QOS_IPA_VLAN_DISABLE_CMD:
-			pdata->prv_ipa.vlan_enable = false;
-			pdata->prv_ipa.vlan_id = 0;
-			ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
-			break;
+			if (pdata->prv_ipa.vlan_enable) {
+				pdata->prv_ipa.vlan_id = 0;
+				ret = DWC_ETH_QOS_disable_enable_ipa_offload(pdata,chInx_tx_ipa,chInx_rx_ipa);
+				if (!ret)
+					pdata->prv_ipa.vlan_enable = false;
+			}
+		   break;
 
 		default:
 			ret = -EOPNOTSUPP;
