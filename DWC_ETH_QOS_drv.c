@@ -1553,8 +1553,7 @@ static void DWC_ETH_QOS_default_common_confs(struct DWC_ETH_QOS_prv_data *pdata)
 	pdata->hwts_tx_en = 0;
 	pdata->hwts_rx_en = 0;
 	pdata->l3_l4_filter = 0;
-	//pdata->l2_filtering_mode = !!pdata->hw_feat.hash_tbl_sz;
-	pdata->l2_filtering_mode = 0;
+	pdata->l2_filtering_mode = 1;
 	pdata->tx_path_in_lpi_mode = 0;
 	pdata->use_lpi_tx_automate = true;
 	pdata->eee_active = 0;
@@ -2174,7 +2173,6 @@ static void DWC_ETH_QOS_set_rx_mode(struct net_device *dev)
 			hpf_mode = 1;
 		}
 	}
-
 	hw_if->config_mac_pkt_filter_reg(pr_mode, huc_mode,
 		hmc_mode, pm_mode, hpf_mode, pdata);
 
