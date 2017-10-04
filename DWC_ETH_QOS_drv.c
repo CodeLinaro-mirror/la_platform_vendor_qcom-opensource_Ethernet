@@ -3248,7 +3248,15 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 #endif
 				received++;
 			} else {
-				NMSGPR_ALERT( "DWC_ETH_QOS clean IRQ failure!! \n");
+				/* RDES3[19]: Dribble Error
+				* RDES3[20]: Receive Error
+				* RDES3[21]: Overflow Error
+				* RDES3[22]: Watchdog Timeout
+				* RDES3[23]: Giant Packet
+				* RDES3[24]: CRC Error
+				*/
+				NMSGPR_ALERT( "%s: RX Error, RDES3 normal descriptor: 0x%x \n",
+					__func__,(RX_NORMAL_DESC->RDES3 & 0x1F80000));
 #ifdef DWC_ETH_QOS_ENABLE_RX_DESC_DUMP
 				dump_rx_desc(chInx, RX_NORMAL_DESC, desc_data->cur_rx);
 #endif
