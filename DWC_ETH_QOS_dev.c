@@ -3778,7 +3778,7 @@ static INT configure_dma_tx_channel(UINT chInx,
 
 	enable_dma_tx_interrupts(chInx, pdata);
 
-	DMA_TXCHCTL_TXPBL_UdfWr(chInx, 48);
+	DMA_TXCHCTL_TXPBL_UdfWr(chInx, 63);
 
     /* To get Best Performance */
     DMA_BUSCFG_BLEN16_UdfWr(1);
