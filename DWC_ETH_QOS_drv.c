@@ -1543,7 +1543,6 @@ static void DWC_ETH_QOS_default_common_confs(struct DWC_ETH_QOS_prv_data *pdata)
 	pdata->l2_filtering_mode = 1;
 	pdata->tx_path_in_lpi_mode = 0;
 	pdata->use_lpi_tx_automate = true;
-	pdata->eee_active = 0;
 	pdata->one_nsec_accuracy = 1;
 
 	DBGPR("<--DWC_ETH_QOS_default_common_confs\n");
@@ -1938,8 +1937,10 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 
 	DBGPR("-->DWC_ETH_QOS_close\n");
 
-	if (pdata->eee_enabled)
+	if (pdata->eee_enabled) {
 		del_timer_sync(&pdata->eee_ctrl_timer);
+		pdata->eee_active = 0;
+	}
 
 	if (pdata->enable_phy && pdata->phydev)
 		phy_stop(pdata->phydev);

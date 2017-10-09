@@ -1144,6 +1144,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	dev->netdev_ops = DWC_ETH_QOS_get_netdev_ops();
 
+	pdata->eee_active = 0;
+
 	pdata->interface = DWC_ETH_QOS_get_phy_interface(pdata);
 	/* Bypass PHYLIB for TBI, RTBI and SGMII interface */
 	if (pdata->enable_phy && 1 == pdata->hw_feat.sma_sel) {
