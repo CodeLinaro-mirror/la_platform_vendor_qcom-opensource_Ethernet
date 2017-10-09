@@ -945,7 +945,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			NDBGPR_L1("%s: fw_load_delay = %d msec\n", __func__, pdata->fw_load_delay);
 		}
 
+		pdata->pcierst_resx = 0;
+#ifndef DWC_ETH_QOS_BUILTIN
 		pdata->pcierst_resx = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-pcierst-resx");
+#endif
 		NDBGPR_L1("%s: pcierst_resx = %d\n", __func__, pdata->pcierst_resx);
 
 		pdata->enable_phy = !of_property_read_bool(pldev->dev.of_node, "qcom,ntn-disable-phy");
@@ -1210,6 +1213,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			pr_err("Unable to register bus client\n");
 	} else
 		pr_err("msm_bus_cl_get_pdata() failed\n");
+	device_disable_async_suspend(&pdev->dev);
 	return 0;
 
  err_out_netdev_failed:
@@ -1488,8 +1492,11 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, false);
 #endif
+	pci_disable_device(pdev);
 	pci_save_state(pdev);
+	pdata->saved_state = pci_store_saved_state(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	DWC_ETH_QOS_pci_suspend(pdev);
 
 	DBGPR("<--DWC_ETH_QOS_suspend\n");
 
@@ -1532,11 +1539,20 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
+	DWC_ETH_QOS_pci_resume(pdev);
 	pci_set_power_state(pdev, PCI_D0);
+	pci_load_and_free_saved_state(pdev,&pdata->saved_state);
 	pci_restore_state(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		NMSGPR_ALERT( "%s:Unable to enable device\n", DEV_NAME);
+		return -EPERM;
+	}
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, true);
 #endif
+	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
+	pci_set_master(pdev);
 
 	/* Recover NTN in case whole chip was in reset */
 	if (pdata->pcierst_resx) {
@@ -1549,13 +1565,15 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
+	if (pdata->ipa_enabled){
+		DWC_ETH_QOS_config_ipareg_map(pdev);
+	}
 #endif
-
 	pci_enable_msi(pdev);
 	ret = DWC_ETH_QOS_powerup(dev, DWC_ETH_QOS_DRIVER_CONTEXT);
-	if (pdata->prv_ipa.ipa_offload_susp)
+	if ((pdata->ipa_enabled)&&(pdata->prv_ipa.ipa_offload_susp)){
 		DWC_ETH_QOS_ipa_offload_resume(pdata);
-
+	}
 	/* Hold the wake lock for 5sec to ensure any traffic*/
 	pm_wakeup_event(&pdev->dev, 5000);
 
