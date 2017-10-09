@@ -1736,6 +1736,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	unsigned int bus_client;
 	int current_bandwidth_vote;
+	struct pci_saved_state *saved_state;
 };
 
 struct DWC_ETH_QOS_plt_data {
