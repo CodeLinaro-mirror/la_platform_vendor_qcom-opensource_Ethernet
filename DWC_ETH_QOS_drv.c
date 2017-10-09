@@ -1820,6 +1820,11 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	DBGPR("-->DWC_ETH_QOS_open\n");
 	DWC_ETH_QOS_default_common_confs(pdata);
 
+	/* Connect the phy to the network device */
+	if (pdata->enable_phy && pdata->phydev)
+		phy_connect_direct(dev, pdata->phydev, DWC_ETH_QOS_adjust_link,
+				   pdata->interface);
+
 	if (DWC_ETH_QOS_request_irq(dev) != 0) {
 		NMSGPR_ALERT("Unable to register IRQ %d\n", pdata->irq_number);
 		ret = -EBUSY;
@@ -1839,11 +1844,6 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	DWC_ETH_QOS_napi_enable_mq(pdata);
 
 	netif_tx_start_all_queues(dev);
-
-	/* Connect the phy to the network device */
-	if (pdata->enable_phy && pdata->phydev)
-		phy_connect_direct(dev, pdata->phydev, DWC_ETH_QOS_adjust_link,
-				   pdata->interface);
 
 	if (pdata->ipa_enabled) {
 		/* Helper flag for IPA Ready CB */
