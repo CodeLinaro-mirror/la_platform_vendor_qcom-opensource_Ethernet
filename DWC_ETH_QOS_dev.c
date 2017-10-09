@@ -2679,7 +2679,7 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data, struct DWC_
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			mdelay(1);
+			usleep_range(1000, 1100);
 		}
 		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
@@ -2712,7 +2712,7 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data, struct DWC_
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			mdelay(1);
+			usleep_range(1000, 1100);
 		}
 		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
@@ -2749,7 +2749,7 @@ static INT read_phy_regs(INT phy_id, INT phy_reg, INT *phy_reg_data, struct DWC_
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			mdelay(1);
+			usleep_range(1000, 1100);
 		}
 		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
@@ -2780,7 +2780,7 @@ static INT read_phy_regs(INT phy_id, INT phy_reg, INT *phy_reg_data, struct DWC_
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			mdelay(1);
+			usleep_range(1000, 1100);
 		}
 		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
 		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
