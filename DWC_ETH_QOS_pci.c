@@ -331,6 +331,7 @@ static void parse_config_file(USHORT mdio_bus_id)
 	if(IS_ERR(filep)) {
 		NMSGPR_ALERT( "Mac configuration file not found\n");
 		NMSGPR_ALERT( "Using Default MAC Address\n");
+		kfree(data);
 		return;
 	}
 	else  {
@@ -793,7 +794,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		ret = -EIO;
 		goto err_out_map_failed;
 	}
-	/*
+#ifndef DWC_ETH_QOS_BUILTIN
 	{
 	unsigned int rd_val;
 
@@ -807,7 +808,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	NDBGPR_L1( "HFR1 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA120));
 	NDBGPR_L1( "HFR2 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA124));
 	}
-	*/
+#endif
 	/* queue count */
 	tx_q_count = get_tx_queue_count(dwc_eth_ntn_reg_pci_base_addr);
 	rx_q_count = get_rx_queue_count(dwc_eth_ntn_reg_pci_base_addr);
@@ -1017,6 +1018,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	/* PHY Mode (MII/RMII or default RGMII)
 	 * should be configured prior to GMAC clock enable/reset. */
+	hw_if->ntn_set_phy_intf(pdata);
+
 	/* issue clock enable to GMAC device */
 	hw_if->ntn_mac_clock_config(0x1, pdata);
 	/* issue software reset to GMAC device */

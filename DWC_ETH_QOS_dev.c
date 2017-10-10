@@ -4397,6 +4397,16 @@ static INT DWC_ETH_QOS_yinit(struct DWC_ETH_QOS_prv_data *pdata)
 
         DBGPR("-->DWC_ETH_QOS_yinit\n");
 
+        /* Initialize for 1Gbps, Full Duplex and 125 MHz */
+        /*
+        set_full_duplex(pdata);
+        set_gmii_speed(pdata);
+        ntn_set_tx_clk_125MHz(pdata);*/
+        if (pdata->rmii_mode) {
+          /* Initialize for 100Mbps and 25 MHz */
+          set_mii_speed_100(pdata);
+          ntn_set_tx_clk_25MHz(pdata);
+        }
         /* reset mmc counters */
         MMC_CNTRL_RgWr(0x1);
 
