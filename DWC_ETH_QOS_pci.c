@@ -1853,13 +1853,15 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 		pmt_flags |= DWC_ETH_QOS_MAGIC_WAKEUP;
 
 	ret = DWC_ETH_QOS_powerdown(dev, pmt_flags, DWC_ETH_QOS_DRIVER_CONTEXT);
-	pci_save_state(pdev);
-	pdata->saved_state = pci_store_saved_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
+	pci_disable_msi(pdev);
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, false);
 #endif
+	pci_disable_device(pdev);
+	pci_save_state(pdev);
+	pdata->saved_state = pci_store_saved_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	DWC_ETH_QOS_pci_suspend(pdev);
 
 	DBGPR("<--DWC_ETH_QOS_suspend\n");
 
@@ -1902,14 +1904,19 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
-	pci_restore_state(pdev);
+	DWC_ETH_QOS_pci_resume(pdev);
+	pci_set_power_state(pdev, PCI_D0);
 	pci_load_and_free_saved_state(pdev,&pdata->saved_state);
-	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
-
+	pci_restore_state(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		NMSGPR_ALERT( "%s:Unable to enable device\n", DEV_NAME);
+		return -1;
+	}
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, true);
 #endif
-
+	pci_set_master(pdev);
 	/* Recover NTN in case whole chip was in reset */
 	if (pdata->pcierst_resx) {
 		if (hw_if->ntn_boot_host_initiated(pdata)) {
@@ -1922,9 +1929,10 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
 #endif
-
+	pci_enable_msi(pdev);
+	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
 	ret = DWC_ETH_QOS_powerup(dev, DWC_ETH_QOS_DRIVER_CONTEXT);
-	if (pdata->prv_ipa.ipa_offload_susp)
+	if (pdata->ipa_enabled && pdata->prv_ipa.ipa_offload_susp)
 		DWC_ETH_QOS_ipa_offload_resume(pdata);
 
 	/* Hold the wake lock for 5sec to ensure any traffic*/
