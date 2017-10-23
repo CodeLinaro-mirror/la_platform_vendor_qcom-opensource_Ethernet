@@ -1000,16 +1000,23 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			NDBGPR_L1("%s: Failed to find ntn-mdio-bus-id value, hardcoding to 1\n", __func__);
 			pdata->mdio_bus_id = mdio_bus_id;
 		} else {
-			NDBGPR_L1("%s: ntn-mdio-bus-id = %d msec\n", __func__, pdata->mdio_bus_id);
+			NDBGPR_L1("%s: ntn-mdio-bus-id = %d \n", __func__, pdata->mdio_bus_id);
 		}
 
 		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-phy-addr", &pdata->phyaddr);
 
 		if (ret) {
-			NDBGPR_L1("%s: Failed to find ntn-phy-addr value\n", __func__);
+			NDBGPR_L1("%s: Failed to find ntn-phy-addr value, need find phy id\n", __func__);
 			pdata->phyaddr = NTN_INVALID_PHY_ADDR;
 		} else {
 			NDBGPR_L1("%s: ntn-phy-addr = %d \n", __func__, pdata->phyaddr);
+		}
+		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-phy-speed-mode", (u32*)&pdata->phy_speed_mode);
+		if (ret) {
+			NDBGPR_L1("%s: Failed to find ntn-phy-speed-mode value\n", __func__);
+			pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+		} else {
+			NDBGPR_L1("%s: ntn-phy-speed-mode = %d \n", __func__, pdata->phy_speed_mode);
 		}
 	} else {
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
