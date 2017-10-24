@@ -2677,15 +2677,15 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data, struct DWC_
 	/*Poll Until Poll Condition */
 	vy_count = 0;
 	while (1) {
+		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
+		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
+			break;
+		}
 		if (vy_count > retryCount) {
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			usleep_range(1000, 1100);
-		}
-		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
-		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
-			break;
+			usleep_range(10, 11);
 		}
 	}
 	/* write the data */
@@ -2704,21 +2704,21 @@ static INT write_phy_regs(INT phy_id, INT phy_reg, INT phy_reg_data, struct DWC_
 	MAC_GMIIAR_RgWr(varMAC_GMIIAR);
 
 	/*DELAY IMPLEMENTATION USING udelay() */
-	udelay(10);
+	udelay(30);
 	/* wait for MII write operation to complete */
 
 	/*Poll Until Poll Condition */
 	vy_count = 0;
 	while (1) {
+		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
+		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
+			break;
+		}
 		if (vy_count > retryCount) {
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			usleep_range(1000, 1100);
-		}
-		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
-		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
-			break;
+			usleep_range(10, 11);
 		}
 	}
 
@@ -2747,15 +2747,15 @@ static INT read_phy_regs(INT phy_id, INT phy_reg, INT *phy_reg_data, struct DWC_
 	/*Poll Until Poll Condition */
 	vy_count = 0;
 	while (1) {
+		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
+		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
+			break;
+		}
 		if (vy_count > retryCount) {
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			usleep_range(1000, 1100);
-		}
-		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
-		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
-			break;
+			usleep_range(10, 11);
 		}
 	}
 	/* initiate the MII read operation by updating desired */
@@ -2772,21 +2772,21 @@ static INT read_phy_regs(INT phy_id, INT phy_reg, INT *phy_reg_data, struct DWC_
 	MAC_GMIIAR_RgWr(varMAC_GMIIAR);
 
 	/*DELAY IMPLEMENTATION USING udelay() */
-	udelay(10);
+	udelay(30);
 	/* wait for MII write operation to complete */
 
 	/*Poll Until Poll Condition */
 	vy_count = 0;
 	while (1) {
+		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
+		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
+			break;
+		}
 		if (vy_count > retryCount) {
 			return -Y_FAILURE;
 		} else {
 			vy_count++;
-			usleep_range(1000, 1100);
-		}
-		MAC_GMIIAR_RgRd(varMAC_GMIIAR);
-		if (GET_VALUE(varMAC_GMIIAR, MAC_GMIIAR_GB_LPOS, MAC_GMIIAR_GB_HPOS) == 0) {
-			break;
+			usleep_range(10, 11);
 		}
 	}
 	/* read the data */
