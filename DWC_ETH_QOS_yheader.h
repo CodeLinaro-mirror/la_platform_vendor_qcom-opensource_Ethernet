@@ -675,6 +675,8 @@
 #define CONFIG_ARCH_DMA_ADDR_T_64BIT
 #endif
 
+#define NTN_M3_IP_PARAM_START 0xC900
+#define NTN_MR_IP_PARAMS_MAGIC_COOKIE "0xDEFBAC"
 /* C data types typedefs */
 
 typedef unsigned short BOOL;
@@ -1766,6 +1768,12 @@ typedef enum {
 	eSAVE,
 	eRESTORE
 } e_int_state;
+struct ip_params {
+	char mac_addr[32];
+	char link_speed[32];
+	char ip_addr[32];
+	char magic_cookie[32];
+};
 
 /* Function prototypes*/
 
