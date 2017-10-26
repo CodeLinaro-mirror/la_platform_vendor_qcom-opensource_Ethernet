@@ -104,22 +104,35 @@ INT DWC_ETH_QOS_mdio_read_direct(struct DWC_ETH_QOS_prv_data *pdata,
 {
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	int phy_reg_read_status;
+	int dev_type=0;
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_read_direct: phyaddr = %d, phyreg = %d\n",
-	      phyaddr, phyreg);
+		phyaddr, phyreg);
 
-        if (!pdata->enable_phy) {
-                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
-                return -1;
-        }
+	if (!pdata->enable_phy) {
+		NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		return -1;
+	}
 
-	if (hw_if->read_phy_regs) {
-		phy_reg_read_status =
-		    hw_if->read_phy_regs(phyaddr, phyreg, phydata, pdata);
-	} else {
-		phy_reg_read_status = 1;
-		NMSGPR_ALERT( "%s: hw_if->read_phy_regs not defined",
-		       DEV_NAME);
+	if (phyreg & MII_ADDR_C45) {
+		dev_type = ((phyreg >> 16) & 0x1f);
+		if (hw_if->read_phy_regs_c45){
+			phy_reg_read_status =
+				hw_if->read_phy_regs_c45(phyaddr, dev_type, phyreg, phydata, pdata);
+		}else {
+			phy_reg_read_status = 1;
+			NMSGPR_ALERT( "%s: hw_if->read_phy_regs_c45 not defined",
+			   DEV_NAME);
+		}
+	}else {
+		if (hw_if->read_phy_regs) {
+			phy_reg_read_status =
+				hw_if->read_phy_regs(phyaddr, phyreg, phydata, pdata);
+		}else {
+			phy_reg_read_status = 1;
+			NMSGPR_ALERT( "%s: hw_if->read_phy_regs not defined",
+				DEV_NAME);
+		}
 	}
 
 	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_read_direct: phydata = %#x\n", *phydata);
@@ -152,22 +165,35 @@ INT DWC_ETH_QOS_mdio_write_direct(struct DWC_ETH_QOS_prv_data *pdata,
 {
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	int phy_reg_write_status;
+	int dev_type=0;
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write_direct: phyaddr = %d, phyreg = %d, phydata = %#x\n",
 	      phyaddr, phyreg, phydata);
 
-        if (!pdata->enable_phy) {
-                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
-                return -1;
-        }
+	if (!pdata->enable_phy) {
+		NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		return -1;
+	}
 
-	if (hw_if->write_phy_regs) {
-		phy_reg_write_status =
-		    hw_if->write_phy_regs(phyaddr, phyreg, phydata, pdata);
+	if (phyreg & MII_ADDR_C45) {
+		dev_type = ((phyreg >> 16) & 0x1f);
+		if (hw_if->write_phy_regs_c45){
+			phy_reg_write_status =
+				hw_if->write_phy_regs_c45(phyaddr, dev_type, phyreg, phydata, pdata);
+		} else {
+			phy_reg_write_status = 1;
+			NMSGPR_ALERT( "%s: hw_if->write_phy_regs_c45 not defined",
+				   DEV_NAME);
+		}
 	} else {
-		phy_reg_write_status = 1;
-		NMSGPR_ALERT( "%s: hw_if->write_phy_regs not defined",
-		       DEV_NAME);
+		if (hw_if->write_phy_regs) {
+			phy_reg_write_status =
+				hw_if->write_phy_regs(phyaddr, phyreg, phydata, pdata);
+		} else {
+			phy_reg_write_status = 1;
+			NMSGPR_ALERT( "%s: hw_if->write_phy_regs not defined",
+				DEV_NAME);
+		}
 	}
 
 	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_write_direct\n");
@@ -196,20 +222,31 @@ static INT DWC_ETH_QOS_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	int phydata;
+	int dev_type=0;
 
-        if (!pdata->enable_phy) {
-                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
-                return -1;
-        }
+	if (!pdata->enable_phy) {
+		NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		return -1;
+	}
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_read: phyaddr = %d, phyreg = %d\n",
 	      phyaddr, phyreg);
 
-	if (hw_if->read_phy_regs) {
-		hw_if->read_phy_regs(phyaddr, phyreg, &phydata, pdata);
+	if (phyreg & MII_ADDR_C45) {
+		dev_type = ((phyreg >> 16) & 0x1f);
+		if (hw_if->read_phy_regs_c45){
+			hw_if->read_phy_regs_c45(phyaddr, dev_type, phyreg, &phydata, pdata);
+		} else {
+			NMSGPR_ALERT( "%s: hw_if->read_phy_regs_c45 not defined",
+			DEV_NAME);
+		}
 	} else {
-		NMSGPR_ALERT( "%s: hw_if->read_phy_regs not defined",
-		       DEV_NAME);
+		if (hw_if->read_phy_regs) {
+			hw_if->read_phy_regs(phyaddr, phyreg, &phydata, pdata);
+		} else {
+			NMSGPR_ALERT( "%s: hw_if->read_phy_regs not defined",
+				DEV_NAME);
+		}
 	}
 
 	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_read: phydata = %#x\n", phydata);
@@ -239,6 +276,7 @@ static INT DWC_ETH_QOS_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	INT ret = Y_SUCCESS;
+	int dev_type=0;
 
 	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_write: phyaddr = %d, phyreg = %d, phydata = %#x\n",
 	      phyaddr, phyreg, phydata);
@@ -252,12 +290,24 @@ static INT DWC_ETH_QOS_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
                 return -1;
         }
 
-	if (hw_if->write_phy_regs) {
-		hw_if->write_phy_regs(phyaddr, phyreg, phydata, pdata);
-	} else {
-		ret = -1;
-		NMSGPR_ALERT( "%s: hw_if->write_phy_regs not defined",
-		       DEV_NAME);
+	if (phyreg & MII_ADDR_C45) {
+		dev_type = ((phyreg >> 16) & 0x1f);
+		if (hw_if->write_phy_regs_c45){
+			hw_if->write_phy_regs_c45(phyaddr, dev_type, phyreg, phydata, pdata);
+		}else {
+			ret = -1;
+			NMSGPR_ALERT( "%s: hw_if->write_phy_regs_c45 not defined",
+				DEV_NAME);
+		}
+	}
+	else {
+		if (hw_if->write_phy_regs) {
+			hw_if->write_phy_regs(phyaddr, phyreg, phydata, pdata);
+		} else {
+			ret = -1;
+			NMSGPR_ALERT( "%s: hw_if->write_phy_regs not defined",
+				DEV_NAME);
+		}
 	}
 
 	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_write\n");
