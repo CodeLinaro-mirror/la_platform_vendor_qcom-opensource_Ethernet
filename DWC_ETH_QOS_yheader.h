@@ -835,6 +835,8 @@ struct hw_if_struct {
 
 	INT(*read_phy_regs) (INT, INT, INT*, struct DWC_ETH_QOS_prv_data *);
 	INT(*write_phy_regs) (INT, INT, INT, struct DWC_ETH_QOS_prv_data *);
+	INT(*read_phy_regs_c45) (INT, INT, INT, INT*, struct DWC_ETH_QOS_prv_data *);
+	INT(*write_phy_regs_c45) (INT, INT, INT, INT, struct DWC_ETH_QOS_prv_data *);
 	INT(*set_full_duplex) (struct DWC_ETH_QOS_prv_data *);
 	INT(*set_half_duplex) (struct DWC_ETH_QOS_prv_data *);
 	INT(*set_mii_speed_100) (struct DWC_ETH_QOS_prv_data *);
