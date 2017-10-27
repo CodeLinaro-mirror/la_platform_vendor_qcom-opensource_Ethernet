@@ -540,6 +540,7 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 {
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct phy_device *phydev = NULL;
+	int regval = 0;
 
 	DBGPR_MDIO("-->DWC_ETH_QOS_init_phy\n");
 	if (!pdata->enable_phy) {
@@ -581,6 +582,16 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 
 	phydev->advertising = phydev->supported;
 	pdata->phydev = phydev;
+	if (pdata->phy_speed_mode != DWC_ETH_QOS_PHY_SPEED_AUTO) {
+		phydev->autoneg = AUTONEG_DISABLE;
+		regval = 0;
+		if (pdata->phy_speed_mode == DWC_ETH_QOS_PHY_SPEED_1000M)
+			regval = BMCR_SPEED1000;
+		else if (pdata->phy_speed_mode == DWC_ETH_QOS_PHY_SPEED_100M)
+			regval = BMCR_SPEED100;
+		regval |= BMCR_FULLDPLX;
+		DWC_ETH_QOS_mdio_write_direct(pdata, pdata->phyaddr, MII_BMCR, regval);
+	}
 	DBGPR_MDIO("<--DWC_ETH_QOS_init_phy\n");
 
 	return 0;
