@@ -525,11 +525,6 @@ static int DWC_ETH_QOS_pci_resume(struct pci_dev *pdev)
 		goto exit;
 	}
 
-	ret = msm_pcie_recover_config(pdev);
-	if (ret) {
-		NMSGPR_ALERT("%s: Failed to restore PCI config\n", __func__);
-		goto exit;
-	}
 
 
 exit:
@@ -1025,6 +1020,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	} else {
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
 	}
+
+	pdata->phy_wol_enable = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-phy-wol-enable");
+	NDBGPR_L1("%s: phy_wol_enable = %d\n", __func__, pdata->phy_wol_enable);
+
 	pparams = (struct ip_params *)(dwc_eth_ntn_SRAM_pci_base_addr_virt + NTN_M3_IP_PARAM_START);
 	NDBGPR_L1("pparams->magic_cookie = %s",pparams->magic_cookie);
 	if(0 == strncmp(NTN_MR_IP_PARAMS_MAGIC_COOKIE,pparams->magic_cookie,strlen(NTN_MR_IP_PARAMS_MAGIC_COOKIE)))
@@ -1597,7 +1596,6 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, true);
 #endif
-	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
 	pci_set_master(pdev);
 
 	/* Recover NTN in case whole chip was in reset */
@@ -1616,6 +1614,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	}
 #endif
 	pci_enable_msi(pdev);
+	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
 	ret = DWC_ETH_QOS_powerup(dev, DWC_ETH_QOS_DRIVER_CONTEXT);
 	if ((pdata->ipa_enabled)&&(pdata->prv_ipa.ipa_offload_susp)){
 		DWC_ETH_QOS_ipa_offload_resume(pdata);
