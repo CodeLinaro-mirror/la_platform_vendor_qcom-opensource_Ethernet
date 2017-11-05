@@ -1553,8 +1553,7 @@ static void DWC_ETH_QOS_default_common_confs(struct DWC_ETH_QOS_prv_data *pdata)
 	pdata->hwts_tx_en = 0;
 	pdata->hwts_rx_en = 0;
 	pdata->l3_l4_filter = 0;
-	//pdata->l2_filtering_mode = !!pdata->hw_feat.hash_tbl_sz;
-	pdata->l2_filtering_mode = 0;
+	pdata->l2_filtering_mode = 1;
 	pdata->tx_path_in_lpi_mode = 0;
 	pdata->use_lpi_tx_automate = true;
 	pdata->eee_active = 0;
@@ -2174,7 +2173,6 @@ static void DWC_ETH_QOS_set_rx_mode(struct net_device *dev)
 			hpf_mode = 1;
 		}
 	}
-
 	hw_if->config_mac_pkt_filter_reg(pr_mode, huc_mode,
 		hmc_mode, pm_mode, hpf_mode, pdata);
 
@@ -5716,20 +5714,21 @@ INT DWC_ETH_QOS_powerdown(struct net_device *dev, UINT wakeup_type,
 		hw_if->enable_magic_pmt(pdata);
 	pdata->power_down_type = wakeup_type;
 
-	if (pdata->power_down_type) {
-		/* Setup the PHY to 10M for power saving */
-		DWC_ETH_QOS_enable_phy_wol(pdata);
-		/* For WOL functionality, magic packets are only detected by
-		 * the MAC0 filter */
-		hw_if->configure_mac_addr0_reg(pdata->dev->dev_addr, pdata);
-		/* Configure the PME interrupt pin
-		   pme_mac_msk (BIT4)=0; unmask mac_pmt_intr_o
-		   pme_o_pls (BIT16)=0; level signal
-		   pme_o_lvl (BIT17)=0; active low level signal
-		*/
-		hw_if->ntn_config_pme(0x0F00000F, pdata);
+	if (pdata->phy_wol_enable) {
+		if (pdata->power_down_type) {
+			/* Setup the PHY to 10M for power saving */
+			DWC_ETH_QOS_enable_phy_wol(pdata);
+			/* For WOL functionality, magic packets are only detected by
+			* the MAC0 filter */
+			hw_if->configure_mac_addr0_reg(pdata->dev->dev_addr, pdata);
+			/* Configure the PME interrupt pin
+			   pme_mac_msk (BIT4)=0; unmask mac_pmt_intr_o
+			   pme_o_pls (BIT16)=0; level signal
+			   pme_o_lvl (BIT17)=0; active low level signal
+			*/
+			hw_if->ntn_config_pme(0x0F00000F, pdata);
+		}
 	}
-
 	if (caller == DWC_ETH_QOS_IOCTL_CONTEXT)
 		pdata->power_down = 1;
 
@@ -5802,8 +5801,10 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	mutex_lock(&pdata->pmt_lock);
 
 	/* Return PHY to original state before suspend */
-	if (pdata->power_down_type)
-		DWC_ETH_QOS_disable_phy_wol(pdata);
+	if (pdata->phy_wol_enable) {
+		if (pdata->power_down_type)
+			DWC_ETH_QOS_disable_phy_wol(pdata);
+	}
 
 	if (pdata->power_down_type & DWC_ETH_QOS_MAGIC_WAKEUP) {
 		hw_if->disable_magic_pmt(pdata);
@@ -5830,7 +5831,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 		if (pdata->eee_enabled)
 			del_timer_sync(&pdata->eee_ctrl_timer);
 		DWC_ETH_QOS_init_common(dev);
-	} else {
+	} else if (pdata->phy_wol_enable) {
 		/* Re-initialize the MAC since it can get reset during WOL */
 		hw_if->init(pdata);
 		if (pdata->enable_phy && pdata->phydev)
