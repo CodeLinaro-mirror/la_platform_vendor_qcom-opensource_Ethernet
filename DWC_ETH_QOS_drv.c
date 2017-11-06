@@ -3148,7 +3148,8 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
             		buffer->dma_iommu = 0;
             		skb->data = buffer->skb_temp_data_ptr;
 #else
-			dma_unmap_single(&pdata->pdev->dev, buffer->dma, pdata->rx_buffer_len, DMA_FROM_DEVICE);
+			if (0 != buffer->dma)
+				dma_unmap_single(&pdata->pdev->dev, buffer->dma, pdata->rx_buffer_len, DMA_FROM_DEVICE);
 #endif
 
 			buffer->dma = 0;
