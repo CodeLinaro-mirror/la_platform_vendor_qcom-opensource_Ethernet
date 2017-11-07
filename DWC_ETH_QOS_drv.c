@@ -5788,6 +5788,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	struct desc_if_struct *desc_if = &(pdata->desc_if);
+	UINT rd_val;
 
 	DBGPR("-->DWC_ETH_QOS_powerup\n");
 
@@ -5823,6 +5824,12 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 		return -EBUSY;
 	}
 
+	/* Read MAC configuration register to check if neutrino reset
+	 * during suspend.
+	 * If reset the default value is 0.
+	 */
+	MAC_MCR_RgRd(rd_val);
+	if(0 == rd_val) {
 	if (pdata->pcierst_resx) {
 		if (hw_if->ntn_boot_host_initiated(pdata)) {
 			/* Clean old rx skbs to avoid leak since they are allocated
@@ -5832,6 +5839,7 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 			if (pdata->eee_enabled)
 				del_timer_sync(&pdata->eee_ctrl_timer);
 			DWC_ETH_QOS_init_common(dev);
+			}
 		}
 	} else if (pdata->phy_wol_enable) {
 		/* Re-initialize the MAC since it can get reset during WOL */
