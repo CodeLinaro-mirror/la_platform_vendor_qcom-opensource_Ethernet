@@ -155,8 +155,9 @@ int DWC_ETH_QOS_poll(struct DWC_ETH_QOS_prv_data *pdata, int budget, int chInx);
 
 static void DWC_ETH_QOS_mmc_setup(struct DWC_ETH_QOS_prv_data *pdata);
 inline unsigned int DWC_ETH_QOS_reg_read(volatile ULONG *ptr);
-
+#ifndef DWC_ETH_QOS_BUILTIN
 static INT DWC_ETH_QOS_config_phy_aneg (struct DWC_ETH_QOS_prv_data *pdata, unsigned int enb_dis, unsigned int restart);
+#endif
 
 #ifdef DWC_ETH_QOS_QUEUE_SELECT_ALGO
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0) )

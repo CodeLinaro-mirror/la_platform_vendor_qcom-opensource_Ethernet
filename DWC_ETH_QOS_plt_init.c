@@ -59,6 +59,7 @@ extern void DWC_ETH_QOS_exit_module(void);
 
 struct list_head ntn_plt_data_list;
 
+#ifndef DWC_ETH_QOS_BUILTIN
 static int setup_regulator_common(struct device *dev, const char *name_supply,
 				  const char *name, struct regulator **vreg,
 				  int min_uV, int max_uV)
@@ -267,6 +268,7 @@ static void DWC_ETH_QOS_free_regs_and_gpios(struct DWC_ETH_QOS_plt_data *plt_dat
 	if (plt_data->ntn_reg_hsic)
 		regulator_put(plt_data->ntn_reg_hsic);
 }
+#endif
 
 static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 {
@@ -348,7 +350,9 @@ DWC_ETH_QOS_err_pcie_probe:
 static int DWC_ETH_QOS_pcie_remove(struct platform_device *pdev)
 {
 	int ret = 0;
+#ifndef DWC_ETH_QOS_BUILTIN
 	struct DWC_ETH_QOS_plt_data *plt_data;
+#endif
 	DBGPR( "Entry:%s.\n", __func__);
 
 #ifndef DWC_ETH_QOS_BUILTIN

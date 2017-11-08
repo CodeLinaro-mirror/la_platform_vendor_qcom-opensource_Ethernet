@@ -1676,7 +1676,7 @@ static void DWC_ETH_QOS_default_rx_confs(struct DWC_ETH_QOS_prv_data *pdata)
  *  \retval  0 Success
  *  \retval -1 Failure
  */
-
+#ifndef DWC_ETH_QOS_BUILTIN
 static INT DWC_ETH_QOS_config_phy_aneg (struct DWC_ETH_QOS_prv_data *pdata, unsigned int enb_dis, unsigned int restart) {
 	int regval;
 
@@ -1694,6 +1694,7 @@ static INT DWC_ETH_QOS_config_phy_aneg (struct DWC_ETH_QOS_prv_data *pdata, unsi
 
 	return Y_SUCCESS;
 }
+#endif
 
 /*!
 * \brief Common init function used on interface up and also resume

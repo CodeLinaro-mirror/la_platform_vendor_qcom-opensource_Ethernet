@@ -776,11 +776,11 @@ static ssize_t show_mac_addr(struct device *dev,
 }
 
 static ssize_t store_mac_addr(struct device *dev,
-	struct device_attribute *attr, char *buf, size_t count)
+	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct net_device *ndev = pci_get_drvdata(to_pci_dev(dev));
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
-	char *mac_str = buf;
+	char *mac_str = (char *)buf;
 
 	mutex_lock(&pdata->mac_lock);
 	extract_macid(mac_str);
