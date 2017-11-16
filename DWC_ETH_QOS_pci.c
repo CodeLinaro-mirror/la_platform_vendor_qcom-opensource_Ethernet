@@ -1013,7 +1013,11 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-phy-speed-mode", (u32*)&pdata->phy_speed_mode);
 		if (ret) {
 			NDBGPR_L1("%s: Failed to find ntn-phy-speed-mode value\n", __func__);
-			pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+			if (pdata->rmii_mode) {
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_100M;
+			} else {
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+			}
 		} else {
 			NDBGPR_L1("%s: ntn-phy-speed-mode = %d \n", __func__, pdata->phy_speed_mode);
 		}
