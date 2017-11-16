@@ -525,11 +525,6 @@ static int DWC_ETH_QOS_pci_resume(struct pci_dev *pdev)
 		goto exit;
 	}
 
-	ret = msm_pcie_recover_config(pdev);
-	if (ret) {
-		NMSGPR_ALERT("%s: Failed to restore PCI config\n", __func__);
-		goto exit;
-	}
 
 
 exit:
@@ -722,6 +717,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
 	ULONG phy_mem_adrs;
 #endif
+	struct ip_params *pparams;
+	unsigned char mac_addr[18] = {'E','8',':','E','0',':','B','7',':','B','5',':','7','D',':','F','8','\0'};
+	int speed = 0;
 
 	NDBGPR_L1("Debug version\n");
 
@@ -844,6 +842,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	dev->dev_addr[4] = dev_addr[4];
 	dev->dev_addr[5] = dev_addr[5];
 
+
 	dev->base_addr = dwc_eth_ntn_reg_pci_base_addr;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	pdata = netdev_priv(dev);
@@ -945,7 +944,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			NDBGPR_L1("%s: fw_load_delay = %d msec\n", __func__, pdata->fw_load_delay);
 		}
 
+		pdata->pcierst_resx = 0;
+#ifndef DWC_ETH_QOS_BUILTIN
 		pdata->pcierst_resx = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-pcierst-resx");
+#endif
 		NDBGPR_L1("%s: pcierst_resx = %d\n", __func__, pdata->pcierst_resx);
 
 		pdata->enable_phy = !of_property_read_bool(pldev->dev.of_node, "qcom,ntn-disable-phy");
@@ -997,19 +999,65 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			NDBGPR_L1("%s: Failed to find ntn-mdio-bus-id value, hardcoding to 1\n", __func__);
 			pdata->mdio_bus_id = mdio_bus_id;
 		} else {
-			NDBGPR_L1("%s: ntn-mdio-bus-id = %d msec\n", __func__, pdata->mdio_bus_id);
+			NDBGPR_L1("%s: ntn-mdio-bus-id = %d \n", __func__, pdata->mdio_bus_id);
 		}
 
 		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-phy-addr", &pdata->phyaddr);
 
 		if (ret) {
-			NDBGPR_L1("%s: Failed to find ntn-phy-addr value\n", __func__);
+			NDBGPR_L1("%s: Failed to find ntn-phy-addr value, need find phy id\n", __func__);
 			pdata->phyaddr = NTN_INVALID_PHY_ADDR;
 		} else {
 			NDBGPR_L1("%s: ntn-phy-addr = %d \n", __func__, pdata->phyaddr);
 		}
+		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-phy-speed-mode", (u32*)&pdata->phy_speed_mode);
+		if (ret) {
+			NDBGPR_L1("%s: Failed to find ntn-phy-speed-mode value\n", __func__);
+			pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+		} else {
+			NDBGPR_L1("%s: ntn-phy-speed-mode = %d \n", __func__, pdata->phy_speed_mode);
+		}
 	} else {
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
+	}
+
+	pdata->phy_wol_enable = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-phy-wol-enable");
+	NDBGPR_L1("%s: phy_wol_enable = %d\n", __func__, pdata->phy_wol_enable);
+
+	pparams = (struct ip_params *)(dwc_eth_ntn_SRAM_pci_base_addr_virt + NTN_M3_IP_PARAM_START);
+	NDBGPR_L1("pparams->magic_cookie = %s",pparams->magic_cookie);
+	if(0 == strncmp(NTN_MR_IP_PARAMS_MAGIC_COOKIE,pparams->magic_cookie,strlen(NTN_MR_IP_PARAMS_MAGIC_COOKIE)))
+	{
+		NDBGPR_L1("mac_addr = %s\n", pparams->mac_addr);
+		NDBGPR_L1("link_speed = %s\n", pparams->link_speed);
+		NDBGPR_L1("ip_addr = %s\n", pparams->ip_addr);
+		memcpy(&mac_addr,pparams->mac_addr,strlen(mac_addr));
+		NDBGPR_L1( "default MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+		extract_macid((char *)&mac_addr);
+		NDBGPR_L1( "New MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+		if (pdata && pdata->dev) {
+			memcpy(pdata->mac_addr, dev_addr, sizeof(dev_addr));
+			memcpy(pdata->dev->dev_addr, dev_addr, sizeof(dev_addr));
+		}
+		sscanf((char *)&pparams->link_speed, "%d", &speed);
+		NDBGPR_L1("%s link_speed = %d, \n",__func__, speed);
+		switch(speed) {
+			case 10:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_10M);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_10M;
+				break;
+			case 100:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_100M);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_100M;
+				break;
+			case 1000:
+			default:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_AUTO);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+				break;
+		}
 	}
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
@@ -1210,6 +1258,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			pr_err("Unable to register bus client\n");
 	} else
 		pr_err("msm_bus_cl_get_pdata() failed\n");
+	device_disable_async_suspend(&pdev->dev);
 	return 0;
 
  err_out_netdev_failed:
@@ -1488,8 +1537,11 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, false);
 #endif
+	pci_disable_device(pdev);
 	pci_save_state(pdev);
+	pdata->saved_state = pci_store_saved_state(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	DWC_ETH_QOS_pci_suspend(pdev);
 
 	DBGPR("<--DWC_ETH_QOS_suspend\n");
 
@@ -1532,11 +1584,19 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
+	DWC_ETH_QOS_pci_resume(pdev);
 	pci_set_power_state(pdev, PCI_D0);
+	pci_load_and_free_saved_state(pdev,&pdata->saved_state);
 	pci_restore_state(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret) {
+		NMSGPR_ALERT( "%s:Unable to enable device\n", DEV_NAME);
+		return -EPERM;
+	}
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, true);
 #endif
+	pci_set_master(pdev);
 
 	/* Recover NTN in case whole chip was in reset */
 	if (pdata->pcierst_resx) {
@@ -1549,13 +1609,16 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
+	if (pdata->ipa_enabled){
+		DWC_ETH_QOS_config_ipareg_map(pdev);
+	}
 #endif
-
 	pci_enable_msi(pdev);
+	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
 	ret = DWC_ETH_QOS_powerup(dev, DWC_ETH_QOS_DRIVER_CONTEXT);
-	if (pdata->prv_ipa.ipa_offload_susp)
+	if ((pdata->ipa_enabled)&&(pdata->prv_ipa.ipa_offload_susp)){
 		DWC_ETH_QOS_ipa_offload_resume(pdata);
-
+	}
 	/* Hold the wake lock for 5sec to ensure any traffic*/
 	pm_wakeup_event(&pdev->dev, 5000);
 

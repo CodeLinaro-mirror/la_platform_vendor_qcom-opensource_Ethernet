@@ -675,6 +675,8 @@
 #define CONFIG_ARCH_DMA_ADDR_T_64BIT
 #endif
 
+#define NTN_M3_IP_PARAM_START 0xC900
+#define NTN_MR_IP_PARAMS_MAGIC_COOKIE "0xDEFBAC"
 /* C data types typedefs */
 
 typedef unsigned short BOOL;
@@ -799,6 +801,12 @@ typedef enum {
 	eDWC_ETH_QOS_32k = 0x7f
 } eDWC_ETH_QOS_mtl_fifo_size;
 
+typedef enum {
+	DWC_ETH_QOS_PHY_SPEED_AUTO = 0x0,
+	DWC_ETH_QOS_PHY_SPEED_1000M = 0x1,
+	DWC_ETH_QOS_PHY_SPEED_100M = 0x2,
+	DWC_ETH_QOS_PHY_SPEED_10M = 0x3,
+} DWC_ETH_QOS_phy_speed_mode;
 /* do forward declaration of private data structure */
 struct DWC_ETH_QOS_prv_data;
 struct DWC_ETH_QOS_tx_wrapper_descriptor;
@@ -1547,6 +1555,7 @@ struct DWC_ETH_QOS_prv_data {
 	UCHAR rx_q_for_host[NTN_RX_Q_CNT];
 	UCHAR rx_dma_ch_for_host[NTN_DMA_RX_CH_CNT];
 
+	DWC_ETH_QOS_phy_speed_mode phy_speed_mode;
 	struct mii_bus *mii;
 	struct phy_device *phydev;
 	struct delayed_work phy_dwork;
@@ -1720,6 +1729,8 @@ struct DWC_ETH_QOS_prv_data {
 	/* Decide if PHY is enabled or not */
 	bool enable_phy;
 
+	/* Decide if PHY wake-on-lan(WOL) feature enabled or not */
+	bool phy_wol_enable;
 	/* Timestamp valid window. AVTP packets are held
 	 * if the timestamp is within the window */
 	unsigned int ntn_timestamp_valid_window;
@@ -1736,6 +1747,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	unsigned int bus_client;
 	int current_bandwidth_vote;
+	struct pci_saved_state *saved_state;
 };
 
 struct DWC_ETH_QOS_plt_data {
@@ -1758,6 +1770,12 @@ typedef enum {
 	eSAVE,
 	eRESTORE
 } e_int_state;
+struct ip_params {
+	char mac_addr[32];
+	char link_speed[32];
+	char ip_addr[32];
+	char magic_cookie[32];
+};
 
 /* Function prototypes*/
 
