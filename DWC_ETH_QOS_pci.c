@@ -1013,7 +1013,11 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		ret = of_property_read_u32(pldev->dev.of_node, "qcom,ntn-phy-speed-mode", (u32*)&pdata->phy_speed_mode);
 		if (ret) {
 			NDBGPR_L1("%s: Failed to find ntn-phy-speed-mode value\n", __func__);
-			pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+			if (pdata->rmii_mode) {
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_100M;
+			} else {
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+			}
 		} else {
 			NDBGPR_L1("%s: ntn-phy-speed-mode = %d \n", __func__, pdata->phy_speed_mode);
 		}
@@ -1576,6 +1580,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	INT ret;
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	UINT rd_val;
 
 	DBGPR("-->DWC_ETH_QOS_resume\n");
 
@@ -1598,15 +1603,21 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 #endif
 	pci_set_master(pdev);
 
-	/* Recover NTN in case whole chip was in reset */
-	if (pdata->pcierst_resx) {
-		if (hw_if->ntn_boot_host_initiated(pdata)) {
-			DWC_ETH_QOS_load_fw(pdev);
-			if (pdata->ipa_enabled)
-				hw_if->enable_offload(pdata);
+	/* Read MAC configuration register to check if neutrino reset
+	 * during suspend.
+	 * If reset the default value is 0.
+	 */
+	MAC_MCR_RgRd(rd_val);
+	if(0 == rd_val) {
+		/* Recover NTN in case whole chip was in reset */
+		if (pdata->pcierst_resx) {
+			if (hw_if->ntn_boot_host_initiated(pdata)) {
+				DWC_ETH_QOS_load_fw(pdev);
+				if (pdata->ipa_enabled)
+					hw_if->enable_offload(pdata);
+			}
 		}
 	}
-
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
 	if (pdata->ipa_enabled){
