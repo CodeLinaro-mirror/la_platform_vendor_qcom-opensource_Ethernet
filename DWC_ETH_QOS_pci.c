@@ -457,6 +457,7 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	const struct firmware *fw_entry = NULL;
 	unsigned int reg_val;
+	unsigned int timeout = 0;
 
         if (fw_filename[0] == '\0') {
                 NMSGPR_ALERT("Firmware filename not given.\n");
@@ -487,8 +488,16 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 
 	release_firmware(fw_entry);
 
-	/* Wait a moment for the Neutrino to boot */
-	msleep(pdata->fw_load_delay);
+	while(1 != ioread32( (void*)(pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt +
+				NTN_BOOT_COMPLETE_OFFSET))) {
+		//wait for neutrino to boot
+		if(100 < timeout) {
+			NMSGPR_ALERT("%s: Neutrino boot complete failed, timeout after 200 msec\n", __func__);
+			break;
+		}
+		msleep(2);
+		timeout++;
+	}
 
 	NMSGPR_INFO("Firmware loaded\n");
 
@@ -1074,7 +1083,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		goto err_out_map_failed;
 	}
 
-	/*
 	{
 	unsigned int rd_val;
 
@@ -1088,7 +1096,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	NDBGPR_L1( "HFR1 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA120));
 	NDBGPR_L1( "HFR2 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA124));
 	}
-	*/
 	/* queue count */
 	tx_q_count = get_tx_queue_count(dwc_eth_ntn_reg_pci_base_addr);
 	rx_q_count = get_rx_queue_count(dwc_eth_ntn_reg_pci_base_addr);
@@ -1295,10 +1302,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	 * should be configured prior to GMAC clock enable/reset. */
 	hw_if->ntn_set_phy_intf(pdata);
 
-    /* issue clock enable to GMAC device */
-    hw_if->ntn_mac_clock_config(0x1, pdata);
-    /* issue software reset to GMAC device */
-    hw_if->exit(pdata);
+	/* issue clock enable to GMAC device */
+	hw_if->ntn_mac_clock_config(0x1, pdata);
+	/* issue software reset to GMAC device */
+	hw_if->exit(pdata);
 
 	//Assert TDM reset, in case if it is on.
 	reg_val = hw_if->ntn_reg_rd(0x1008, 0, pdata);

@@ -686,6 +686,7 @@
 
 #define NTN_M3_IP_PARAM_START 0xC900
 #define NTN_MR_IP_PARAMS_MAGIC_COOKIE "0xDEFBAC"
+#define NTN_BOOT_COMPLETE_OFFSET 0xC848
 
 /* C data types typedefs */
 
