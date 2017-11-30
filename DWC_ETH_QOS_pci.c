@@ -1286,58 +1286,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	} else {
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
 	}
-	//read ip parameters from neutrino SRAM
-	pparams = (struct ip_params *)(dwc_eth_ntn_SRAM_pci_base_addr_virt + NTN_M3_IP_PARAM_START);
-	NDBGPR_L1("pparams->magic_cookie = %s",pparams->magic_cookie);
-	if(0 == strncmp(NTN_MR_IP_PARAMS_MAGIC_COOKIE,pparams->magic_cookie,strlen(NTN_MR_IP_PARAMS_MAGIC_COOKIE)))
-	{
-		NDBGPR_L1("mac_addr = %s\n", pparams->mac_addr);
-		NDBGPR_L1("link_speed = %s\n", pparams->link_speed);
-		NDBGPR_L1("ip_addr = %s\n", pparams->ip_addr);
-		memcpy(&mac_addr,pparams->mac_addr,sizeof(mac_addr));
-		if(mac_addr[0] < 0xff){
-			is_mac_addr_valid = 1;
-			NMSGPR_ALERT( "default MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-				dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
-			extract_macid((char *)&mac_addr);
-			NMSGPR_ALERT( "New MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-				dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
-		}
-		sscanf((char *)&pparams->link_speed, "%d", &speed);
-		NDBGPR_L1("%s link_speed = %d, \n",__func__, speed);
-		//set the speed read from neutrino sram
-		switch(speed) {
-			case 10:
-				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_10M);
-				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_10M;
-				break;
-			case 100:
-				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_100M);
-				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_100M;
-				break;
-			case 1000:
-			default:
-				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_AUTO);
-				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
-				break;
-		}
-	}
-	if(0 == is_mac_addr_valid) {
-		/* Read mac address from ntn_config.ini file */
-		parse_config_file(mdio_bus_id);
-		if(!is_valid_ether_addr(dev_addr)) {
-			NMSGPR_ALERT( "Not found valid mac address\n");
-			NMSGPR_ALERT( "Using Default MAC Address\n");
-		}
-		NMSGPR_INFO( "MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
-	}
-	dev->dev_addr[0] = dev_addr[0];
-	dev->dev_addr[1] = dev_addr[1];
-	dev->dev_addr[2] = dev_addr[2];
-	dev->dev_addr[3] = dev_addr[3];
-	dev->dev_addr[4] = dev_addr[4];
-	dev->dev_addr[5] = dev_addr[5];
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
@@ -1403,6 +1351,59 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	NMSGPR_INFO("DBG Resvd area: 0x%x\n", pdata->fw_ver_cap);
 	NMSGPR_INFO("NTN FW Version: %d.%d\n", (pdata->fw_ver_cap >> 12),
 				((pdata->fw_ver_cap >> 8) & 0xF));
+
+	//read ip parameters from neutrino SRAM
+	pparams = (struct ip_params *)(dwc_eth_ntn_SRAM_pci_base_addr_virt + NTN_M3_IP_PARAM_START);
+	NDBGPR_L1("pparams->magic_cookie = %s",pparams->magic_cookie);
+	if(0 == strncmp(NTN_MR_IP_PARAMS_MAGIC_COOKIE,pparams->magic_cookie,strlen(NTN_MR_IP_PARAMS_MAGIC_COOKIE)))
+	{
+		NDBGPR_L1("mac_addr = %s\n", pparams->mac_addr);
+		NDBGPR_L1("link_speed = %s\n", pparams->link_speed);
+		NDBGPR_L1("ip_addr = %s\n", pparams->ip_addr);
+		memcpy(&mac_addr,pparams->mac_addr,sizeof(mac_addr));
+		if(mac_addr[0] < 0xff){
+			is_mac_addr_valid = 1;
+			NMSGPR_ALERT( "default MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+				dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+			extract_macid((char *)&mac_addr);
+			NMSGPR_ALERT( "New MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+				dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+		}
+		sscanf((char *)&pparams->link_speed, "%d", &speed);
+		NDBGPR_L1("%s link_speed = %d, \n",__func__, speed);
+		//set the speed read from neutrino sram
+		switch(speed) {
+			case 10:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_10M);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_10M;
+				break;
+			case 100:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_100M);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_100M;
+				break;
+			case 1000:
+			default:
+				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_AUTO);
+				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+				break;
+		}
+	}
+	if(0 == is_mac_addr_valid) {
+		/* Read mac address from ntn_config.ini file */
+		parse_config_file(mdio_bus_id);
+		if(!is_valid_ether_addr(dev_addr)) {
+			NMSGPR_ALERT( "Not found valid mac address\n");
+			NMSGPR_ALERT( "Using Default MAC Address\n");
+		}
+		NMSGPR_INFO( "MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+	}
+	dev->dev_addr[0] = dev_addr[0];
+	dev->dev_addr[1] = dev_addr[1];
+	dev->dev_addr[2] = dev_addr[2];
+	dev->dev_addr[3] = dev_addr[3];
+	dev->dev_addr[4] = dev_addr[4];
+	dev->dev_addr[5] = dev_addr[5];
 
 	/* Verify if IPA is supported in firmware */
 	pdata->ipa_enabled =
