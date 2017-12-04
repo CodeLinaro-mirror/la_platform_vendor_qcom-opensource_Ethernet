@@ -718,8 +718,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	ULONG phy_mem_adrs;
 #endif
 	struct ip_params *pparams;
-	unsigned char mac_addr[18] = {'E','8',':','E','0',':','B','7',':','B','5',':','7','D',':','F','8','\0'};
+	unsigned char mac_addr[17] = {0};
 	int speed = 0;
+	unsigned int is_mac_addr_valid = 0;
 
 	NDBGPR_L1("Debug version\n");
 
@@ -824,24 +825,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		goto err_out_dev_failed;
 	}
 	++mdio_bus_id;
-
-#ifndef DWC_ETH_QOS_BUILTIN
-	/* Read mac address from mac.ini file */
-	parse_config_file(mdio_bus_id);
-#endif
-	if(!is_valid_ether_addr(dev_addr)) {
-		NMSGPR_ALERT( "Not found valid mac address\n");
-		NMSGPR_ALERT( "Using Default MAC Address\n");
-	}
-	NMSGPR_INFO( "MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
-	dev->dev_addr[0] = dev_addr[0];
-	dev->dev_addr[1] = dev_addr[1];
-	dev->dev_addr[2] = dev_addr[2];
-	dev->dev_addr[3] = dev_addr[3];
-	dev->dev_addr[4] = dev_addr[4];
-	dev->dev_addr[5] = dev_addr[5];
-
 
 	dev->base_addr = dwc_eth_ntn_reg_pci_base_addr;
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -1035,15 +1018,14 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NDBGPR_L1("mac_addr = %s\n", pparams->mac_addr);
 		NDBGPR_L1("link_speed = %s\n", pparams->link_speed);
 		NDBGPR_L1("ip_addr = %s\n", pparams->ip_addr);
-		memcpy(&mac_addr,pparams->mac_addr,strlen(mac_addr));
-		NDBGPR_L1( "default MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		memcpy(&mac_addr,pparams->mac_addr,sizeof(mac_addr));
+		if(mac_addr[0] < 0xff){
+			is_mac_addr_valid = 1;
+			NMSGPR_ALERT( "default MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
-		extract_macid((char *)&mac_addr);
-		NDBGPR_L1( "New MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			extract_macid((char *)&mac_addr);
+			NMSGPR_ALERT( "New MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
-		if (pdata && pdata->dev) {
-			memcpy(pdata->mac_addr, dev_addr, sizeof(dev_addr));
-			memcpy(pdata->dev->dev_addr, dev_addr, sizeof(dev_addr));
 		}
 		sscanf((char *)&pparams->link_speed, "%d", &speed);
 		NDBGPR_L1("%s link_speed = %d, \n",__func__, speed);
@@ -1063,6 +1045,24 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 				break;
 		}
 	}
+#ifndef DWC_ETH_QOS_BUILTIN
+	if(0 == is_mac_addr_valid) {
+		/* Read mac address from ntn_config.ini file */
+		parse_config_file(mdio_bus_id);
+		if(!is_valid_ether_addr(dev_addr)) {
+			NMSGPR_ALERT( "Not found valid mac address\n");
+			NMSGPR_ALERT( "Using Default MAC Address\n");
+		}
+		NMSGPR_INFO( "MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
+			dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+	}
+#endif
+	dev->dev_addr[0] = dev_addr[0];
+	dev->dev_addr[1] = dev_addr[1];
+	dev->dev_addr[2] = dev_addr[2];
+	dev->dev_addr[3] = dev_addr[3];
+	dev->dev_addr[4] = dev_addr[4];
+	dev->dev_addr[5] = dev_addr[5];
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
