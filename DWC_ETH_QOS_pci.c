@@ -125,7 +125,7 @@ static const config_param_list_t config_param_list[] = {
 ULONG cur_virt;
 #endif
 
-CHARP fw_filename = "";
+CHARP fw_filename = "ntn_firmware.bin";
 
 module_param(fw_filename, charp, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
 MODULE_PARM_DESC(fw_filename, "Firmware filename");
