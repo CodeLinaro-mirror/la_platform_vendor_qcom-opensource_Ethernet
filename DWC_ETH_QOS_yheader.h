@@ -119,6 +119,7 @@
 #define NTN_GPTP_ETH_TYPE		(0x88F7)
 
 #define NTN_ETH_TYPE_AVB		(0x22F0)
+#define NTN_ETH_TYPE_IPV4		(0x0800)
 #define NTN_VLAN_TAG			(0x8100)
 
 #define NTN_AVB_PRIORITY_CLASS_A	(3)
@@ -147,6 +148,8 @@
 #define NTN_TX_PKT_HOST			(NTN_TX_DMA_CH_2)
 #define NTN_TX_PKT_AVB_CLASS_A		(NTN_TX_DMA_CH_3)
 #define NTN_TX_PKT_AVB_CLASS_B		(NTN_TX_DMA_CH_4)
+#define NTN_TX_PKT_IP_CLASS_1		(NTN_TX_DMA_CH_3)
+#define NTN_TX_PKT_IP_CLASS_2		(NTN_TX_DMA_CH_4)
 
 #define NTN_RX_PKT_AVB			    (NTN_RX_DMA_CH_5)
 
@@ -1770,9 +1773,14 @@ struct DWC_ETH_QOS_prv_data {
 	default value is 50MHz*/
 	unsigned int ptpclk_freq;
 	int bandwidth;
+	struct dentry *debugfs_dir;
 	int enable_logging;
 	int measureRx_enable;
 	int measureTx_enable;
+	struct device *root_sysfs_dev;
+	int ip_traffic_shaping_enabled;
+	int ip_traffic_shaping_class_1_min_pcp;
+	int ip_traffic_shaping_class_2_min_pcp;
 	UINT regular_ip_traffic_tx_intr_moderation;
 };
 

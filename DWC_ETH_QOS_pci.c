@@ -134,6 +134,8 @@ static int rmii_mode = 0;
 module_param(rmii_mode, int, 0644);
 MODULE_PARM_DESC(rmii_mode, "Force RMII mode");
 
+#define ATTR_PERM 0644 // -rw-r--r--
+
 static int DWC_ETH_QOS_request_bus_bandwidth(struct DWC_ETH_QOS_prv_data *pdata, int bandwidth)
 {
 	int ret = 0;
@@ -768,7 +770,7 @@ static void DWC_ETH_QOS_config_ipareg_map(struct pci_dev *pdev)
 static ssize_t show_mac_addr(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
-	struct net_device *ndev = pci_get_drvdata(to_pci_dev(dev));
+	struct net_device *ndev = to_net_dev(dev);
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
 
 /*
@@ -787,7 +789,7 @@ static ssize_t show_mac_addr(struct device *dev,
 static ssize_t store_mac_addr(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct net_device *ndev = pci_get_drvdata(to_pci_dev(dev));
+	struct net_device *ndev = to_net_dev(dev);
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
 	char *mac_str = (char *)buf;
 
@@ -801,7 +803,7 @@ static ssize_t store_mac_addr(struct device *dev,
 	/*Do someting to hardware*/
 	return count;
 }
-static DEVICE_ATTR(mac_addr, 0600, show_mac_addr, store_mac_addr);
+static DEVICE_ATTR(mac_addr, ATTR_PERM, show_mac_addr, store_mac_addr);
 
 static int DWC_ETH_QOS_mac_addr_sysfs_init(struct DWC_ETH_QOS_prv_data *pdata)
 {
@@ -812,10 +814,10 @@ static int DWC_ETH_QOS_mac_addr_sysfs_init(struct DWC_ETH_QOS_prv_data *pdata)
 	pdata->mac_written = false;
 	mutex_unlock(&pdata->mac_lock);
 
-	if (pdata && pdata->pdev) {
-		ret = device_create_file(&pdata->pdev->dev, &dev_attr_mac_addr);
+	if (pdata && pdata->dev) {
+		ret = device_create_file(&pdata->dev->dev, &dev_attr_mac_addr);
 		if (ret != 0)
-			printk("Failed to create mac_addr sysfs files: %d\n", ret);
+			NMSGPR_ERR("%s: Failed to create mac_addr sysfs files: %d\n", __func__, ret);
 	}
 
 	return ret;
@@ -835,6 +837,155 @@ static int DWC_ETH_QOS_mac_addr_sysfs_remove(struct DWC_ETH_QOS_prv_data *pdata)
 	return ret;
 }
 #endif
+
+static ssize_t ip_ts_enable_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct net_device *ndev = to_net_dev(dev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+
+	return sprintf(buf, "%d\n", pdata->ip_traffic_shaping_enabled);
+}
+
+static ssize_t ip_ts_enable_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct net_device *ndev = to_net_dev(dev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+	int newVal = 0;
+	int ret = -EINVAL;
+
+	ret = kstrtou32(buf, 0, &newVal);
+	if((ret == 0) && (newVal >= 0 && newVal <= 1)) {
+		NMSGPR_ALERT("DWC_ETH_QOS ip priority queuing %s\n",
+			(newVal == 1) ? "enabled" : "disabled");
+		pdata->ip_traffic_shaping_enabled = newVal;
+	} else {
+		NMSGPR_ALERT("DWC_ETH_QOS invalid value\n");
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t ip_ts_class_1_pcp_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct net_device *ndev = to_net_dev(dev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+
+	return sprintf(buf, "%d\n", pdata->ip_traffic_shaping_class_1_min_pcp);
+}
+
+static ssize_t ip_ts_class_1_pcp_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct net_device *ndev = to_net_dev(dev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+	int newVal = 0;
+	int ret = -EINVAL;
+
+	ret = kstrtou32(buf, 0, &newVal);
+	if((ret == 0) && (newVal >= 0 && newVal <= 7)) {
+		NMSGPR_ALERT("DWC_ETH_QOS min pcp for 1st class traffic set to %d\n", newVal);
+		pdata->ip_traffic_shaping_class_1_min_pcp = newVal;
+	}
+	else {
+		NMSGPR_ALERT("DWC_ETH_QOS ERROR invalid pcp value, must be 0 - 7\n");
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t ip_ts_class_2_pcp_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct net_device *ndev = to_net_dev(dev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+
+	return sprintf(buf, "%d\n", pdata->ip_traffic_shaping_class_2_min_pcp);
+}
+
+static ssize_t ip_ts_class_2_pcp_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t len)
+{
+	struct net_device *ndev = to_net_dev(dev);
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+	int newVal = 0;
+	int ret = -EINVAL;
+
+	ret = kstrtou32(buf, 0, &newVal);
+	if((ret == 0) && (newVal >= 0 && newVal <= 7)) {
+		NMSGPR_ALERT("DWC_ETH_QOS min pcp for 2nd class traffic set to %d\n", newVal);
+		pdata->ip_traffic_shaping_class_2_min_pcp = newVal;
+	}
+	else {
+		NMSGPR_ALERT("DWC_ETH_QOS ERROR invalid pcp value, must be 0 - 7\n");
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static struct device_attribute dev_attr_ip_ts_enable =
+	__ATTR(enable, ATTR_PERM, ip_ts_enable_show, ip_ts_enable_store);
+static struct device_attribute dev_attr_ip_ts_class_1_pcp =
+	__ATTR(class_1_pcp, ATTR_PERM, ip_ts_class_1_pcp_show, ip_ts_class_1_pcp_store);
+static struct device_attribute dev_attr_ip_ts_class_2_pcp =
+	__ATTR(class_2_pcp, ATTR_PERM, ip_ts_class_2_pcp_show, ip_ts_class_2_pcp_store);
+
+static struct attribute *ip_traffic_shaping_attrs[] = {
+	&dev_attr_ip_ts_enable.attr,
+	&dev_attr_ip_ts_class_1_pcp.attr,
+	&dev_attr_ip_ts_class_2_pcp.attr,
+	NULL
+};
+
+static const struct attribute_group ip_traffic_shaping_group = {
+	.name = "ip_traffic_shaping",
+	.attrs = ip_traffic_shaping_attrs,
+};
+
+static int DWC_ETH_QOS_ip_traffic_shaping_sysfs_init(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int err = 0;
+
+	if (pdata && pdata->dev) {
+		// Create attributes
+		err = sysfs_create_group(&pdata->dev->dev.kobj, &ip_traffic_shaping_group);
+		if (err != 0) {
+			NMSGPR_ERR("%s: Failed to create ip traffic shaping sysfs attributes: %d\n",
+					__func__, err);
+			return err;
+		}
+
+		// Create new root device object
+		pdata->root_sysfs_dev = root_device_register(&pdata->dev->name[0]);
+		if (&pdata->root_sysfs_dev == NULL) {
+			NMSGPR_ERR("%s: Failed to create sysfs root devive\n", __func__);
+		}
+
+		// Create symlink to real net device
+		err = sysfs_create_link(&pdata->root_sysfs_dev->kobj,
+				&pdata->dev->dev.kobj, "net");
+		if (err != 0) {
+			NMSGPR_ERR("%s: Failed to create link to net device: %d\n", __func__, err);
+		}
+	}
+
+	return err;
+}
+
+static void DWC_ETH_QOS_ip_traffic_shaping_sysfs_remove(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	if (pdata && pdata->dev) {
+		sysfs_delete_link(&pdata->root_sysfs_dev->kobj, &pdata->dev->dev.kobj,
+				&pdata->dev->name[0]);
+		root_device_unregister(pdata->root_sysfs_dev);
+		sysfs_remove_group(&pdata->pdev->dev.kobj, &ip_traffic_shaping_group);
+	}
+}
 
 static ssize_t read_logging_enable_status(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
@@ -926,8 +1077,10 @@ static ssize_t write_measureTx_enable(struct file *file,
 		NMSGPR_ALERT( "DWC_ETH_QOS measuring Tx time enabled\n");
 		pdata->regular_ip_traffic_tx_intr_moderation = 1;
 	}
-	else
+	else {
 		NMSGPR_ALERT( "DWC_ETH_QOS measuring Tx time disabled\n");
+		pdata->regular_ip_traffic_tx_intr_moderation = INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC;
+	}
 	return count;
 }
 
@@ -954,6 +1107,48 @@ static const struct file_operations fops_ntn_measureTx = {
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
+
+static void DWC_ETH_QOS_debugfs_init(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	struct dentry *debugfs_logen;
+	struct dentry *debugfs_measureRx;
+	struct dentry *debugfs_measureTx;
+
+	pdata->debugfs_dir = debugfs_create_dir(&pdata->dev->name[0], NULL);
+	if (!pdata->debugfs_dir) {
+		NMSGPR_ERR("%s: Cannot create debugfs dird\n", __func__);
+		return;
+	}
+
+	debugfs_logen = debugfs_create_file("enable_logging", (S_IRUSR|S_IWUSR),
+				pdata->debugfs_dir, pdata, &fops_ntn_logging_en);
+	if (!debugfs_logen || IS_ERR(debugfs_logen)) {
+		NMSGPR_ERR("%s: Cannot create debugfs debugfs_logen \n", __func__);
+	}
+
+	debugfs_measureRx = debugfs_create_file("en_measureRx", (S_IRUSR|S_IWUSR),
+					pdata->debugfs_dir, pdata, &fops_ntn_measureRx);
+	if (!debugfs_measureRx || IS_ERR(debugfs_measureRx)) {
+		NMSGPR_ERR("%s: Cannot create debugfs debugfs_measureRx \n", __func__);
+	}
+
+	debugfs_measureTx = debugfs_create_file("en_measureTx", (S_IRUSR|S_IWUSR),
+					pdata->debugfs_dir, pdata, &fops_ntn_measureTx);
+	if (!debugfs_measureTx || IS_ERR(debugfs_measureTx)) {
+		NMSGPR_ERR("%s: Cannot create debugfs debugfs_measureTx \n", __func__);
+	}
+
+	pdata->regular_ip_traffic_tx_intr_moderation = INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC;
+}
+
+static void DWC_ETH_QOS_debugfs_remove(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	if (pdata && pdata->debugfs_dir) {
+		debugfs_remove_recursive(pdata->debugfs_dir);
+		pdata->debugfs_dir = NULL;
+	}
+}
+
 
 /*!
 * \brief API to initialize the device.
@@ -1006,10 +1201,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	unsigned char mac_addr[17] = {0};
 	int speed = 0;
 	unsigned int is_mac_addr_valid = 0;
-	struct dentry *debugfs_dir;
-	struct dentry *debugfs_logen;
-	struct dentry *debugfs_measureRx;
-	struct dentry *debugfs_measureTx;
 
 	NDBGPR_L1("Debug version\n");
 
@@ -1133,6 +1324,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->dwc_eth_ntn_reg_pci_base_addr_phy = dwc_eth_ntn_reg_pci_base_addr_phy;
 	pdata->dwc_eth_ntn_FLASH_pci_base_addr = dwc_eth_ntn_FLASH_pci_base_addr;
 	pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt = dwc_eth_ntn_SRAM_pci_base_addr_virt;
+	pdata->ip_traffic_shaping_enabled = 0;
+	pdata->ip_traffic_shaping_class_1_min_pcp = 0;
+	pdata->ip_traffic_shaping_class_2_min_pcp = 0;
 
 	/* 	Host: TX DMA CH : 0,2,3,4,
 		Host: RX DMA CH : 0,2,3,4,5 */
@@ -1550,32 +1744,14 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	DWC_ETH_QOS_init_ddr_bandwidth(pdata);
 
 	device_disable_async_suspend(&pdev->dev);
+
+	/* Initialize sysfs nodes */
 #ifdef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_mac_addr_sysfs_init(pdata);
 #endif
-	debugfs_dir = debugfs_create_dir("eth", NULL);
-	if (debugfs_dir) {
-		debugfs_logen = debugfs_create_file("enable_logging", (S_IRUSR|S_IWUSR),
-					debugfs_dir, pdata, &fops_ntn_logging_en);
-		if (!debugfs_logen || IS_ERR(debugfs_logen)) {
-			NMSGPR_ERR( "%s: Cannot create debugfs debugfs_logen \n", __func__);
-		}
+	DWC_ETH_QOS_ip_traffic_shaping_sysfs_init(pdata);
+	DWC_ETH_QOS_debugfs_init(pdata);
 
-		debugfs_measureRx = debugfs_create_file("en_measureRx", (S_IRUSR|S_IWUSR),
-						debugfs_dir, pdata, &fops_ntn_measureRx);
-		if (!debugfs_measureRx || IS_ERR(debugfs_measureRx)) {
-			NMSGPR_ERR( "%s: Cannot create debugfs debugfs_measureRx \n", __func__);
-		}
-
-		debugfs_measureTx = debugfs_create_file("en_measureTx", (S_IRUSR|S_IWUSR),
-						debugfs_dir, pdata, &fops_ntn_measureTx);
-		if (!debugfs_measureTx || IS_ERR(debugfs_measureTx)) {
-			NMSGPR_ERR( "%s: Cannot create debugfs debugfs_measureTx \n", __func__);
-		}
-	} else {
-		NMSGPR_ERR( "Cannot create debugfs dir \n");
-	}
-	pdata->regular_ip_traffic_tx_intr_moderation = INTR_MODERATE_CNT_REGULAR_IP_TRAFFIC;
 	return 0;
 
  err_out_netdev_failed:
@@ -1659,6 +1835,8 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 #ifdef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_mac_addr_sysfs_remove(pdata);
 #endif
+	DWC_ETH_QOS_ip_traffic_shaping_sysfs_remove(pdata);
+	DWC_ETH_QOS_debugfs_remove(pdata);
 
 	kthread_stop(pdata->ddr_bw_task);
 	del_timer(&pdata->ddr_bw_timer);

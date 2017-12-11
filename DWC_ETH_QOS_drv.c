@@ -5680,7 +5680,7 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 {
 	static u16 txqueue_select = 0;
 	UINT eth_or_vlan_tag;
-	UINT avb_priority;
+	UINT priority;
 	UINT eth_type;
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	UINT tx_ch_host = pdata->ipa_enabled ? NTN_TX_PKT_HOST_IPA : NTN_TX_PKT_HOST;
@@ -5699,23 +5699,28 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 	if(eth_or_vlan_tag == NTN_VLAN_TAG)
 	{
 		eth_type = htons(((skb->data[17]<<8) | skb->data[16]));
-		//NMSGPR_INFO("VLAN ETH TYPE : %#x\n", eth_type);
-		if(eth_type == NTN_ETH_TYPE_AVB)
-		{
-			/* Extract VLAN priority field from the tx data */
-			avb_priority = htons((skb->data[15]<<8) | skb->data[14]);
-			//NMSGPR_INFO("VID : %#x\n", avb_priority);
-			avb_priority >>= 13;
-			//NMSGPR_INFO("AVB Priority : %#x\n", avb_priority);
-			if(avb_priority == NTN_AVB_PRIORITY_CLASS_A){
+		/* Extract VLAN priority field from the tx data */
+		priority = htons((skb->data[15]<<8) | skb->data[14]);
+		priority >>= 13;
+		if (eth_type == NTN_ETH_TYPE_AVB) {
+			if (priority == NTN_AVB_PRIORITY_CLASS_A) {
 				txqueue_select = NTN_TX_PKT_AVB_CLASS_A;
-			}else if(avb_priority == NTN_AVB_PRIORITY_CLASS_B){
+			} else if(priority == NTN_AVB_PRIORITY_CLASS_B) {
 				txqueue_select = NTN_TX_PKT_AVB_CLASS_B;
-			}else{
+			} else {
 				txqueue_select = tx_ch_host;
 			}
-		}else{
-			/* VLAN but not AVB send it to Q0 */
+		} else if ((pdata->ip_traffic_shaping_enabled == 1)
+				&& (eth_type == NTN_ETH_TYPE_IPV4)) {
+			if (priority >= pdata->ip_traffic_shaping_class_1_min_pcp) {
+				txqueue_select = NTN_TX_PKT_IP_CLASS_1;
+			} else if(priority >= pdata->ip_traffic_shaping_class_2_min_pcp) {
+				txqueue_select = NTN_TX_PKT_IP_CLASS_2;
+			} else {
+				txqueue_select = tx_ch_host;
+			}
+		} else {
+			/* VLAN but not AVB or RTP: send it to Q0 */
 			txqueue_select = NTN_TX_PKT_VLAN_NOT_AVB;
 		}
 	}
