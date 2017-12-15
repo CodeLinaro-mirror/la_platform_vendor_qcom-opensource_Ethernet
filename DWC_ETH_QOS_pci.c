@@ -980,10 +980,9 @@ static int DWC_ETH_QOS_ip_traffic_shaping_sysfs_init(struct DWC_ETH_QOS_prv_data
 static void DWC_ETH_QOS_ip_traffic_shaping_sysfs_remove(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	if (pdata && pdata->dev) {
-		sysfs_delete_link(&pdata->root_sysfs_dev->kobj, &pdata->dev->dev.kobj,
-				&pdata->dev->name[0]);
+		sysfs_remove_link(&pdata->root_sysfs_dev->kobj, &pdata->dev->name[0]);
 		root_device_unregister(pdata->root_sysfs_dev);
-		sysfs_remove_group(&pdata->pdev->dev.kobj, &ip_traffic_shaping_group);
+		sysfs_remove_group(&pdata->dev->dev.kobj, &ip_traffic_shaping_group);
 	}
 }
 
