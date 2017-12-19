@@ -418,8 +418,8 @@ static int __init DWC_ETH_QOS_pcie_init(void)
 static void __exit DWC_ETH_QOS_pcie_exit(void)
 {
 	DBGPR( "Entry:%s.\n", __func__);
-	platform_driver_unregister(&DWC_ETH_QOS_pcie_driver);
 	DWC_ETH_QOS_exit_module();
+	platform_driver_unregister(&DWC_ETH_QOS_pcie_driver);
 	DBGPR( "Exit:%s.\n", __func__);
 }
 
