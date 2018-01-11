@@ -1559,7 +1559,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	{
 		NDBGPR_L1("mac_addr = %s\n", pparams->mac_addr);
 		NDBGPR_L1("link_speed = %s\n", pparams->link_speed);
-		NDBGPR_L1("ip_addr = %s\n", pparams->ip_addr);
+		NDBGPR_L1("ipv4_addr = %s\n", pparams->ip_addr);
+		NDBGPR_L1("ipv6_addr = %s\n", pparams->ipv6_addr);
 		memcpy(&mac_addr,pparams->mac_addr,sizeof(mac_addr));
 		if(mac_addr[0] < 0xff){
 			is_mac_addr_valid = 1;
