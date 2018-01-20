@@ -92,10 +92,12 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/debugfs.h>
+#ifdef DWC_ETH_QOS_BUILTIN
 #include <linux/inetdevice.h>
 #include <net/addrconf.h>
 #include <linux/inet.h>
 #include <asm/uaccess.h>
+#endif
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
@@ -1152,6 +1154,7 @@ static void DWC_ETH_QOS_debugfs_remove(struct DWC_ETH_QOS_prv_data *pdata)
 	}
 }
 
+#ifdef DWC_ETH_QOS_BUILTIN
 static int DWC_ETH_QOS_add_ipaddr(struct ip_params *ip_info, struct net_device *dev)
 {
 	int res;
@@ -1198,7 +1201,7 @@ static int DWC_ETH_QOS_add_ipaddr(struct ip_params *ip_info, struct net_device *
 
 	return res;
 }
-
+#endif
 
 /*!
 * \brief API to initialize the device.
@@ -1803,7 +1806,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	DWC_ETH_QOS_ip_traffic_shaping_sysfs_init(pdata);
 	DWC_ETH_QOS_debugfs_init(pdata);
 
+#ifdef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_add_ipaddr(pparams, dev);
+#endif
 	return 0;
 
  err_out_netdev_failed:
