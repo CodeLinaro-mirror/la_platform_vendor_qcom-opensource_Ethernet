@@ -378,6 +378,7 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	const struct firmware *fw_entry = NULL;
 	unsigned int reg_val;
+	unsigned int timeout = 0;
 
         if (fw_filename[0] == '\0') {
                 NMSGPR_ALERT("Firmware filename not given.\n");
@@ -408,8 +409,16 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 
 	release_firmware(fw_entry);
 
+	while(1 != ioread32( (void*)(pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt +
+				NTN_BOOT_COMPLETE_OFFSET))) {
 	/* Wait a moment for the Neutrino to boot */
-	msleep(pdata->fw_load_delay);
+		if(100 < timeout) {
+			NMSGPR_ALERT("%s: Neutrino boot complete failed, timeout after 200 msec\n", __func__);
+			break;
+		}
+		msleep(2);
+		timeout++;
+	}
 
 	NMSGPR_INFO("Firmware loaded\n");
 
@@ -1083,7 +1092,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	{
 		NDBGPR_L1("mac_addr = %s\n", pparams->mac_addr);
 		NDBGPR_L1("link_speed = %s\n", pparams->link_speed);
-		NDBGPR_L1("ip_addr = %s\n", pparams->ip_addr);
+		NDBGPR_L1("ipv4_addr = %s\n", pparams->ip_addr);
+		NDBGPR_L1("ipv6_addr = %s\n", pparams->ipv6_addr);
 		memcpy(&mac_addr,pparams->mac_addr,sizeof(mac_addr));
 		if(mac_addr[0] < 0xff){
 			is_mac_addr_valid = 1;
