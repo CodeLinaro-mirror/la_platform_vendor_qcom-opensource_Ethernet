@@ -1826,8 +1826,8 @@ struct ip_params {
 	char mac_addr[32];
 	char link_speed[32];
 	char ip_addr[32];
-	char ipv6_addr[48];
 	char magic_cookie[32];
+	char ipv6_addr[48];
 };
 
 /* Function prototypes*/
