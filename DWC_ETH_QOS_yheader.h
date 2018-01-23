@@ -677,6 +677,7 @@
 
 #define NTN_M3_IP_PARAM_START 0xC900
 #define NTN_MR_IP_PARAMS_MAGIC_COOKIE "0xDEFBAC"
+#define NTN_BOOT_COMPLETE_OFFSET 0xC848
 /* C data types typedefs */
 
 typedef unsigned short BOOL;
@@ -1777,6 +1778,7 @@ struct ip_params {
 	char link_speed[32];
 	char ip_addr[32];
 	char magic_cookie[32];
+	char ipv6_addr[48];
 };
 
 /* Function prototypes*/
