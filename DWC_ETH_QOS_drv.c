@@ -162,7 +162,7 @@ void DWC_ETH_QOS_stop_all_ch_tx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 	DBGPR("<--DWC_ETH_QOS_stop_all_ch_tx_dma\n");
 }
 
-static void DWC_ETH_QOS_stop_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata)
+void DWC_ETH_QOS_stop_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	UINT chInx;
@@ -1802,6 +1802,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	int ret = Y_SUCCESS;
 	struct desc_if_struct *desc_if = &pdata->desc_if;
 	struct hw_if_struct *hw_if = &pdata->hw_if;
+	int ipa_capable = 0;
 
 	DBGPR("-->DWC_ETH_QOS_open\n");
 	if (DWC_ETH_QOS_request_irq(dev) != 0) {
@@ -1810,21 +1811,8 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		goto err_irq_0;
 	}
 
-	ret = desc_if->alloc_buff_and_desc(pdata);
-	if (ret < 0) {
-		NMSGPR_ALERT(
-		       "failed to allocate buffer/descriptor memory\n");
-		ret = -ENOMEM;
-		goto err_out_desc_buf_alloc_failed;
-	}
-
-	DWC_ETH_QOS_init_common(dev);
-
-	DWC_ETH_QOS_napi_enable_mq(pdata);
-
-	netif_tx_start_all_queues(dev);
-
-	if (pdata->ipa_enabled) {
+	ipa_capable = hw_if->ntn_fw_ipa_supported(pdata) && NTN_HOST_IPA_CAPABLE;
+	if (ipa_capable) {
 		/* Configure IPA Related Stuff */
 		ret = DWC_ETH_QOS_ipa_ready(pdata);
 		if (pdata->prv_ipa.ipa_ready) {
@@ -1846,12 +1834,27 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 			if (ret) {
 				NMSGPR_ERR("%s:%d unable to enable ipa offload\n",
 					   __func__, __LINE__);
+				pdata->ipa_enabled = false;
 				goto err_out_desc_buf_alloc_failed;
 			}
 		}
 		else
 			NMSGPR_INFO("%s:%d ipa uC not ready\n", __func__, __LINE__);
 	}
+
+	ret = desc_if->alloc_buff_and_desc(pdata);
+	if (ret < 0) {
+		NMSGPR_ALERT(
+		       "failed to allocate buffer/descriptor memory\n");
+		ret = -ENOMEM;
+		goto err_out_desc_buf_alloc_failed;
+	}
+
+	DWC_ETH_QOS_init_common(dev);
+
+	DWC_ETH_QOS_napi_enable_mq(pdata);
+
+	netif_tx_start_all_queues(dev);
 
 #ifdef NTN_POLLING_METHOD
 	polling_task_data = (void*)pdata;
@@ -5441,7 +5444,7 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 	UINT avb_priority;
 	UINT eth_type;
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
-	UINT tx_ch_host = pdata->ipa_enabled ? NTN_TX_PKT_HOST_IPA : NTN_TX_PKT_HOST;
+	UINT tx_ch_host = pdata->ipa_capable ? NTN_TX_PKT_HOST_IPA : NTN_TX_PKT_HOST;
 
 	DBGPR("-->DWC_ETH_QOS_select_queue\n");
 
