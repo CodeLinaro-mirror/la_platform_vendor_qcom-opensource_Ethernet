@@ -434,9 +434,11 @@ static void parse_config_file(USHORT mdio_bus_id)
 	return;
 }
 
-void DWC_ETH_QOS_parse_config_file(struct DWC_ETH_QOS_prv_data *pdata,
-												USHORT mdio_bus_id)
+void DWC_ETH_QOS_parse_config_file(struct DWC_ETH_QOS_prv_data *pdata, USHORT mdio_bus_id)
 {
+	if (pdata->mac_written)
+		return;
+
 	parse_config_file(mdio_bus_id);
 	if (pdata && pdata->dev) {
 		memcpy(pdata->mac_addr, dev_addr, 6);
@@ -769,78 +771,6 @@ static void DWC_ETH_QOS_config_ipareg_map(struct pci_dev *pdev)
 		adrs_for_replacement, no_of_bits);
 	hw_if->ntn_config_tamap(tmap_no, adrs_to_be_replaced,
 				adrs_for_replacement, no_of_bits, pdata);
-}
-#endif
-
-#ifdef DWC_ETH_QOS_BUILTIN
-static ssize_t show_mac_addr(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct net_device *ndev = to_net_dev(dev);
-	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
-
-/*
-	mutex_lock(&pdata->mac_lock);
-	parse_config_file(pdata->mdio_bus_id);
-	memcpy(pdata->mac_addr, dev_addr, 6);
-	memcpy(pdata->dev->dev_addr, dev_addr, 6);
-	pdata->mac_written = true;
-	mutex_unlock(&pdata->mac_lock);
-*/
-	return sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n", pdata->mac_addr[0],
-					pdata->mac_addr[1],pdata->mac_addr[2],pdata->mac_addr[3],
-					pdata->mac_addr[4],pdata->mac_addr[5]);
-}
-
-static ssize_t store_mac_addr(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	struct net_device *ndev = to_net_dev(dev);
-	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
-	char *mac_str = (char *)buf;
-
-	mutex_lock(&pdata->mac_lock);
-	extract_macid(mac_str);
-	memcpy(pdata->mac_addr, dev_addr, 6);
-	memcpy(pdata->dev->dev_addr, dev_addr, 6);
-	pdata->mac_written = true;
-	mutex_unlock(&pdata->mac_lock);
-
-	/*Do someting to hardware*/
-	return count;
-}
-static DEVICE_ATTR(mac_addr, ATTR_PERM, show_mac_addr, store_mac_addr);
-
-static int DWC_ETH_QOS_mac_addr_sysfs_init(struct DWC_ETH_QOS_prv_data *pdata)
-{
-	int ret = 0;
-
-	mutex_init(&pdata->mac_lock);
-	mutex_lock(&pdata->mac_lock);
-	pdata->mac_written = false;
-	mutex_unlock(&pdata->mac_lock);
-
-	if (pdata && pdata->dev) {
-		ret = device_create_file(&pdata->dev->dev, &dev_attr_mac_addr);
-		if (ret != 0)
-			NMSGPR_ERR("%s: Failed to create mac_addr sysfs files: %d\n", __func__, ret);
-	}
-
-	return ret;
-}
-
-static int DWC_ETH_QOS_mac_addr_sysfs_remove(struct DWC_ETH_QOS_prv_data *pdata)
-{
-	int ret = 0;
-
-	mutex_lock(&pdata->mac_lock);
-	pdata->mac_written = false;
-	mutex_unlock(&pdata->mac_lock);
-	mutex_destroy(&pdata->mac_lock);
-	if (pdata && pdata->pdev)
-		device_remove_file(&pdata->pdev->dev, &dev_attr_mac_addr);
-
-	return ret;
 }
 #endif
 
@@ -1623,6 +1553,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			extract_macid((char *)&mac_addr);
 			NMSGPR_ALERT( "New MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
 				dev_addr[0], dev_addr[1], dev_addr[2], dev_addr[3], dev_addr[4], dev_addr[5]);
+			if (is_valid_ether_addr(dev_addr))
+				pdata->mac_written = true;
 		}
 		sscanf((char *)&pparams->link_speed, "%d", &speed);
 		NDBGPR_L1("%s link_speed = %d, \n",__func__, speed);
@@ -1800,9 +1732,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	device_disable_async_suspend(&pdev->dev);
 
 	/* Initialize sysfs nodes */
-#ifdef DWC_ETH_QOS_BUILTIN
-	DWC_ETH_QOS_mac_addr_sysfs_init(pdata);
-#endif
 	DWC_ETH_QOS_ip_traffic_shaping_sysfs_init(pdata);
 	DWC_ETH_QOS_debugfs_init(pdata);
 
@@ -1889,9 +1818,6 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	int i;
 	DBGPR("--> DWC_ETH_QOS_remove\n");
 
-#ifdef DWC_ETH_QOS_BUILTIN
-	DWC_ETH_QOS_mac_addr_sysfs_remove(pdata);
-#endif
 	DWC_ETH_QOS_ip_traffic_shaping_sysfs_remove(pdata);
 	DWC_ETH_QOS_debugfs_remove(pdata);
 
