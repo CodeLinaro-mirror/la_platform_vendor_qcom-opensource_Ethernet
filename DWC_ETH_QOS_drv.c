@@ -88,6 +88,7 @@
 #include "DWC_ETH_QOS_drv.h"
 #include "DWC_ETH_QOS_ipa.h"
 #include "DWC_ETH_QOS_yregacc.h"
+#include <soc/qcom/boot_stats.h>
 
 #define AVB_QUEUE_CLASS_A 1
 #define AVB_QUEUE_CLASS_B 2
@@ -102,6 +103,8 @@ static struct delayed_work task;
 /* SA(Source Address) operations on TX */
 unsigned char mac_addr0[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8 };
 unsigned char mac_addr1[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF7 };
+static int tx_place_marker = 0;
+static int rx_place_marker = 0;
 
 /* module parameters for configuring the queue modes
  *
@@ -2437,6 +2440,10 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 tx_netdev_return:
 	spin_unlock_irqrestore(&pdata->tx_lock, flags);
 
+	if(tx_place_marker == 0){
+		tx_place_marker = 1;
+		place_marker("Tx: DWC_ETH_QOS_start_xmit");
+	}
 	DBGPR("<--DWC_ETH_QOS_start_xmit\n");
 
 	return retval;
@@ -2936,6 +2943,10 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 		rx_dma_ch->lro_flush_needed = 1;
 	} else {
 		netif_receive_skb(skb);
+	}
+	if(rx_place_marker == 0){
+		rx_place_marker = 1;
+		place_marker("Rx: DWC_ETH_QOS_receive_skb");
 	}
 }
 
