@@ -1750,8 +1750,6 @@ static int DWC_ETH_QOS_request_irq(struct net_device *dev)
 
 	pdata->irq_number = dev->irq;
 
-	enable_irq_wake(dev->irq);
-
 #ifdef NTN_POLLING_METHOD
 	ret = request_irq(pdata->irq_number, DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS_DUMMY,
 					  IRQF_SHARED, DEV_NAME, pdata);
@@ -1774,7 +1772,6 @@ static void DWC_ETH_QOS_free_irq(struct net_device *dev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 
 	if (pdata->irq_number != 0) {
-		disable_irq_wake(dev->irq);
 		NDBGPR_L1("DWC_ETH_QOS IRQ %d freed\n", pdata->irq_number);
 		free_irq(pdata->irq_number, pdata);
 		pdata->irq_number = 0;
@@ -5833,24 +5830,23 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	 */
 	MAC_MCR_RgRd(rd_val);
 	if(0 == rd_val) {
-	if (pdata->pcierst_resx) {
-		if (hw_if->ntn_boot_host_initiated(pdata)) {
-			/* Clean old rx skbs to avoid leak since they are allocated
-			 * again when initializing rx descriptors */
-			desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
-			/* Avoid leak of eee timer */
-			if (pdata->eee_enabled)
-				del_timer_sync(&pdata->eee_ctrl_timer);
-			DWC_ETH_QOS_init_common(dev);
+		if (pdata->pcierst_resx) {
+			if (hw_if->ntn_boot_host_initiated(pdata)) {
+				/* Clean old rx skbs to avoid leak since they are allocated
+				* again when initializing rx descriptors */
+				desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
+				/* Avoid leak of eee timer */
+				if (pdata->eee_enabled)
+					del_timer_sync(&pdata->eee_ctrl_timer);
+				DWC_ETH_QOS_init_common(dev);
+				}
+			} else if (pdata->phy_wol_enable) {
+				/* Re-initialize the MAC since it can get reset during WOL */
+				hw_if->init(pdata);
+				if (pdata->enable_phy && pdata->phydev)
+					genphy_restart_aneg(pdata->phydev);
 			}
-		}
-	} else if (pdata->phy_wol_enable) {
-		/* Re-initialize the MAC since it can get reset during WOL */
-		hw_if->init(pdata);
-		if (pdata->enable_phy && pdata->phydev)
-			genphy_restart_aneg(pdata->phydev);
 	}
-
 	/* enable MAC TX/RX */
 	hw_if->start_mac_tx_rx(pdata);
 
