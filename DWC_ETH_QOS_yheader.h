@@ -677,6 +677,7 @@
 
 #define NTN_M3_IP_PARAM_START 0xC900
 #define NTN_MR_IP_PARAMS_MAGIC_COOKIE "0xDEFBAC"
+#define NTN_BOOT_COMPLETE_OFFSET 0xC848
 /* C data types typedefs */
 
 typedef unsigned short BOOL;
@@ -1206,6 +1207,12 @@ struct desc_if_struct {
 	INT(*alloc_queue_struct) (struct DWC_ETH_QOS_prv_data *);
 	void(*free_queue_struct) (struct DWC_ETH_QOS_prv_data *);
 	INT(*alloc_buff_and_desc) (struct DWC_ETH_QOS_prv_data *);
+	INT(*alloc_tx_buff_and_desc) (struct DWC_ETH_QOS_prv_data *, UINT);
+	INT(*alloc_rx_buff_and_desc) (struct DWC_ETH_QOS_prv_data *, UINT);
+	void (*free_rx_queue_struct_single_ch) (struct DWC_ETH_QOS_prv_data *, UINT);
+	void (*free_tx_queue_struct_single_ch) (struct DWC_ETH_QOS_prv_data *, UINT);
+	INT(*alloc_rx_queue_struct_single_ch) (struct DWC_ETH_QOS_prv_data *, UINT);
+	INT(*alloc_tx_queue_struct_single_ch) (struct DWC_ETH_QOS_prv_data *, UINT);
 	void (*realloc_skb) (struct DWC_ETH_QOS_prv_data *, UINT);
 	void (*unmap_rx_skb) (struct DWC_ETH_QOS_prv_data *,
 			      struct DWC_ETH_QOS_rx_buffer *);
@@ -1214,6 +1221,8 @@ struct desc_if_struct {
 	unsigned int (*map_tx_skb) (struct net_device *, struct sk_buff *);
 	void (*tx_free_mem) (struct DWC_ETH_QOS_prv_data *);
 	void (*rx_free_mem) (struct DWC_ETH_QOS_prv_data *);
+	void (*tx_free_mem_single_ch) (struct DWC_ETH_QOS_prv_data *, UINT);
+	void (*rx_free_mem_single_ch) (struct DWC_ETH_QOS_prv_data *, UINT);
 	void (*wrapper_tx_desc_init) (struct DWC_ETH_QOS_prv_data *);
 	void (*wrapper_tx_desc_init_single_q) (struct DWC_ETH_QOS_prv_data *,
 					       UINT);
@@ -1527,6 +1536,7 @@ struct DWC_ETH_QOS_prv_data {
 	struct pci_dev *pdev;
 	struct DWC_ETH_QOS_prv_ipa_data prv_ipa;
 	bool ipa_enabled;
+	bool ipa_capable;
 	UINT fw_ver_cap;
 
 	spinlock_t lock;
@@ -1777,6 +1787,7 @@ struct ip_params {
 	char link_speed[32];
 	char ip_addr[32];
 	char magic_cookie[32];
+	char ipv6_addr[48];
 };
 
 /* Function prototypes*/
@@ -1816,7 +1827,7 @@ void DWC_ETH_QOS_init_rx_coalesce(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_enable_all_ch_rx_interrpt(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_disable_all_ch_rx_interrpt(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_update_rx_errors(struct net_device *, unsigned int);
-void DWC_ETH_QOS_stop_all_ch_tx_dma(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_stop_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata);
 UCHAR get_tx_queue_count(ULONG dwc_eth_ntn_reg_pci_base_addr);
 UCHAR get_rx_queue_count(ULONG dwc_eth_ntn_reg_pci_base_addr);
 void DWC_ETH_QOS_mmc_read(struct DWC_ETH_QOS_mmc_counters *mmc,struct DWC_ETH_QOS_prv_data *pdata);
