@@ -88,6 +88,7 @@
 #include "DWC_ETH_QOS_drv.h"
 #include "DWC_ETH_QOS_ipa.h"
 #include "DWC_ETH_QOS_yregacc.h"
+#include <soc/qcom/boot_stats.h>
 
 #define AVB_QUEUE_CLASS_A 1
 #define AVB_QUEUE_CLASS_B 2
@@ -102,6 +103,8 @@ static struct delayed_work task;
 /* SA(Source Address) operations on TX */
 unsigned char mac_addr0[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8 };
 unsigned char mac_addr1[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF7 };
+static int tx_place_marker = 0;
+static int rx_place_marker = 0;
 
 /* module parameters for configuring the queue modes
  *
@@ -1750,8 +1753,6 @@ static int DWC_ETH_QOS_request_irq(struct net_device *dev)
 
 	pdata->irq_number = dev->irq;
 
-	enable_irq_wake(dev->irq);
-
 #ifdef NTN_POLLING_METHOD
 	ret = request_irq(pdata->irq_number, DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS_DUMMY,
 					  IRQF_SHARED, DEV_NAME, pdata);
@@ -1774,7 +1775,6 @@ static void DWC_ETH_QOS_free_irq(struct net_device *dev)
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 
 	if (pdata->irq_number != 0) {
-		disable_irq_wake(dev->irq);
 		NDBGPR_L1("DWC_ETH_QOS IRQ %d freed\n", pdata->irq_number);
 		free_irq(pdata->irq_number, pdata);
 		pdata->irq_number = 0;
@@ -2440,6 +2440,10 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 tx_netdev_return:
 	spin_unlock_irqrestore(&pdata->tx_lock, flags);
 
+	if(tx_place_marker == 0){
+		tx_place_marker = 1;
+		place_marker("Tx: DWC_ETH_QOS_start_xmit");
+	}
 	DBGPR("<--DWC_ETH_QOS_start_xmit\n");
 
 	return retval;
@@ -2939,6 +2943,10 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 		rx_dma_ch->lro_flush_needed = 1;
 	} else {
 		netif_receive_skb(skb);
+	}
+	if(rx_place_marker == 0){
+		rx_place_marker = 1;
+		place_marker("Rx: DWC_ETH_QOS_receive_skb");
 	}
 }
 
@@ -5833,24 +5841,23 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	 */
 	MAC_MCR_RgRd(rd_val);
 	if(0 == rd_val) {
-	if (pdata->pcierst_resx) {
-		if (hw_if->ntn_boot_host_initiated(pdata)) {
-			/* Clean old rx skbs to avoid leak since they are allocated
-			 * again when initializing rx descriptors */
-			desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
-			/* Avoid leak of eee timer */
-			if (pdata->eee_enabled)
-				del_timer_sync(&pdata->eee_ctrl_timer);
-			DWC_ETH_QOS_init_common(dev);
+		if (pdata->pcierst_resx) {
+			if (hw_if->ntn_boot_host_initiated(pdata)) {
+				/* Clean old rx skbs to avoid leak since they are allocated
+				* again when initializing rx descriptors */
+				desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
+				/* Avoid leak of eee timer */
+				if (pdata->eee_enabled)
+					del_timer_sync(&pdata->eee_ctrl_timer);
+				DWC_ETH_QOS_init_common(dev);
+				}
+			} else if (pdata->phy_wol_enable) {
+				/* Re-initialize the MAC since it can get reset during WOL */
+				hw_if->init(pdata);
+				if (pdata->enable_phy && pdata->phydev)
+					genphy_restart_aneg(pdata->phydev);
 			}
-		}
-	} else if (pdata->phy_wol_enable) {
-		/* Re-initialize the MAC since it can get reset during WOL */
-		hw_if->init(pdata);
-		if (pdata->enable_phy && pdata->phydev)
-			genphy_restart_aneg(pdata->phydev);
 	}
-
 	/* enable MAC TX/RX */
 	hw_if->start_mac_tx_rx(pdata);
 
