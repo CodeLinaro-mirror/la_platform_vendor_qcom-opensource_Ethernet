@@ -87,6 +87,12 @@
 #include <linux/msm-bus.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#ifdef DWC_ETH_QOS_BUILTIN
+#include <linux/inetdevice.h>
+#include <net/addrconf.h>
+#include <linux/inet.h>
+#include <asm/uaccess.h>
+#endif
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
@@ -679,6 +685,50 @@ static void DWC_ETH_QOS_config_ipareg_map(struct pci_dev *pdev)
 }
 #endif
 
+#ifdef DWC_ETH_QOS_BUILTIN
+static int DWC_ETH_QOS_add_ipaddr(struct ip_params *ip_info, struct net_device *dev)
+{
+	int res;
+	struct ifreq ir;
+	/*struct in6_ifreq ir6;*/
+	struct sockaddr_in *sin = (void *) &ir.ifr_ifru.ifru_addr;
+
+	mm_segment_t oldfs = get_fs();
+	set_fs(get_ds());
+
+	/*For valid Ipv4 address*/
+	memset(&ir, 0, sizeof(ir));
+	if (1 == in4_pton(ip_info->ip_addr, -1, (u8*)&sin->sin_addr.s_addr, -1, NULL)) {
+		NMSGPR_ALERT( "Setup IPv4 address!\r\n");
+		strcpy(ir.ifr_ifrn.ifrn_name, dev->name);
+		sin->sin_family = AF_INET;
+		sin->sin_port = 0;
+		res = devinet_ioctl(&init_net, SIOCSIFADDR, (struct ifreq __user *) &ir);
+		if (res)
+			NMSGPR_ALERT( "Cann't setup IPv4 address!\r\n");
+		else
+			NMSGPR_ALERT("Assigned IPv4 address: %s\r\n", ip_info->ip_addr);
+	}
+
+	/*For valid IPv6 address*/
+	/*memset(&ir6, 0, sizeof(ir6));
+	if (1 == in6_pton(ip_info->ipv6_addr, -1, (u8*)&ir6.ifr6_addr.s6_addr, -1, NULL)) {
+		NMSGPR_ALERT( "Setup IPv6 address!\r\n");
+		ir6.ifr6_ifindex = dev->ifindex;
+		ir6.ifr6_prefixlen = 0;
+		res = addrconf_add_ifaddr(&init_net, (void __user *) &ir6);
+		if (res)
+			NMSGPR_ALERT( "Cann't setup IPv6 address!\r\n");
+		else
+			NMSGPR_ALERT("Assigned IPv6 address: %s\r\n", ip_info->ipv6_addr);
+
+	}*/
+
+	set_fs(oldfs);
+
+	return res;
+}
+#endif
 /*!
 * \brief API to initialize the device.
 *
@@ -1273,6 +1323,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	} else
 		pr_err("msm_bus_cl_get_pdata() failed\n");
 	device_disable_async_suspend(&pdev->dev);
+#ifdef DWC_ETH_QOS_BUILTIN
+	DWC_ETH_QOS_add_ipaddr(pparams, dev);
+#endif
 	return 0;
 
  err_out_netdev_failed:
