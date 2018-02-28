@@ -423,5 +423,5 @@ static void __exit DWC_ETH_QOS_pcie_exit(void)
 	DBGPR( "Exit:%s.\n", __func__);
 }
 
-fs_initcall(DWC_ETH_QOS_pcie_init);
+fs_initcall_sync(DWC_ETH_QOS_pcie_init);
 module_exit(DWC_ETH_QOS_pcie_exit);
