@@ -1003,10 +1003,12 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->ipa_enabled =
 		hw_if->ntn_fw_ipa_supported(pdata) && NTN_HOST_IPA_CAPABLE;
 	NMSGPR_INFO("NTN IPA enabled: %d\n", pdata->ipa_enabled);
-	if (pdata->ipa_enabled)
+	if (pdata->ipa_enabled) {
+		wakeup_source_init(&pdata->prv_ipa.wlock, "NTN_IPA_WS");
 		hw_if->enable_offload(pdata);
-	else
+	} else {
 		hw_if->disable_offload(pdata);
+	}
 
 	DWC_ETH_QOS_get_all_hw_features(pdata);
 	DWC_ETH_QOS_print_all_hw_features(pdata);
@@ -1451,6 +1453,8 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	if (pdata->pcierst_resx) {
 		if (hw_if->ntn_boot_host_initiated(pdata)) {
 			DWC_ETH_QOS_load_fw(pdev);
+			if (pdata->ipa_enabled)
+				hw_if->enable_offload(pdata);
 		}
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 		DWC_ETH_QOS_config_tamap(pdev);
@@ -1459,6 +1463,8 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 
 	pci_enable_msi(pdev);
 	ret = DWC_ETH_QOS_powerup(dev, DWC_ETH_QOS_DRIVER_CONTEXT);
+	if (pdata->prv_ipa.ipa_offload_susp)
+		DWC_ETH_QOS_ipa_offload_resume(pdata);
 
 	DBGPR("<--DWC_ETH_QOS_resume\n");
 
