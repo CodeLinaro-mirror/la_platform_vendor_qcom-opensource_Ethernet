@@ -1099,7 +1099,7 @@ static int DWC_ETH_QOS_add_ipaddr(struct ip_params *ip_info, struct net_device *
 	/*For valid Ipv4 address*/
 	memset(&ir, 0, sizeof(ir));
 	if (1 == in4_pton(ip_info->ip_addr, -1, (u8*)&sin->sin_addr.s_addr, -1, NULL)) {
-		strcpy(ir.ifr_ifrn.ifrn_name, dev->name);
+		strncpy(ir.ifr_ifrn.ifrn_name, dev->name, sizeof(ir.ifr_ifrn.ifrn_name));
 		sin->sin_family = AF_INET;
 		sin->sin_port = 0;
 		res = devinet_ioctl(&init_net, SIOCSIFADDR, (struct ifreq __user *) &ir);
