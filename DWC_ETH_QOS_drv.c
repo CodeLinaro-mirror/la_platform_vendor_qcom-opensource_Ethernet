@@ -1868,7 +1868,6 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	 * for performance */
 	DMA_TXCHINTMASK_ETCEN_UdfWr(0, 0);
 	DMA_TXCHINTMASK_UNFEN_UdfWr(0, 0);
-	netif_carrier_on(pdata->dev);
 
 	if (pdata->enable_phy && pdata->phydev) {
 		pdata->phydev->attached_dev = dev;
@@ -1895,6 +1894,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 				hw_if->ntn_set_tx_clk_2_5MHz(pdata);
 				break;
 			}
+			netif_carrier_on(pdata->dev);
 		} else {
 			NMSGPR_INFO("PHY link still is not up, resume it!!!!\r\n");
 			genphy_resume(pdata->phydev);
