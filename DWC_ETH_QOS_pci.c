@@ -409,6 +409,7 @@ static void parse_config_file(USHORT mdio_bus_id)
 	if(IS_ERR(filep)) {
 		NMSGPR_ALERT( "Mac configuration file not found\n");
 		NMSGPR_ALERT( "Using Default MAC Address\n");
+		kfree(data);
 		return;
 	}
 	else  {
@@ -1471,6 +1472,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
 	}
 
+	pdata->phy_wol_enable = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-phy-wol-enable");
+	NDBGPR_L1("%s: phy_wol_enable = %d\n", __func__, pdata->phy_wol_enable);
+
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
 #endif
@@ -2068,6 +2072,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	INT ret;
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	UINT rd_val;
 
 	DBGPR("-->DWC_ETH_QOS_resume\n");
 
@@ -2089,15 +2094,20 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	msm_pcie_shadow_control(pdev, true);
 #endif
 	pci_set_master(pdev);
-	/* Recover NTN in case whole chip was in reset */
-	if (pdata->pcierst_resx) {
+
+	/* Read MAC configuration register to check if neutrino reset
+	 * during suspend.
+	 * If reset the default value is 0.
+	 */
+	MAC_MCR_RgRd(rd_val);
+	if(0 == rd_val) {
+		/* Recover NTN in case whole chip was in reset */
 		if (hw_if->ntn_boot_host_initiated(pdata)) {
 			DWC_ETH_QOS_load_fw(pdev);
 			if (pdata->ipa_enabled)
 				hw_if->enable_offload(pdata);
 		}
 	}
-
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
 #endif

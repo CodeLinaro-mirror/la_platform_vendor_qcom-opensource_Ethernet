@@ -1763,6 +1763,8 @@ struct DWC_ETH_QOS_prv_data {
 	/* Decide if PHY is enabled or not */
 	bool enable_phy;
 
+	/* Decide if PHY wake-on-lan(WOL) feature enabled or not */
+	bool phy_wol_enable;
 	/* Timestamp valid window. AVTP packets are held
 	 * if the timestamp is within the window */
 	unsigned int ntn_timestamp_valid_window;
