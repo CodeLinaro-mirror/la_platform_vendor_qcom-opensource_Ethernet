@@ -27,7 +27,6 @@
 */
 
 #include "DWC_ETH_QOS_ipa.h"
-#include "DWC_ETH_QOS_yheader.h"
 
 #define NTN_IPA_PIPE_MAX_BW 800
 #define NTN_IPA_PIPE_MIN_BW 0
@@ -78,7 +77,9 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	int ret = Y_SUCCESS;
 	struct hw_if_struct *hw_if = &pdata->hw_if;
-	struct desc_if_struct *desc_if = &pdata->desc_if;
+
+	/* Enable offload flag in NTN HW */
+	hw_if->enable_offload(pdata);
 
 	if (pdata->prv_ipa.ipa_ready  && !pdata->prv_ipa.ipa_offload_init) {
 		ret = DWC_ETH_QOS_ipa_offload_init(pdata);
@@ -92,68 +93,6 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 	}
 
 	if (pdata->prv_ipa.ipa_uc_ready && !pdata->prv_ipa.ipa_offload_conn) {
-
-		/*Stop rx DMA channel 0 for IPA*/
-		hw_if->stop_dma_rx(NTN_RX_DMA_CH_0,pdata);
-
-		/*Stop tx DMA channel 2 for IPA*/
-		hw_if->stop_dma_tx(NTN_TX_DMA_CH_2,pdata);
-
-		/* free RX wrapper buffer */
-		desc_if->rx_free_mem_single_ch(pdata, NTN_RX_DMA_CH_0);
-
-		/* free TX buf and desc*/
-		desc_if->tx_free_mem_single_ch(pdata, NTN_TX_DMA_CH_2);
-
-		/*Free Rx Queue structures*/
-		desc_if->free_rx_queue_struct_single_ch(pdata, NTN_RX_DMA_CH_0);
-
-		/*Free TX queue structures*/
-		desc_if->free_tx_queue_struct_single_ch(pdata,NTN_TX_DMA_CH_2);
-
-		/*Set IPA enabled flag*/
-		pdata->ipa_enabled =
-		   hw_if->ntn_fw_ipa_supported(pdata) && NTN_HOST_IPA_CAPABLE;
-
-		pdata->tx_dma_ch[NTN_TX_DMA_CH_2].desc_cnt = IPA_TX_DESC_CNT;
-
-		/*allocate Rx Queue structures*/
-		ret = desc_if->alloc_rx_queue_struct_single_ch(pdata, NTN_RX_DMA_CH_0);
-		if(ret < 0){
-			NMSGPR_ERR("Allocate rx queue stuct single ch failed \n");
-			goto fail;
-		}
-
-		/*allocate TX queue structures*/
-		ret = desc_if->alloc_tx_queue_struct_single_ch(pdata,NTN_TX_DMA_CH_2);
-		if(ret < 0){
-			NMSGPR_ERR("Allocate tx queue stuct single ch failed \n");
-			goto err_alloc_tx_queue_struct;
-		}
-
-		/*Allocate Rx buffers*/
-		ret = desc_if->alloc_rx_buff_and_desc(pdata, NTN_RX_DMA_CH_0);
-		if(ret < 0){
-			NMSGPR_ERR("Allocate buff and desc failed \n");
-			goto err_alloc_rx_buff_desc;
-		}
-
-		/*Allocate Tx buffers*/
-		ret = desc_if->alloc_tx_buff_and_desc(pdata, NTN_TX_DMA_CH_2);
-		if(ret < 0){
-			NMSGPR_ERR("Allocate buff and desc failed \n");
-			goto err_alloc_tx_buff_desc;
-		}
-
-		/*Allocate Rx buffers*/
-		desc_if->wrapper_rx_desc_init_single_q(pdata,NTN_RX_DMA_CH_0);
-
-		/*Allocate Tx buffers*/
-		desc_if->wrapper_tx_desc_init_single_q(pdata,NTN_TX_DMA_CH_2);
-
-		/* Enable offload flag in NTN HW and mask Interrupts to go to HW */
-		hw_if->enable_offload(pdata);
-
 		ret = DWC_ETH_QOS_ipa_offload_connect(pdata);
 		if (ret) {
 			NMSGPR_ERR("IPA Offload Connect Failed \n");
@@ -171,12 +110,6 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 		goto fail;
 	}
 
-	/*Start rx DMA channel 0 for IPA*/
-	hw_if->start_dma_rx(NTN_RX_DMA_CH_0,pdata);
-
-	/*Start tx DMA channel 2 for IPA*/
-	hw_if->start_dma_tx(NTN_TX_DMA_CH_2,pdata);
-
 	if (!pdata->prv_ipa.ipa_debugfs_exists) {
 		if (!DWC_ETH_QOS_ipa_create_debugfs(pdata)) {
 			NMSGPR_INFO("NTN Debugfs created  \n");
@@ -186,18 +119,6 @@ int DWC_ETH_QOS_enable_ipa_offload(struct DWC_ETH_QOS_prv_data *pdata)
 
 	NMSGPR_INFO("IPA Offload Enabled successfully\n");
 	return ret;
-
-err_alloc_tx_buff_desc:
-	/* free RX wrapper buffer */
-	desc_if->rx_free_mem_single_ch(pdata, NTN_RX_DMA_CH_0);
-
-err_alloc_rx_buff_desc:
-	/*Free Rx Queue structures*/
-	desc_if->free_tx_queue_struct_single_ch(pdata, NTN_RX_DMA_CH_0);
-
-err_alloc_tx_queue_struct:
-	/*Free Rx Queue structures*/
-	desc_if->free_rx_queue_struct_single_ch(pdata, NTN_RX_DMA_CH_0);
 
 fail:
 	if ( pdata->prv_ipa.ipa_offload_conn ) {

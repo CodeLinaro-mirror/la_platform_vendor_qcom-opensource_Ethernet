@@ -80,12 +80,6 @@
 
 static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *);
 
-static INT allocate_rx_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata,
-									   UINT chInx);
-
-static INT allocate_tx_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata,
-									   UINT chInx);
-
 static void DWC_ETH_QOS_wrapper_tx_descriptor_init(struct DWC_ETH_QOS_prv_data
 						   *pdata);
 
@@ -106,10 +100,6 @@ static int DWC_ETH_QOS_get_skb_hdr(struct sk_buff *skb, void **iphdr,
 static void DWC_ETH_QOS_tx_free_mem(struct DWC_ETH_QOS_prv_data *);
 
 static void DWC_ETH_QOS_rx_free_mem(struct DWC_ETH_QOS_prv_data *);
-
-static void DWC_ETH_QOS_tx_free_mem_single_ch(struct DWC_ETH_QOS_prv_data *, UINT);
-
-static void DWC_ETH_QOS_rx_free_mem_single_ch(struct DWC_ETH_QOS_prv_data *, UINT);
 
 static unsigned int DWC_ETH_QOS_map_skb(struct net_device *, struct sk_buff *);
 
@@ -139,17 +129,4 @@ static void DWC_ETH_QOS_rx_skb_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 
 static void DWC_ETH_QOS_tx_skb_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 					UINT tx_chCnt);
-
-static void DWC_ETH_QOS_free_rx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx);
-
-static void DWC_ETH_QOS_free_tx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx);
-
-static INT DWC_ETH_QOS_alloc_rx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx);
-
-static INT DWC_ETH_QOS_alloc_tx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx);
-
 #endif
