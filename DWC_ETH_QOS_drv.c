@@ -2361,7 +2361,7 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	UINT varvlan_pkt;
 #endif
 	int tso;
-	if (ip_hdr(skb)->protocol == IPPROTO_TCP)
+	if (ip_hdr(skb)->protocol == IPPROTO_TCP || ip_hdr(skb)->protocol == IPPROTO_ICMP)
 		skb_orphan(skb);
 
 	spin_lock_irqsave(&pdata->tx_lock, flags);
