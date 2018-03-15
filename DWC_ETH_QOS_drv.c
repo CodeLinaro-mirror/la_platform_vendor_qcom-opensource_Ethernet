@@ -3131,6 +3131,15 @@ static int DWC_ETH_QOS_clean_rx_irq(struct DWC_ETH_QOS_prv_data *pdata,
 #endif
 			/* assign it to new skb */
 			skb = buffer->skb;
+			if (unlikely(skb == NULL)) {
+				desc_data->dirty_rx++;
+				if (desc_data->dirty_rx >= desc_data->skb_realloc_threshold)
+					desc_if->realloc_skb(pdata, chInx);
+
+				INCR_RX_DESC_INDEX(desc_data->cur_rx, 1, pdata->rx_dma_ch[chInx].desc_cnt);
+				continue;
+			}
+
 			buffer->skb = NULL;
 
 			pkt_len =
