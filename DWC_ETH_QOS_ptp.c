@@ -329,7 +329,7 @@ static ssize_t DWC_ETH_QOS_ptp_clock_show(struct device *dev,
 
 	DWC_ETH_QOS_get_time(&pdata->ptp_clock_ops, &ts);
 
-	return sprintf(buf, "%lld.%.9ld\n", (long long)ts.tv_sec, ts.tv_nsec);
+	return snprintf(buf, PAGE_SIZE, "%lld.%.9ld\n", (long long)ts.tv_sec, ts.tv_nsec);
 }
 static DEVICE_ATTR(ptp_clock, S_IRUSR, DWC_ETH_QOS_ptp_clock_show, NULL);
 

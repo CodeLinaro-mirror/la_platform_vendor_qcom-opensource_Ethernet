@@ -781,7 +781,7 @@ static ssize_t ip_ts_enable_show(struct device *dev,
 	struct net_device *ndev = to_net_dev(dev);
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
 
-	return sprintf(buf, "%d\n", pdata->ip_traffic_shaping_enabled);
+	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->ip_traffic_shaping_enabled);
 }
 
 static ssize_t ip_ts_enable_store(struct device *dev,
@@ -811,7 +811,7 @@ static ssize_t ip_ts_class_1_pcp_show(struct device *dev,
 	struct net_device *ndev = to_net_dev(dev);
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
 
-	return sprintf(buf, "%d\n", pdata->ip_traffic_shaping_class_1_min_pcp);
+	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->ip_traffic_shaping_class_1_min_pcp);
 }
 
 static ssize_t ip_ts_class_1_pcp_store(struct device *dev,
@@ -841,7 +841,7 @@ static ssize_t ip_ts_class_2_pcp_show(struct device *dev,
 	struct net_device *ndev = to_net_dev(dev);
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
 
-	return sprintf(buf, "%d\n", pdata->ip_traffic_shaping_class_2_min_pcp);
+	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->ip_traffic_shaping_class_2_min_pcp);
 }
 
 static ssize_t ip_ts_class_2_pcp_store(struct device *dev,
