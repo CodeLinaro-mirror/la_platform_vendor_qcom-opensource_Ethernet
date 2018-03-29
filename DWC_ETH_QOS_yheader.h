@@ -455,10 +455,25 @@
 #define PCI_BAR_NO 0
 #define COMPLETE_BAR 0
 
+#define PHY_INTR_ENABLED 1
+#define PHY_INTR_DISABLED 0
+
 /* MII/GMII register offset */
 #define DWC_ETH_QOS_AUTO_NEGO_NP    0x0007
 #define DWC_ETH_QOS_PHY_CTL     0x0010
 #define DWC_ETH_QOS_PHY_STS     0x0011
+
+#define DWC_ETH_QOS_PHY_INT_REG            0x1B
+#define DWC_ETH_QOS_PHY_INT_LINK_UP_MASK   0x1
+#define DWC_ETH_QOS_PHY_INT_LINK_DOWN_MASK 0x4
+#define DWC_ETH_QOS_PHY_CTRL_REG           0x1F
+#define DWC_ETH_QOS_PHY_INT_MASK_DEFAULT   0x500
+#define PHY_DUPLEX_MASK                    0x100
+#define PHY_10M_SPEED_MASK                 0x10
+#define PHY_100M_SPEED_MASK                0x20
+#define PHY_1000M_SPEED_MASK               0x40
+#define PHY_BASIC_CONTROL_SPEED_SELECT_LSB 0x2000
+#define PHY_BASIC_CONTROL_SPEED_SELECT_MSB 0x40
 
 /* Default MTL queue operation mode values */
 #define DWC_ETH_QOS_Q_DISABLED	0x0
@@ -690,6 +705,9 @@
 #define NTN_M3_IP_PARAM_START 0xC900
 #define NTN_MR_IP_PARAMS_MAGIC_COOKIE "0xDEFBAC"
 #define NTN_BOOT_COMPLETE_OFFSET 0xC848
+
+/* Disable handling phy interrupts by default. */
+//#define NTN_MAC_INT_ENABLED
 
 /* C data types typedefs */
 
@@ -1772,6 +1790,9 @@ struct DWC_ETH_QOS_prv_data {
 	/* Workqueue used in PMT interrupt handler */
 	struct work_struct powerup_work;
 
+	/* Workqueue used to enable eee mode */
+	struct work_struct eee_work;
+
 	/* Workqueue used in Fatal interrupt handler*/
 	struct work_struct restartdev_work;
 	unsigned int restart_channel_idx;
@@ -1845,6 +1866,9 @@ int DWC_ETH_QOS_poll_mq(struct napi_struct *, int);
 void DWC_ETH_QOS_get_pdata(struct DWC_ETH_QOS_prv_data *pdata);
 
 int DWC_ETH_QOS_mdio_register(struct net_device *dev);
+INT DWC_ETH_QOS_mdio_config_intr(struct DWC_ETH_QOS_prv_data *pdata, UINT flag);
+INT DWC_ETH_QOS_mdio_ack_intr(struct DWC_ETH_QOS_prv_data *pdata);
+void DWC_ETH_QOS_adjust_link_isr(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_mdio_unregister(struct net_device *dev);
 INT DWC_ETH_QOS_mdio_read_direct(struct DWC_ETH_QOS_prv_data *pdata,
 				 int phyaddr, int phyreg, int *phydata);

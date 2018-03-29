@@ -661,7 +661,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 	ULONG varNTN_INTC_INTSTATUS;
 	ULONG varNTN_INTC_MACSTATUS;
 	ULONG varNTN_INTC_INTMCUMASK1;
-        ULONG var_NTN_INTC_TDMSTATUS;
+	ULONG var_NTN_INTC_TDMSTATUS;
 	ULONG var_raw_DMA_RXCHSTS;
 	ULONG varDMA_RXCHSTS;
 	ULONG var_raw_DMA_TXCHSTS;
@@ -685,47 +685,44 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 
 	DBGPR("-->DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS\n");
 
+	/* TOP level status register: Check if there is any interrupt from EMAC, if not return with IRQ_NONE. */
+	NTN_INTC_INTSTATUS_RgRd(varNTN_INTC_INTSTATUS);
 
-        /* TOP level status register: Check if there is any interrupt from EMAC, if not return with IRQ_NONE. */
-        NTN_INTC_INTSTATUS_RgRd(varNTN_INTC_INTSTATUS);
-
-	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_TXRX_LPOS, NTN_INTC_INTSTATUS_TXRX_HPOS))
-	{
+	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_TXRX_LPOS, NTN_INTC_INTSTATUS_TXRX_HPOS)) {
 		NTN_INTC_MACSTATUS_RgRd(varNTN_INTC_MACSTATUS);
 
-	/* Handle DMA RX interrupts */
-	for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++) {
-
+		/* Handle DMA RX interrupts */
+		for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++) {
 			/* Check if Current DMA channel didn't raise an interrupt, continue to next channel */
 			if(!GET_VALUE(varNTN_INTC_MACSTATUS, (chInx+16), (chInx+16) ))
 				continue;
-        if(!pdata->rx_dma_ch_for_host[chInx])
-            continue;
+			if(!pdata->rx_dma_ch_for_host[chInx])
+				continue;
 
-		if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
-			pr_debug("ISR is routed to IPA uC for RXCH0. Skip for this channel \n");
-			continue;
-		}
+			if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
+				pr_debug("ISR is routed to IPA uC for RXCH0. Skip for this channel \n");
+				continue;
+			}
 
-            	/* DMA RX Channel level status register */
+			/* DMA RX Channel level status register */
 			DMA_RXCHSTS_RgRd(chInx, var_raw_DMA_RXCHSTS);
-	    	/* clear interrupts. This will clear INTC interrupt status as well. */
-            	DMA_RXCHSTS_RgWr(chInx, var_raw_DMA_RXCHSTS);
-   	    	NDBGPR_TS1("Raw DMA_RXCHSTS[%d] = %#lx\n", chInx, var_raw_DMA_RXCHSTS);
+			/* clear interrupts. This will clear INTC interrupt status as well. */
+			DMA_RXCHSTS_RgWr(chInx, var_raw_DMA_RXCHSTS);
+			NDBGPR_TS1("Raw DMA_RXCHSTS[%d] = %#lx\n", chInx, var_raw_DMA_RXCHSTS);
 
-            	/* get enabled interrupt mask */
-            	DMA_RXCHINTMASK_RgRd(chInx, varDMA_RXCHINTMASK);
-            	varDMA_RXCHINTMASK &= DMA_RXCHINTMASK_MASK;
+			/* get enabled interrupt mask */
+			DMA_RXCHINTMASK_RgRd(chInx, varDMA_RXCHINTMASK);
+			varDMA_RXCHINTMASK &= DMA_RXCHINTMASK_MASK;
 
-	    	/* handle only those DMA interrupts which are enabled */
-	    	varDMA_RXCHSTS = (var_raw_DMA_RXCHSTS & varDMA_RXCHINTMASK);
+			/* handle only those DMA interrupts which are enabled */
+			varDMA_RXCHSTS = (var_raw_DMA_RXCHSTS & varDMA_RXCHINTMASK);
 			NDBGPR_L2( "DMA_RXCHSTS[%d] = %#lx\n", chInx, varDMA_RXCHSTS);
 
 			if(0 == varDMA_RXCHSTS)
 				continue;
 
-		if ((GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RC_LPOS, DMA_RXCHSTS_RC_HPOS) & 1) ||
-			(GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_UNF_LPOS, DMA_RXCHSTS_UNF_HPOS) & 1)) {
+			if ((GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RC_LPOS, DMA_RXCHSTS_RC_HPOS) & 1) ||
+				(GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_UNF_LPOS, DMA_RXCHSTS_UNF_HPOS) & 1)) {
 				if(pdata->measureRx_enable)
 					NMSGPR_ALERT("%s: Packet received \n",__func__);
 				if (!napi_sched) {
@@ -733,42 +730,41 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 					napi_sched = 1;
 					if (likely(napi_schedule_prep(&rx_dma_ch->napi))) {
 						DWC_ETH_QOS_disable_all_ch_rx_interrpt(pdata);
-							NDBGPR_TS2("Scheduling RX Poll\n");
+						NDBGPR_TS2("Scheduling RX Poll\n");
 						__napi_schedule(&rx_dma_ch->napi);
 					} else {
 						DWC_ETH_QOS_disable_all_ch_rx_interrpt(pdata);
 					}
 
-					if ((GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RC_LPOS, DMA_RXCHSTS_RC_HPOS) & 1))
+					if ((GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RC_LPOS, DMA_RXCHSTS_RC_HPOS) & 1)) {
 						pdata->xstats.rx_normal_irq_n[chInx]++;
-					else{
+					} else {
 						pdata->xstats.rx_buf_unavailable_irq_n[chInx]++;
-							NDBGPR_L2( "RX Buffer unavalialbe for Channel = %d\n", chInx);
+						NDBGPR_L2( "RX Buffer unavalialbe for Channel = %d\n", chInx);
+					}
 				}
 			}
-		}
-		if (GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RS_LPOS, DMA_RXCHSTS_RS_HPOS) & 1) {
-			pdata->xstats.rx_process_stopped_irq_n[chInx]++;
+			if (GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_RS_LPOS, DMA_RXCHSTS_RS_HPOS) & 1) {
+				pdata->xstats.rx_process_stopped_irq_n[chInx]++;
 				NDBGPR_L2("RX Stopped for Channel = %d\n", chInx);
-			DWC_ETH_QOS_GStatus = -E_DMA_RX_TS;
-		}
-		if (GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_FE_LPOS, DMA_RXCHSTS_FE_HPOS) & 1) {
-			pdata->xstats.fatal_bus_error_irq_n++;
-			DWC_ETH_QOS_GStatus = -E_DMA_RX_FE;
+				DWC_ETH_QOS_GStatus = -E_DMA_RX_TS;
+			}
+			if (GET_VALUE(varDMA_RXCHSTS, DMA_RXCHSTS_FE_LPOS, DMA_RXCHSTS_FE_HPOS) & 1) {
+				pdata->xstats.fatal_bus_error_irq_n++;
+				DWC_ETH_QOS_GStatus = -E_DMA_RX_FE;
 
-			DMA_RXCHSTS_FESTS_UdfRd(chInx, varBitField);
-			NDBGPR_L2("RX Fatal Bus error Status %#lx\n", varBitField);
+				DMA_RXCHSTS_FESTS_UdfRd(chInx, varBitField);
+				NDBGPR_L2("RX Fatal Bus error Status %#lx\n", varBitField);
 
-			DMA_RXCHSTS_CHSTS_UdfRd(chInx, varBitField);
-			NDBGPR_L2("RX Channel Status %#lx\n", varBitField);
+				DMA_RXCHSTS_CHSTS_UdfRd(chInx, varBitField);
+				NDBGPR_L2("RX Channel Status %#lx\n", varBitField);
 
-			pdata->restart_channel_idx = chInx;
-			schedule_work(&pdata->restartdev_work);
-		}
+				pdata->restart_channel_idx = chInx;
+				schedule_work(&pdata->restartdev_work);
+			}
 
 			chSts = GET_VALUE(var_raw_DMA_RXCHSTS, DMA_RXCHSTS_CHSTS_LPOS, DMA_RXCHSTS_CHSTS_HPOS);
-			switch(chSts)
-			{
+			switch(chSts) {
 				case DMA_RXCHSTS_CHSTS_SUSPEND:
 					//NMSGPR_ALERT( "RX Channel %d Suspended\n", chInx);
 					break;
@@ -777,79 +773,79 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 					NDBGPR_L2("RX Channel %d Stopped : CTL = %lx\n", chInx, temp);
 					break;
 			}
-    	}
+		}
 
-	/* Handle DMA TX interrupts */
-	for (chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++) {
-
+		/* Handle DMA TX interrupts */
+		for (chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++) {
 			/* Check if Current DMA channel didn't raise an interrupt, continue to next channel */
 			if(!GET_VALUE(varNTN_INTC_MACSTATUS, (chInx), (chInx) ))
-            continue;
+				continue;
 
 			if(!pdata->tx_dma_ch_for_host[chInx])
-                        continue;
+				continue;
 
-		if (pdata->ipa_enabled && chInx == NTN_TX_DMA_CH_2) {
-			pr_debug("TX interrupts are handled by IPA uc for TXCH2.skip for the host \n");
-			continue;
-		}
+			if (pdata->ipa_enabled && chInx == NTN_TX_DMA_CH_2) {
+				pr_debug("TX interrupts are handled by IPA uc for TXCH2.skip for the host \n");
+				continue;
+			}
 
-                /* DMA TX Channel level status register */
-                DMA_TXCHSTS_RgRd(chInx, var_raw_DMA_TXCHSTS);
-                /* clear interrupts. This will clear INTC interrupt status as well. */
-                DMA_TXCHSTS_RgWr(chInx, var_raw_DMA_TXCHSTS);
-                NDBGPR_TS1("Raw DMA_TXCHSTS[%d] = %#lx\n", chInx, var_raw_DMA_TXCHSTS);
+			/* DMA TX Channel level status register */
+			DMA_TXCHSTS_RgRd(chInx, var_raw_DMA_TXCHSTS);
+			/* clear interrupts. This will clear INTC interrupt status as well. */
+			DMA_TXCHSTS_RgWr(chInx, var_raw_DMA_TXCHSTS);
+			NDBGPR_TS1("Raw DMA_TXCHSTS[%d] = %#lx\n", chInx, var_raw_DMA_TXCHSTS);
 
-                /* get enabled interrupt mask */
-        	DMA_TXCHINTMASK_RgRd(chInx, varDMA_TXCHINTMASK);
-        	varDMA_TXCHINTMASK &= DMA_TXCHINTMASK_MASK;
+			/* get enabled interrupt mask */
+			DMA_TXCHINTMASK_RgRd(chInx, varDMA_TXCHINTMASK);
+			varDMA_TXCHINTMASK &= DMA_TXCHINTMASK_MASK;
 
-		/* handle only those DMA interrupts which are enabled */
-		varDMA_TXCHSTS = (var_raw_DMA_TXCHSTS & varDMA_TXCHINTMASK);
-		NDBGPR_L2("DMA_TXCHSTS[%d] = %#lx\n", chInx, varDMA_TXCHSTS);
+			/* handle only those DMA interrupts which are enabled */
+			varDMA_TXCHSTS = (var_raw_DMA_TXCHSTS & varDMA_TXCHINTMASK);
+			NDBGPR_L2("DMA_TXCHSTS[%d] = %#lx\n", chInx, varDMA_TXCHSTS);
 
-		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TC_LPOS, DMA_TXCHSTS_TC_HPOS) & 1) {
-			pdata->xstats.tx_normal_irq_n[chInx]++;
-			if(pdata->measureTx_enable)
-				NMSGPR_ALERT( "%s: Transmit complete interrupt received\n",__func__);
-			DWC_ETH_QOS_tx_interrupt(dev, pdata, chInx);
-		}
-		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TS_LPOS, DMA_TXCHSTS_TS_HPOS) & 1) {
-			pdata->xstats.tx_process_stopped_irq_n[chInx]++;
+			if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TC_LPOS, DMA_TXCHSTS_TC_HPOS) & 1) {
+				pdata->xstats.tx_normal_irq_n[chInx]++;
+				if(pdata->measureTx_enable)
+					NMSGPR_ALERT( "%s: Transmit complete interrupt received\n",__func__);
+
+				DWC_ETH_QOS_tx_interrupt(dev, pdata, chInx);
+			}
+			if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_TS_LPOS, DMA_TXCHSTS_TS_HPOS) & 1) {
+				pdata->xstats.tx_process_stopped_irq_n[chInx]++;
 				NDBGPR_L2("TX Stopped for Channel = %d\n", chInx);
-			DWC_ETH_QOS_GStatus = -E_DMA_TX_TS;
-		}
-		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_UNF_LPOS, DMA_TXCHSTS_UNF_HPOS) & 1) {
-			pdata->xstats.tx_buf_unavailable_irq_n[chInx]++;
-			DWC_ETH_QOS_GStatus = -E_DMA_TX_UNF;
-			if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
-				NDBGPR_L2( "TX Buffer underflow interrupt, It should be avoided for AVB traffic\n");
-		}
+				DWC_ETH_QOS_GStatus = -E_DMA_TX_TS;
+			}
+			if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_UNF_LPOS, DMA_TXCHSTS_UNF_HPOS) & 1) {
+				pdata->xstats.tx_buf_unavailable_irq_n[chInx]++;
+				DWC_ETH_QOS_GStatus = -E_DMA_TX_UNF;
+				if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
+					NDBGPR_L2( "TX Buffer underflow interrupt, It should be avoided for AVB traffic\n");
+			}
 
-		if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_FE_LPOS, DMA_TXCHSTS_FE_HPOS) & 1) {
-			pdata->xstats.fatal_bus_error_irq_n++;
-			DWC_ETH_QOS_GStatus = -E_DMA_TX_FE;
+			if (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_FE_LPOS, DMA_TXCHSTS_FE_HPOS) & 1) {
+				pdata->xstats.fatal_bus_error_irq_n++;
+				DWC_ETH_QOS_GStatus = -E_DMA_TX_FE;
 
-                        DMA_TXCHSTS_FESTS_UdfRd(chInx, varBitField);
-            NDBGPR_L2("TX Fatal Bus error Status %#lx\n", varBitField);
+				DMA_TXCHSTS_FESTS_UdfRd(chInx, varBitField);
+				NDBGPR_L2("TX Fatal Bus error Status %#lx\n", varBitField);
 
-                        DMA_TXCHSTS_CHSTS_UdfRd(chInx, varBitField);
-            NDBGPR_L2("TX Channel Status %#lx\n", varBitField);
+				DMA_TXCHSTS_CHSTS_UdfRd(chInx, varBitField);
+				NDBGPR_L2("TX Channel Status %#lx\n", varBitField);
 
-			pdata->restart_channel_idx = chInx;
-			schedule_work(&pdata->restartdev_work);
-		}
+				pdata->restart_channel_idx = chInx;
+				schedule_work(&pdata->restartdev_work);
+			}
 
-		if ( (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_ETC_LPOS, DMA_TXCHSTS_ETC_HPOS) & 1) ){
-			NDBGPR_L2( "ETC Interrupt is not handled\n");
-		}
-		if ( (GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_CDE_LPOS, DMA_TXCHSTS_CDE_HPOS) & 1) ){
-			NDBGPR_L2("CDE Interrupt is not handled\n");
-		}
+			if ((GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_ETC_LPOS, DMA_TXCHSTS_ETC_HPOS) & 1)) {
+				NDBGPR_L2("ETC Interrupt is not handled\n");
+			}
+
+			if ((GET_VALUE(varDMA_TXCHSTS, DMA_TXCHSTS_CDE_LPOS, DMA_TXCHSTS_CDE_HPOS) & 1)) {
+				NDBGPR_L2("CDE Interrupt is not handled\n");
+			}
 
 			chSts = GET_VALUE(var_raw_DMA_TXCHSTS, DMA_TXCHSTS_CHSTS_LPOS, DMA_TXCHSTS_CHSTS_HPOS);
-			switch(chSts)
-			{
+			switch(chSts) {
 				case DMA_TXCHSTS_CHSTS_SUSPEND:
 					//NMSGPR_ALERT( "TX Channel %d Suspended\n", chInx);
 					break;
@@ -857,21 +853,28 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 					NDBGPR_L2("TX Channel %d Stopped\n", chInx);
 					break;
 				default:
-				    break;
+					break;
 			}
-
-    }
+		}
 	}
 
 	/* Handle MAC interrupts */
 	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_LPOS, NTN_INTC_INTSTATUS_MAC_HPOS)) {
-
 		MAC_ISR_RgRd(varMAC_ISR);
 		NDBGPR_L2("MAC_ISR = %#lx\n", varMAC_ISR);
 
 		/* handle only those MAC interrupts which are enabled */
 		MAC_IMR_RgRd(varMAC_IMR);
 		varMAC_ISR = (varMAC_ISR & varMAC_IMR);
+
+		/* MAC interrupts */
+		if (GET_VALUE(varMAC_ISR, MAC_ISR_PHY_INT_LPOS, MAC_ISR_PHY_INT_HPOS) & 1) {
+			NDBGPR_L2("%s: MAC interrupt received!\n", __func__);
+			DWC_ETH_QOS_mdio_ack_intr(pdata);
+#ifdef NTN_MAC_INT_ENABLED
+			DWC_ETH_QOS_adjust_link_isr(pdata);
+#endif
+		}
 
 		/* PMT interrupt */
 		if (GET_VALUE(varMAC_ISR, MAC_ISR_PMTIS_LPOS, MAC_ISR_PMTIS_HPOS) & 1) {
@@ -907,10 +910,10 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 					pdata->pcs_speed = SPEED_1000;
 					hw_if->set_gmii_speed(pdata);
 				}
-				NMSGPR_ALERT( "Link is UP:%dMbps & %s duplex\n",
+				NDBGPR_L2( "Link is UP:%dMbps & %s duplex\n",
 					pdata->pcs_speed, pdata->pcs_duplex ? "Full" : "Half");
 			} else {
-				NMSGPR_ALERT( "Link is Down\n");
+				NDBGPR_L2( "Link is Down\n");
 				pdata->pcs_link = 0;
 				netif_carrier_off(dev);
 			}
@@ -946,7 +949,11 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 	/* Handle MAC LPI interrupts */
 	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_LPI_LPOS, NTN_INTC_INTSTATUS_MAC_LPI_HPOS)) {
 		NDBGPR_L2("Neutrino INTC MAC LPI status bit is set.\n");
-        }
+	}
+
+	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_GPIO10_LPOS, NTN_INTC_INTSTATUS_GPIO10_HPOS)) {
+		NDBGPR_L2("%s: NTN GPIO10 interrupt received\n", __func__);
+	}
 
 	/* Handle MAC PM interrupts */
 	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_PM_LPOS, NTN_INTC_INTSTATUS_MAC_PM_HPOS)) {
@@ -979,7 +986,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		if(var_NTN_INTC_TDMSTATUS & NTN_INTC_TDM_GENERAL_ERROR){
 			NDBGPR_L2("Neutrino TDM General error detected.\n");
 		}
-        }
+	}
 
 	/* Read interrupt mask */
 	NTN_INTC_INTMCUMASK1_RgRd(varNTN_INTC_INTMCUMASK1);
@@ -1923,6 +1930,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	DMA_TXCHINTMASK_ETCEN_UdfWr(0, 0);
 	DMA_TXCHINTMASK_UNFEN_UdfWr(0, 0);
 
+#ifndef NTN_MAC_INT_ENABLED
 	if (pdata->enable_phy && pdata->phydev) {
 		pdata->phydev->attached_dev = dev;
 		pdata->phydev->state = PHY_UP;
@@ -1955,7 +1963,11 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		}
 		schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
 	}
-
+#else
+	if (pdata->enable_phy && pdata->phydev)
+		pdata->phydev->attached_dev = dev;
+	DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_ENABLED);
+#endif
 	DBGPR("<--DWC_ETH_QOS_open, %d\n", ret);
 
 	return ret;
@@ -1989,7 +2001,10 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	int ret = 0;
 
 	DBGPR("-->DWC_ETH_QOS_close\n");
-
+#ifdef NTN_MAC_INT_ENABLED
+	/* clearing phy int_mask */
+	DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_DISABLED);
+#endif
 	if (pdata->eee_enabled)
 		del_timer_sync(&pdata->eee_ctrl_timer);
 

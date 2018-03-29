@@ -79,6 +79,9 @@
  * @brief: Driver functions.
  */
 #include "DWC_ETH_QOS_yheader.h"
+#include "DWC_ETH_QOS_yregacc.h"
+#include <soc/qcom/boot_stats.h>
+
 void DWC_ETH_QOS_reload_fqtss_cfg(struct DWC_ETH_QOS_prv_data *pdata);
 
 /*!
@@ -444,6 +447,253 @@ void dump_phy_registers(struct DWC_ETH_QOS_prv_data *pdata)
 	       "\n****************************************************\n");
 }
 
+void DWC_ETH_QOS_init_eee_handler(struct work_struct *work)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = container_of(work,
+					struct DWC_ETH_QOS_prv_data, eee_work);
+
+	if (!pdata->eee_active)
+		pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
+
+	return;
+}
+
+int DWC_ETH_QOS_read_status(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int adv;
+	int lpa;
+	int lpagb = 0;
+	int common_adv;
+	int common_adv_gb = 0;
+	INT phydata;
+
+	/* Update the link, but return if there was an error */
+	DWC_ETH_QOS_mdio_read_direct(pdata, pdata->phyaddr, MII_BMSR, &phydata);
+	if ((phydata & BMSR_LSTATUS) == 0)
+		pdata->phydev->link = 0;
+	else
+		pdata->phydev->link = 1;
+
+	pdata->phydev->lp_advertising = 0;
+
+	if (AUTONEG_ENABLE == pdata->phydev->autoneg) {
+		if (pdata->phydev->supported & (SUPPORTED_1000baseT_Half
+					| SUPPORTED_1000baseT_Full)) {
+			DWC_ETH_QOS_mdio_read_direct(pdata, pdata->phyaddr, MII_STAT1000, &lpagb);
+			if (lpagb < 0)
+				return lpagb;
+
+			DWC_ETH_QOS_mdio_read_direct(pdata, pdata->phyaddr, MII_CTRL1000, &adv);
+			if (adv < 0)
+				return adv;
+
+			pdata->phydev->lp_advertising =
+				mii_stat1000_to_ethtool_lpa_t(lpagb);
+			common_adv_gb = lpagb & adv << 2;
+		}
+
+		DWC_ETH_QOS_mdio_read_direct(pdata, pdata->phyaddr, MII_LPA, &lpa);
+		if (lpa < 0)
+			return lpa;
+
+		pdata->phydev->lp_advertising |= mii_lpa_to_ethtool_lpa_t(lpa);
+
+		DWC_ETH_QOS_mdio_read_direct(pdata, pdata->phyaddr, MII_ADVERTISE, &adv);
+		if (adv < 0)
+			return adv;
+
+		common_adv = lpa & adv;
+
+		pdata->phydev->speed = SPEED_10;
+		pdata->phydev->duplex = DUPLEX_HALF;
+		pdata->phydev->pause = 0;
+		pdata->phydev->asym_pause = 0;
+
+		if (common_adv_gb & (LPA_1000FULL | LPA_1000HALF)) {
+			pdata->phydev->speed = SPEED_1000;
+
+			if (common_adv_gb & LPA_1000FULL)
+				pdata->phydev->duplex = DUPLEX_FULL;
+		} else if (common_adv & (LPA_100FULL | LPA_100HALF)) {
+			pdata->phydev->speed = SPEED_100;
+
+			if (common_adv & LPA_100FULL)
+				pdata->phydev->duplex = DUPLEX_FULL;
+		} else
+			if (common_adv & LPA_10FULL)
+				pdata->phydev->duplex = DUPLEX_FULL;
+
+		if (pdata->phydev->duplex == DUPLEX_FULL) {
+			pdata->phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;
+			pdata->phydev->asym_pause = lpa & LPA_PAUSE_ASYM ? 1 : 0;
+		}
+	} else {
+		int bmcr = 0;
+		DWC_ETH_QOS_mdio_read_direct(pdata, pdata->phyaddr, MII_BMCR, &bmcr);
+
+		if (bmcr < 0)
+			return bmcr;
+
+		if (bmcr & BMCR_FULLDPLX)
+			pdata->phydev->duplex = DUPLEX_FULL;
+		else
+			pdata->phydev->duplex = DUPLEX_HALF;
+
+		if (bmcr & BMCR_SPEED1000)
+			pdata->phydev->speed = SPEED_1000;
+		else if (bmcr & BMCR_SPEED100)
+			pdata->phydev->speed = SPEED_100;
+		else
+			pdata->phydev->speed = SPEED_10;
+
+		pdata->phydev->pause = 0;
+		pdata->phydev->asym_pause = 0;
+	}
+
+	return 0;
+}
+
+void DWC_ETH_QOS_adjust_link_isr(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	struct phy_device *phydev = pdata->phydev;
+	int new_state = 0;
+
+	DBGPR_MDIO("-->DWC_ETH_QOS_adjust_link_isr. address %d link %d\n", phydev->addr,
+		phydev->link);
+
+	if (!pdata->enable_phy) {
+		NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		return;
+	}
+	if (phydev == NULL) {
+		NMSGPR_ALERT("%s: PHY dev is NULL\n", __func__);
+		return;
+	}
+
+	/* Ignore adjust_link interrupts if PCI link is down. PCI
+		 * link down event will eventually stop the phy state machine */
+	if (pdata->pdev->error_state != pci_channel_io_normal) {
+		NMSGPR_ALERT("%s: PCI link is down returning.\n", __func__);
+		return;
+	}
+
+	DWC_ETH_QOS_read_status(pdata);
+
+	if (phydev->link) {
+		/* Now we make sure that we can be in full duplex mode.
+		 * If not, we operate in half-duplex mode */
+		if (phydev->duplex != pdata->oldduplex) {
+			new_state = 1;
+			if (phydev->duplex)
+				hw_if->set_full_duplex(pdata);
+			else
+				hw_if->set_half_duplex(pdata);
+			pdata->oldduplex = phydev->duplex;
+		}
+		/* FLOW ctrl operation */
+		if (phydev->pause || phydev->asym_pause) {
+			if (pdata->flow_ctrl != pdata->oldflow_ctrl)
+				DWC_ETH_QOS_configure_flow_ctrl(pdata);
+		}
+		if (phydev->speed != pdata->speed) {
+			new_state = 1;
+			switch (phydev->speed) {
+			case SPEED_1000:
+				hw_if->set_gmii_speed(pdata);
+				hw_if->ntn_set_tx_clk_125MHz(pdata);
+				break;
+			case SPEED_100:
+				hw_if->set_mii_speed_100(pdata);
+				hw_if->ntn_set_tx_clk_25MHz(pdata);
+				break;
+			case SPEED_10:
+				hw_if->set_mii_speed_10(pdata);
+				hw_if->ntn_set_tx_clk_2_5MHz(pdata);
+				break;
+			}
+			pdata->speed = phydev->speed;
+		}
+
+		if (!pdata->oldlink) {
+			new_state = 1;
+			pdata->oldlink = 1;
+			netif_carrier_on(pdata->dev);
+		}
+		DBGPR_MDIO("M - Driver Ethernet Link up detected");
+		place_marker("M - Driver Ethernet Link up detected");
+	} else if (pdata->oldlink) {
+		new_state = 1;
+		pdata->oldlink = 0;
+		pdata->speed = 0;
+		pdata->oldduplex = -1;
+		netif_carrier_off(pdata->dev);
+		DBGPR_MDIO("M - Driver Ethernet Link down detected");
+		place_marker("M - Driver Ethernet Link down detected");
+	}
+	if (new_state) {
+		phy_print_status(phydev);
+	}
+
+	if (new_state)
+		DWC_ETH_QOS_reload_fqtss_cfg(pdata);
+
+	schedule_work(&pdata->eee_work);
+
+	DBGPR_MDIO("<--DWC_ETH_QOS_adjust_link_isr\n");
+}
+
+INT DWC_ETH_QOS_mdio_config_intr(struct DWC_ETH_QOS_prv_data *pdata, UINT flag)
+{
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	INT ret = Y_SUCCESS;
+	INT phydata;
+	unsigned long varmac_imr;
+
+	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_config_intr: phyaddr = %d, phyreg = %d, phydata = %#x\n",
+	      pdata->phyaddr, DWC_ETH_QOS_PHY_INT_REG, DWC_ETH_QOS_PHY_INT_MASK_DEFAULT);
+
+	if (flag == PHY_INTR_ENABLED){
+		//set phy interrupt to active high
+		DWC_ETH_QOS_mdio_read_direct(pdata,pdata->phyaddr, DWC_ETH_QOS_PHY_CTRL_REG, &phydata);
+		phydata |= (1 << 14);
+		hw_if->write_phy_regs(pdata->phyaddr,DWC_ETH_QOS_PHY_CTRL_REG,phydata, pdata);
+
+		DWC_ETH_QOS_mdio_read_direct(pdata,pdata->phyaddr, DWC_ETH_QOS_PHY_CTRL_REG, &phydata);
+
+		hw_if->write_phy_regs(pdata->phyaddr, DWC_ETH_QOS_PHY_INT_REG, DWC_ETH_QOS_PHY_INT_MASK_DEFAULT, pdata);
+
+		/* Enable following interrupts */
+		/* PHYIE - PHY Interrupt Enable */
+		MAC_IMR_RgRd(varmac_imr);
+		varmac_imr = varmac_imr | ((0x1) << 3);
+		MAC_IMR_RgWr(varmac_imr);
+		MAC_IMR_RgRd(varmac_imr);
+	} else {
+		hw_if->write_phy_regs(pdata->phyaddr, DWC_ETH_QOS_PHY_INT_REG, 0, pdata);
+	}
+
+	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_config_intr\n");
+
+	return ret;
+}
+
+INT DWC_ETH_QOS_mdio_ack_intr(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	INT ret = Y_SUCCESS;
+	INT phydata;
+
+	DBGPR_MDIO("--> DWC_ETH_QOS_mdio_ack_intr: phyaddr = %d\n", pdata->phyaddr);
+
+	/* Clear the interrupt status bit by reading phy control register (bits 0-7). */
+	hw_if->read_phy_regs(pdata->phyaddr, DWC_ETH_QOS_PHY_INT_REG, &phydata, pdata);
+
+	DBGPR_MDIO("<-- DWC_ETH_QOS_mdio_ack_intr\n");
+
+	return ret;
+}
+
 /*!
 * \brief API to adjust link parameters.
 *
@@ -741,6 +991,10 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 
 	pdata->mii = new_bus;
 
+#ifdef NTN_MAC_INT_ENABLED
+	INIT_WORK(&pdata->eee_work, DWC_ETH_QOS_init_eee_handler);
+#endif
+
 	ret = DWC_ETH_QOS_init_phy(dev);
 	if (unlikely(ret)) {
 		NMSGPR_ALERT( "Cannot attach to PHY (error: %d)\n", ret);
@@ -782,6 +1036,10 @@ void DWC_ETH_QOS_mdio_unregister(struct net_device *dev)
 		kfree(pdata->phydev);
 		pdata->phydev = NULL;
 	}
+
+#ifdef NTN_MAC_INT_ENABLED
+	flush_work(&pdata->eee_work);
+#endif
 
 	if (pdata->mii) {
 		pdata->mii->priv = NULL;

@@ -27182,6 +27182,9 @@
 #define MAC_ANS_LS_LPOS 2
 #define MAC_ANS_LS_HPOS 2
 
+#define MAC_ISR_PHY_INT_LPOS 3
+#define MAC_ISR_PHY_INT_HPOS 3
+
 #define MAC_ISR_LPI_LPOS 5
 #define MAC_ISR_LPI_HPOS 5
 
@@ -29316,6 +29319,7 @@
 #define NTN_NEMACCTL_PHY_INTF_MII          (0x00)
 #define NTN_NEMACCTL_PHY_INTF_RGMII        (0x08)
 #define NTN_NEMACCTL_PHY_INTF_RMII         (0x20)
+#define NTN_NEMACCTL_DRIVER_CTL_MASK       (0xFCFCFFFF)
 
 /******************************************************************************/
 /**                          Neutrino M3 SRAM Debug Memory                   **/
@@ -29366,15 +29370,18 @@
 #define NTN_INTC_GMAC_INT_MASK  (0x3FC000FF)
 #define NTN_INTC_GMAC_INT_TXCH2_BIT_POS 13
 #define NTN_INTC_GMAC_INT_RXCH0_BIT_POS 16
+#define NTN_INTC_GPIO_INT_MASK  (0xFFFFFFF0)
 
+#define NTN_INTC_INTSTATUS_GPIO10_LPOS   (1)
+#define NTN_INTC_INTSTATUS_GPIO10_HPOS  (1)
 #define NTN_INTC_INTSTATUS_GMAC_LPOS    (9)
 #define NTN_INTC_INTSTATUS_GMAC_HPOS    (13)
 #define NTN_INTC_INTSTATUS_MAC_LPI_LPOS (9)
 #define NTN_INTC_INTSTATUS_MAC_LPI_HPOS (9)
 #define NTN_INTC_INTSTATUS_MAC_PM_LPOS  (10)
 #define NTN_INTC_INTSTATUS_MAC_PM_HPOS  (10)
-#define NTN_INTC_INTSTATUS_MAC_LPOS     (9)
-#define NTN_INTC_INTSTATUS_MAC_HPOS     (9)
+#define NTN_INTC_INTSTATUS_MAC_LPOS     (11)
+#define NTN_INTC_INTSTATUS_MAC_HPOS     (11)
 #define NTN_INTC_INTSTATUS_TXRX_LPOS    (12)
 #define NTN_INTC_INTSTATUS_TXRX_HPOS    (13)
 #define NTN_INTC_INTSTATUS_TDM_LPOS    (14)
