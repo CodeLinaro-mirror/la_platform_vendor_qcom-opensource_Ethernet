@@ -6082,17 +6082,14 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 	 */
 	MAC_MCR_RgRd(rd_val);
 	if(0 == rd_val) {
-		if (hw_if->ntn_boot_host_initiated(pdata)) {
-			/* Clean old rx skbs to avoid leak since they are allocated
-			* again when initializing rx descriptors */
-			desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
-			/* Avoid leak of eee timer */
-			if (pdata->eee_enabled)
-				del_timer_sync(&pdata->eee_ctrl_timer);
-			DWC_ETH_QOS_init_common(dev);
-		} else if (pdata->phy_wol_enable) {
-			/* Re-initialize the MAC since it can get reset during WOL */
-			hw_if->init(pdata);
+		/* Clean old rx skbs to avoid leak since they are allocated
+		* again when initializing rx descriptors */
+		desc_if->rx_skb_free_mem(pdata, NTN_RX_DMA_CH_CNT);
+		/* Avoid leak of eee timer */
+		if (pdata->eee_enabled)
+			del_timer_sync(&pdata->eee_ctrl_timer);
+		DWC_ETH_QOS_init_common(dev);
+		if (pdata->phy_wol_enable) {
 			if (pdata->enable_phy && pdata->phydev)
 				genphy_restart_aneg(pdata->phydev);
 		}
