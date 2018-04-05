@@ -1576,9 +1576,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_100M;
 				break;
 			case 1000:
-			default:
 				NDBGPR_L1("%s: setting link speed to %d", __func__, DWC_ETH_QOS_PHY_SPEED_AUTO);
 				pdata->phy_speed_mode = DWC_ETH_QOS_PHY_SPEED_AUTO;
+				break;
+			default:
 				break;
 		}
 	}
