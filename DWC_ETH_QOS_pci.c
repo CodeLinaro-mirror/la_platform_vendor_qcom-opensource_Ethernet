@@ -102,6 +102,7 @@
 #include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
 #include "DWC_ETH_QOS_ipa.h"
+#include <linux/regulator/consumer.h>
 
 static __ref int bw_kthread(void *arg);
 
@@ -1371,6 +1372,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			if (plt_data->bus_num == pdev->bus->number) {
 				plt_data->pcidev = pdev;
 				pldev = plt_data->pldev;
+				pdata->ntn_reg_core = plt_data->ntn_reg_core;
+				pdata->ntn_reg_phy = plt_data->ntn_reg_phy;
 				break;
 			} else {
 				if (plt_data->bus_num == -1) {
@@ -2039,6 +2042,21 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	DWC_ETH_QOS_pci_suspend(pdev);
 
+	if(pdata->ntn_reg_core) {
+		ret = regulator_disable(pdata->ntn_reg_core);
+		if(ret)
+			NMSGPR_ALERT("%s: NTN core supply regulator disable failed! \n", __func__);
+		else
+			NMSGPR_ALERT("%s: NTN core supply regulator disabled \n", __func__);
+	}
+	if(pdata->ntn_reg_phy) {
+		ret = regulator_disable(pdata->ntn_reg_phy);
+		if(ret)
+			NMSGPR_ALERT("%s: NTN phy supply regulator disable failed! \n", __func__);
+		else
+			NMSGPR_ALERT("%s: NTN phy supply regulator disabled \n", __func__);
+	}
+
 	DBGPR("<--DWC_ETH_QOS_suspend\n");
 
 	return ret;
@@ -2076,6 +2094,20 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 
 	DBGPR("-->DWC_ETH_QOS_resume\n");
 
+	if(pdata->ntn_reg_core) {
+		ret = regulator_enable(pdata->ntn_reg_core);
+		if(ret)
+			NMSGPR_ALERT("%s: NTN core supply regulator enable failed! \n", __func__);
+		else
+			NMSGPR_ALERT("%s: NTN core supply regulator enabled \n", __func__);
+	}
+	if(pdata->ntn_reg_phy) {
+		ret = regulator_enable(pdata->ntn_reg_phy);
+		if(ret)
+			NMSGPR_ALERT("%s: NTN phy supply regulator enable failed! \n", __func__);
+		else
+			NMSGPR_ALERT("%s: NTN phy supply regulator enabled \n", __func__);
+	}
 	if (!dev || !netif_running(dev)) {
 		DBGPR("<--DWC_ETH_QOS_dev_resume\n");
 		return -EINVAL;

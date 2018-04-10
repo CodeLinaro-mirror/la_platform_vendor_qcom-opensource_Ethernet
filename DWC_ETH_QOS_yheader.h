@@ -1801,6 +1801,8 @@ struct DWC_ETH_QOS_prv_data {
 	int ip_traffic_shaping_class_1_min_pcp;
 	int ip_traffic_shaping_class_2_min_pcp;
 	UINT regular_ip_traffic_tx_intr_moderation;
+	struct regulator *ntn_reg_core;
+	struct regulator *ntn_reg_phy;
 };
 
 struct DWC_ETH_QOS_plt_data {

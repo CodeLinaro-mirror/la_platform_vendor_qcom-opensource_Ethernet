@@ -87,6 +87,7 @@ static int setup_regulator_common(struct device *dev, const char *name_supply,
 					NMSGPR_ALERT("%s: Enable %s failed!\n", __func__, name);
 					return -1;
 				}
+				NMSGPR_ALERT("%s: Enable %s done!\n", __func__, name);
 			}
 		}
 	} else {
