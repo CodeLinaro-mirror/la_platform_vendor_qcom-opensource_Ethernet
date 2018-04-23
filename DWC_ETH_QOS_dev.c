@@ -3545,12 +3545,30 @@ static void pre_transmit(struct DWC_ETH_QOS_prv_data *pdata,
 		if (ethertype == NTN_GPTP_ETH_TYPE) {
 			TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, INTR_MODERATE_CNT_GPTP_TRAFFIC);
 		} else {
-			TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % pdata->regular_ip_traffic_tx_intr_moderation)));
+			if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx > 0) {
+				if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx > pdata->regular_ip_traffic_tx_intr_moderation - 1)
+					TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 1);
+			} else if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx < 0) {
+				if (tx_desc_data->cur_tx + pdata->tx_dma_ch[chInx].desc_cnt - tx_desc_data->dirty_tx > pdata->regular_ip_traffic_tx_intr_moderation - 1)
+					TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 1);
+			}
 		}
 	} else if (chInx == NTN_TX_DMA_CH_3 || chInx == NTN_TX_DMA_CH_4) {
-		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % INTR_MODERATE_CNT_AVB_TRAFFIC)));
+		if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx > 0) {
+			if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx > pdata->regular_ip_traffic_tx_intr_moderation - 1)
+				TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 1);
+		} else if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx < 0) {
+			if (tx_desc_data->cur_tx + pdata->tx_dma_ch[chInx].desc_cnt - tx_desc_data->dirty_tx > INTR_MODERATE_CNT_AVB_TRAFFIC - 1)
+				TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 1);
+		}
 	} else {
-		TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, (!(tx_desc_data->cur_tx % pdata->regular_ip_traffic_tx_intr_moderation)));
+		if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx > 0) {
+			if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx > pdata->regular_ip_traffic_tx_intr_moderation - 1)
+				TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 1);
+		} else if (tx_desc_data->cur_tx - tx_desc_data->dirty_tx < 0) {
+			if (tx_desc_data->cur_tx + pdata->tx_dma_ch[chInx].desc_cnt - tx_desc_data->dirty_tx > pdata->regular_ip_traffic_tx_intr_moderation - 1)
+				TX_NORMAL_DESC_TDES2_IC_Mlf_Wr(TX_NORMAL_DESC->TDES2, 1);
+		}
 	}
 #endif
 
