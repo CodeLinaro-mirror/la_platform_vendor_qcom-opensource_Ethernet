@@ -221,7 +221,7 @@ static INT DWC_ETH_QOS_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	struct net_device *dev = bus->priv;
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
-	int phydata;
+	int phydata = 0;
 	int dev_type=0;
 
 	if (!pdata->enable_phy) {

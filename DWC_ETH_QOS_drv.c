@@ -4202,6 +4202,8 @@ static VOID DWC_ETH_QOS_config_timer_registers(
 		hw_if->init_systime(now.tv_sec, now.tv_nsec, pdata);
 
 		DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
+
+		return;
 }
 
 /*!

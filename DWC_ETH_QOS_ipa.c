@@ -787,7 +787,7 @@ void DWC_ETH_QOS_ipa_stats_read(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	struct hw_if_struct *hw_if = &pdata->hw_if;
 	struct DWC_ETH_QOS_ipa_stats *dma_stats = &pdata->ipa_stats;
-	UINT data;
+	UINT data = 0;
 
 	dma_stats->ipa_rx_Desc_Ring_Base = GET_RX_DESC_DMA_ADDR(NTN_RX_DMA_CH_0, 0);
 	dma_stats->ipa_rx_Desc_Ring_Size = pdata->rx_dma_ch[NTN_RX_DMA_CH_0].desc_cnt;
