@@ -871,9 +871,8 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		if (GET_VALUE(varMAC_ISR, MAC_ISR_PHY_INT_LPOS, MAC_ISR_PHY_INT_HPOS) & 1) {
 			NDBGPR_L2("%s: MAC interrupt received!\n", __func__);
 			DWC_ETH_QOS_mdio_ack_intr(pdata);
-#ifdef NTN_MAC_INT_ENABLED
-			DWC_ETH_QOS_adjust_link_isr(pdata);
-#endif
+			if (pdata->enable_phy_interrupt)
+				DWC_ETH_QOS_adjust_link_isr(pdata);
 		}
 
 		/* PMT interrupt */
@@ -1930,7 +1929,6 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	DMA_TXCHINTMASK_ETCEN_UdfWr(0, 0);
 	DMA_TXCHINTMASK_UNFEN_UdfWr(0, 0);
 
-#ifndef NTN_MAC_INT_ENABLED
 	if (pdata->enable_phy && pdata->phydev) {
 		pdata->phydev->attached_dev = dev;
 		pdata->phydev->state = PHY_UP;
@@ -1961,13 +1959,13 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 			NMSGPR_INFO("PHY link still is not up, resume it!!!!\r\n");
 			genphy_resume(pdata->phydev);
 		}
-		schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
 	}
-#else
-	if (pdata->enable_phy && pdata->phydev)
-		pdata->phydev->attached_dev = dev;
-	DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_ENABLED);
-#endif
+
+	if (pdata->enable_phy_interrupt)
+		DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_ENABLED);
+	else
+		schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
+
 	DBGPR("<--DWC_ETH_QOS_open, %d\n", ret);
 
 	return ret;
@@ -2001,10 +1999,13 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	int ret = 0;
 
 	DBGPR("-->DWC_ETH_QOS_close\n");
-#ifdef NTN_MAC_INT_ENABLED
+
 	/* clearing phy int_mask */
-	DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_DISABLED);
-#endif
+	if (pdata->enable_phy_interrupt) {
+		DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_DISABLED);
+		DWC_ETH_QOS_mdio_ack_intr(pdata);
+	}
+
 	if (pdata->eee_enabled)
 		del_timer_sync(&pdata->eee_ctrl_timer);
 

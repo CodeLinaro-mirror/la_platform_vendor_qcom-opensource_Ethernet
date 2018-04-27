@@ -706,9 +706,6 @@
 #define NTN_MR_IP_PARAMS_MAGIC_COOKIE "0xDEFBAC"
 #define NTN_BOOT_COMPLETE_OFFSET 0xC848
 
-/* Disable handling phy interrupts by default. */
-//#define NTN_MAC_INT_ENABLED
-
 /* C data types typedefs */
 
 typedef unsigned short BOOL;
@@ -1815,6 +1812,7 @@ struct DWC_ETH_QOS_prv_data {
 	int bandwidth;
 	struct dentry *debugfs_dir;
 	int enable_logging;
+	int enable_phy_interrupt;
 	int measureRx_enable;
 	int measureTx_enable;
 	struct device *root_sysfs_dev;

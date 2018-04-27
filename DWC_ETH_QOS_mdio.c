@@ -670,6 +670,12 @@ INT DWC_ETH_QOS_mdio_config_intr(struct DWC_ETH_QOS_prv_data *pdata, UINT flag)
 		MAC_IMR_RgWr(varmac_imr);
 		MAC_IMR_RgRd(varmac_imr);
 	} else {
+		/* Disable following interrupts */
+		/* PHYIE - PHY Interrupt Disable */
+		MAC_IMR_RgRd(varmac_imr);
+		varmac_imr &= ~((0x1) << 3);
+		MAC_IMR_RgWr(varmac_imr);
+		MAC_IMR_RgRd(varmac_imr);
 		hw_if->write_phy_regs(pdata->phyaddr, DWC_ETH_QOS_PHY_INT_REG, 0, pdata);
 	}
 
@@ -715,10 +721,15 @@ void DWC_ETH_QOS_adjust_link(struct work_struct *work)
 	//unsigned long flags;
 	int new_state = 0;
 
-        if (!pdata->enable_phy) {
-                NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
-                return;
-        }
+	if (pdata->enable_phy_interrupt) {
+		NMSGPR_ALERT("%s: PHY interrupt enabled. stop polling\n", __func__);
+		return;
+	}
+
+	if (!pdata->enable_phy) {
+		NMSGPR_ALERT("%s: PHY is not supported.\n", __func__);
+		return;
+	}
 
 	if (phydev == NULL)
 		return;
@@ -903,6 +914,41 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 	return 0;
 }
 
+static ssize_t DWC_ETH_QOS_phy_interrupt_enable_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct net_device *ndev = pci_get_drvdata(to_pci_dev(dev));
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", pdata->enable_phy_interrupt);
+}
+
+static ssize_t DWC_ETH_QOS_phy_interrupt_enable_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct net_device *ndev = pci_get_drvdata(to_pci_dev(dev));
+	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(ndev);
+
+	sscanf(buf, "%d", &pdata->enable_phy_interrupt);
+
+	if(1 == pdata->enable_phy_interrupt) {
+		NMSGPR_ALERT( "DWC_ETH_QOS phy Interrupt enabled\n");
+		/*wait enough time to avoid polling task still running*/
+		msleep(500);
+		DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_ENABLED);
+	} else {
+		DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_DISABLED);
+		/*cleam interrupy status to avoid exception*/
+		DWC_ETH_QOS_mdio_ack_intr(pdata);
+		schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
+		NMSGPR_ALERT( "DWC_ETH_QOS phy Interrupt disabled\n");
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR(phy_inten, S_IRWXU, DWC_ETH_QOS_phy_interrupt_enable_show, DWC_ETH_QOS_phy_interrupt_enable_store);
+
 /*!
 * \brief API to register mdio.
 *
@@ -991,15 +1037,15 @@ int DWC_ETH_QOS_mdio_register(struct net_device *dev)
 
 	pdata->mii = new_bus;
 
-#ifdef NTN_MAC_INT_ENABLED
 	INIT_WORK(&pdata->eee_work, DWC_ETH_QOS_init_eee_handler);
-#endif
 
 	ret = DWC_ETH_QOS_init_phy(dev);
 	if (unlikely(ret)) {
 		NMSGPR_ALERT( "Cannot attach to PHY (error: %d)\n", ret);
 		goto err_out_phy_connect;
 	}
+
+	ret = device_create_file(&pdata->pdev->dev, &dev_attr_phy_inten);
 
 	DBGPR_MDIO("<--DWC_ETH_QOS_mdio_register\n");
 
@@ -1037,15 +1083,15 @@ void DWC_ETH_QOS_mdio_unregister(struct net_device *dev)
 		pdata->phydev = NULL;
 	}
 
-#ifdef NTN_MAC_INT_ENABLED
 	flush_work(&pdata->eee_work);
-#endif
 
 	if (pdata->mii) {
 		pdata->mii->priv = NULL;
 		mdiobus_free(pdata->mii);
 		pdata->mii = NULL;
 	}
+
+	device_remove_file(&pdata->pdev->dev, &dev_attr_phy_inten);
 
 	DBGPR_MDIO("<--DWC_ETH_QOS_mdio_unregister\n");
 }

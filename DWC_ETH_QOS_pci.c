@@ -385,6 +385,35 @@ static bool lookfor_macid(char *file_buf, USHORT mdio_bus_id)
 	return status;
 }
 
+static void parse_phy_int_from_config_file(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	struct file *filep = NULL;
+	char *data = kmalloc(512, GFP_KERNEL);
+	mm_segment_t oldfs;
+	int ret, flags = O_RDONLY;
+
+	oldfs = get_fs();
+	set_fs(get_ds());
+	filep = filp_open("/etc/ntn_config.ini", flags, 0600);
+	/* Try in /data */
+	if (IS_ERR(filep))
+		filep = filp_open("/data/ntn_config.ini", flags, 0600);
+	set_fs(oldfs);
+	if(IS_ERR(filep)) {
+		NMSGPR_ALERT( "ntn_config.ini configuration file not found\n");
+		kfree(data);
+		return;
+	} else {
+		/* Parse the file */
+		ret = file_read(filep, 0, data, 512);
+		if (strstr((const char *)data, "PHY_INTERRUPT_ENABLE"))
+			pdata->enable_phy_interrupt = 1;
+	}
+
+	return;
+}
+
+
 /*!
  * \brief Parse the user configuration file for various config
  *
@@ -1599,6 +1628,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	dev->dev_addr[3] = dev_addr[3];
 	dev->dev_addr[4] = dev_addr[4];
 	dev->dev_addr[5] = dev_addr[5];
+
+	/*get phy_interrupt_enable from ntn_config.ini file*/
+	parse_phy_int_from_config_file(pdata);
 
 	/* Verify if IPA is supported in firmware */
 	pdata->ipa_enabled =
