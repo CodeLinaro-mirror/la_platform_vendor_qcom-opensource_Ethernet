@@ -88,7 +88,6 @@
 #include "DWC_ETH_QOS_drv.h"
 #include "DWC_ETH_QOS_ipa.h"
 #include "DWC_ETH_QOS_yregacc.h"
-#include <soc/qcom/boot_stats.h>
 
 #define AVB_QUEUE_CLASS_A 1
 #define AVB_QUEUE_CLASS_B 2
@@ -2442,7 +2441,7 @@ tx_netdev_return:
 
 	if(tx_place_marker == 0){
 		tx_place_marker = 1;
-		place_marker("Tx: DWC_ETH_QOS_start_xmit");
+		NMSGPR_ALERT( "Tx: DWC_ETH_QOS_start_xmit");
 	}
 	DBGPR("<--DWC_ETH_QOS_start_xmit\n");
 
@@ -2946,7 +2945,7 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 	}
 	if(rx_place_marker == 0){
 		rx_place_marker = 1;
-		place_marker("Rx: DWC_ETH_QOS_receive_skb");
+		NMSGPR_ALERT( "Rx: DWC_ETH_QOS_receive_skb");
 	}
 }
 
