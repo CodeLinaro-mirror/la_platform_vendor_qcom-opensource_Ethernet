@@ -437,6 +437,9 @@ static void parse_config_file(USHORT mdio_bus_id)
 
 void DWC_ETH_QOS_parse_config_file(struct DWC_ETH_QOS_prv_data *pdata, USHORT mdio_bus_id)
 {
+	if (!pdata)
+		return;
+
 	if (pdata->mac_written)
 		return;
 
