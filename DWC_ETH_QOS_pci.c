@@ -87,12 +87,6 @@
 #include <linux/msm-bus.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#ifdef DWC_ETH_QOS_BUILTIN
-#include <linux/inetdevice.h>
-#include <net/addrconf.h>
-#include <linux/inet.h>
-#include <asm/uaccess.h>
-#endif
 #include "DWC_ETH_QOS_yheader.h"
 #include "DWC_ETH_QOS_yregacc.h"
 #include "DWC_ETH_QOS_pci.h"
@@ -685,50 +679,6 @@ static void DWC_ETH_QOS_config_ipareg_map(struct pci_dev *pdev)
 }
 #endif
 
-#ifdef DWC_ETH_QOS_BUILTIN
-static int DWC_ETH_QOS_add_ipaddr(struct ip_params *ip_info, struct net_device *dev)
-{
-	int res;
-	struct ifreq ir;
-	/*struct in6_ifreq ir6;*/
-	struct sockaddr_in *sin = (void *) &ir.ifr_ifru.ifru_addr;
-
-	mm_segment_t oldfs = get_fs();
-	set_fs(get_ds());
-
-	/*For valid Ipv4 address*/
-	memset(&ir, 0, sizeof(ir));
-	if (1 == in4_pton(ip_info->ip_addr, -1, (u8*)&sin->sin_addr.s_addr, -1, NULL)) {
-		NMSGPR_ALERT( "Setup IPv4 address!\r\n");
-		strcpy(ir.ifr_ifrn.ifrn_name, dev->name);
-		sin->sin_family = AF_INET;
-		sin->sin_port = 0;
-		res = devinet_ioctl(&init_net, SIOCSIFADDR, (struct ifreq __user *) &ir);
-		if (res)
-			NMSGPR_ALERT( "Cann't setup IPv4 address!\r\n");
-		else
-			NMSGPR_ALERT("Assigned IPv4 address: %s\r\n", ip_info->ip_addr);
-	}
-
-	/*For valid IPv6 address*/
-	/*memset(&ir6, 0, sizeof(ir6));
-	if (1 == in6_pton(ip_info->ipv6_addr, -1, (u8*)&ir6.ifr6_addr.s6_addr, -1, NULL)) {
-		NMSGPR_ALERT( "Setup IPv6 address!\r\n");
-		ir6.ifr6_ifindex = dev->ifindex;
-		ir6.ifr6_prefixlen = 0;
-		res = addrconf_add_ifaddr(&init_net, (void __user *) &ir6);
-		if (res)
-			NMSGPR_ALERT( "Cann't setup IPv6 address!\r\n");
-		else
-			NMSGPR_ALERT("Assigned IPv6 address: %s\r\n", ip_info->ipv6_addr);
-
-	}*/
-
-	set_fs(oldfs);
-
-	return res;
-}
-#endif
 /*!
 * \brief API to initialize the device.
 *
@@ -1063,12 +1013,12 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		} else {
 			NDBGPR_L1("%s: ntn-phy-speed-mode = %d \n", __func__, pdata->phy_speed_mode);
 		}
+
+		pdata->phy_wol_enable = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-phy-wol-enable");
+		NDBGPR_L1("%s: phy_wol_enable = %d\n", __func__, pdata->phy_wol_enable);
 	} else {
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
 	}
-
-	pdata->phy_wol_enable = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-phy-wol-enable");
-	NDBGPR_L1("%s: phy_wol_enable = %d\n", __func__, pdata->phy_wol_enable);
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
 	DWC_ETH_QOS_config_tamap(pdev);
@@ -1190,20 +1140,21 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	dev->dev_addr[4] = dev_addr[4];
 	dev->dev_addr[5] = dev_addr[5];
 
-	DWC_ETH_QOS_get_all_hw_features(pdata);
-	DWC_ETH_QOS_print_all_hw_features(pdata);
-
 	/* Verify if IPA is supported in firmware */
-	pdata->ipa_capable =
+	pdata->ipa_enabled =
 		hw_if->ntn_fw_ipa_supported(pdata) && NTN_HOST_IPA_CAPABLE;
-	NMSGPR_INFO("NTN IPA capable: %d\n", pdata->ipa_capable);
-	if (pdata->ipa_capable) {
-		/*init IPA WS*/
+	NMSGPR_INFO("NTN IPA enabled: %d\n", pdata->ipa_enabled);
+	if (pdata->ipa_enabled) {
 		pdata->prv_ipa.ipa_ver = ipa_get_hw_type();
 		DWC_ETH_QOS_config_ipareg_map(pdev);
 		wakeup_source_init(&pdata->prv_ipa.wlock, "NTN_IPA_WS");
+		hw_if->enable_offload(pdata);
+	} else {
+		hw_if->disable_offload(pdata);
 	}
-	hw_if->disable_offload(pdata);
+
+	DWC_ETH_QOS_get_all_hw_features(pdata);
+	DWC_ETH_QOS_print_all_hw_features(pdata);
 
 	ret = desc_if->alloc_queue_struct(pdata);
 	if (ret < 0) {
@@ -1323,9 +1274,6 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	} else
 		pr_err("msm_bus_cl_get_pdata() failed\n");
 	device_disable_async_suspend(&pdev->dev);
-#ifdef DWC_ETH_QOS_BUILTIN
-	DWC_ETH_QOS_add_ipaddr(pparams, dev);
-#endif
 	return 0;
 
  err_out_netdev_failed:

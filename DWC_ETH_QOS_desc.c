@@ -263,10 +263,26 @@ err_out_rx_q_alloc_failed:
 
 static void DWC_ETH_QOS_free_rx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 {
+	struct DWC_ETH_QOS_rx_wrapper_descriptor *rx_desc_data;
 	int chInx;
 
 	for (chInx = 0; chInx < pdata->rx_dma_ch_cnt; chInx++) {
-		DWC_ETH_QOS_free_rx_queue_struct_single_ch(pdata, chInx);
+		rx_desc_data = &pdata->rx_dma_ch[chInx].rx_desc_data;
+
+		if (rx_desc_data->rx_buf_ptrs) {
+			kfree(rx_desc_data->rx_buf_ptrs);
+			rx_desc_data->rx_buf_ptrs = NULL;
+		}
+
+		if (rx_desc_data->rx_desc_dma_addrs) {
+			kfree(rx_desc_data->rx_desc_dma_addrs);
+			rx_desc_data->rx_desc_dma_addrs = NULL;
+		}
+
+		if (rx_desc_data->rx_desc_ptrs) {
+			kfree(rx_desc_data->rx_desc_ptrs);
+			rx_desc_data->rx_desc_ptrs = NULL;
+		}
 	}
 }
 
@@ -392,10 +408,33 @@ err_out_tx_q_alloc_failed:
 
 static void DWC_ETH_QOS_free_tx_queue_struct(struct DWC_ETH_QOS_prv_data *pdata)
 {
+	struct DWC_ETH_QOS_tx_wrapper_descriptor *tx_desc_data;
 	int chInx;
 
 	for (chInx = 0; chInx < pdata->tx_dma_ch_cnt; chInx++) {
-		DWC_ETH_QOS_free_tx_queue_struct_single_ch(pdata, chInx);
+		tx_desc_data = &pdata->tx_dma_ch[chInx].tx_desc_data;
+
+		if (pdata->ipa_enabled) {
+			if (tx_desc_data->tx_ipa_buff_addrs) {
+				kfree(tx_desc_data->tx_ipa_buff_addrs);
+				tx_desc_data->tx_ipa_buff_addrs = NULL;
+			}
+		}
+
+		if (tx_desc_data->tx_buf_ptrs) {
+			kfree(tx_desc_data->tx_buf_ptrs);
+			tx_desc_data->tx_buf_ptrs = NULL;
+		}
+
+		if (tx_desc_data->tx_desc_dma_addrs) {
+			kfree(tx_desc_data->tx_desc_dma_addrs);
+			tx_desc_data->tx_desc_dma_addrs = NULL;
+		}
+
+		if (tx_desc_data->tx_desc_ptrs) {
+			kfree(tx_desc_data->tx_desc_ptrs);
+			tx_desc_data->tx_desc_ptrs = NULL;
+		}
 	}
 }
 
@@ -483,14 +522,13 @@ static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	INT ret = 0;
 	UINT chInx;
-
-	struct desc_if_struct *desc_if = &(pdata->desc_if);
 #if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
 	UINT DESC_MEM_ALLOC_SZ = 4096;
 #endif
 
 	NDBGPR_L1( "-->allocate_buffer_and_desc: TX_DMA_CH_CNT = %d, "\
-		"RX_DMA_CH_CNT = %d\n", NTN_TX_DMA_CH_CNT,NTN_RX_DMA_CH_CNT);
+		"RX_DMA_CH_CNT = %d\n", NTN_TX_DMA_CH_CNT,
+		NTN_RX_DMA_CH_CNT);
 
 	/* Allocate descriptors and buffers memory for all TX queues */
 	for (chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++) {
@@ -507,11 +545,47 @@ static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata)
 
 		if(!pdata->tx_dma_ch_for_host[chInx])
 			continue;
+#if defined(NTN_DECLARE_MEM_FOR_DMAAPI) || defined(DESC_HOSTMEM_BUF_HOSTMEM)
+		/* TX descriptors */
+		GET_TX_DESC_PTR(chInx, 0) = dma_alloc_coherent(&pdata->pdev->dev,
+						(sizeof(struct s_TX_NORMAL_DESC) * pdata->tx_dma_ch[chInx].desc_cnt),
+						&(GET_TX_DESC_DMA_ADDR(chInx, 0)),
+						GFP_KERNEL);
+#else
+		if( (cur_sram_adr+DESC_MEM_ALLOC_SZ) < (NTN_DMAAPI_MEM_BASE + NTN_DMAAPI_MEM_OFFSET + NTN_DMAAPI_MEM_LENGTH) )
+		{
+			GET_TX_DESC_PTR(chInx, 0) = (struct s_TX_NORMAL_DESC *)cur_virt;
+			GET_TX_DESC_DMA_ADDR(chInx, 0) = cur_sram_adr;
 
-		ret = desc_if->alloc_tx_buff_and_desc(pdata,chInx);
-		if (ret < 0){
-			NMSGPR_ERR("alloc tx buf and desc failed for channel: %d", chInx);
-			goto err_tx_alloc;
+			cur_virt = cur_virt + DESC_MEM_ALLOC_SZ;
+		        cur_sram_adr = cur_sram_adr + DESC_MEM_ALLOC_SZ;
+		}
+		else
+			GET_TX_DESC_PTR(chInx, 0) = NULL;
+#endif
+		NDBGPR_L1("TX_DESC_PTR(%d, 0) = 0x%lx : TX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n"
+			, chInx, (long unsigned int)GET_TX_DESC_PTR(chInx, 0), chInx, (long unsigned int)GET_TX_DESC_DMA_ADDR(chInx, 0));
+		if (GET_TX_DESC_PTR(chInx, 0) == NULL) {
+			NMSGPR_ERR("unable to allocate tx desc for channel: %d", chInx);
+			ret = -ENOMEM;
+			goto err_out_tx_desc;
+		}
+
+	}
+
+	for (chInx = 0; chInx < NTN_TX_DMA_CH_CNT; chInx++) {
+
+		if(!pdata->tx_dma_ch_for_host[chInx])
+			continue;
+
+		/* TX wrapper buffer */
+		GET_TX_BUF_PTR(chInx, 0) =
+			kzalloc((sizeof(struct DWC_ETH_QOS_tx_buffer) * pdata->tx_dma_ch[chInx].desc_cnt),
+			GFP_KERNEL);
+		if (GET_TX_BUF_PTR(chInx, 0) == NULL) {
+			NMSGPR_ERR("unable to allocate tx buffers for channel: %d", chInx);
+			ret = -ENOMEM;
+			goto err_out_tx_buf;
 		}
 	}
 
@@ -520,118 +594,6 @@ static INT allocate_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata)
 
 		if(!pdata->rx_dma_ch_for_host[chInx])
 			continue;
-
-		ret = desc_if->alloc_rx_buff_and_desc(pdata,chInx);
-		if (ret < 0){
-			NMSGPR_ERR("alloc rx buf and desc failed for channel: %d", chInx);
-			goto err_rx_alloc;
-		}
-	}
-
-	DBGPR("<--allocate_buffer_and_desc\n");
-
-	return ret;
-
-	err_rx_alloc:
-		DWC_ETH_QOS_rx_buf_free_mem(pdata, chInx);
-		DWC_ETH_QOS_rx_desc_free_mem(pdata, chInx);
-		chInx = NTN_TX_DMA_CH_CNT;
-	err_tx_alloc:
-		DWC_ETH_QOS_tx_buf_free_mem(pdata, chInx);
-		DWC_ETH_QOS_tx_desc_free_mem(pdata, chInx);
-
-	return ret;
-}
-
-/*!
-* \brief API to allocate the memory for descriptor & buffers for tx channel.
-*
-* \details This function is used to allocate the memory for device
-* descriptors & buffers
-* which are used by device for data transmission & reception.
-*
-* \param[in] pdata - pointer to private data structure.
-*
-* \return integer
-*
-* \retval 0 on success & -ENOMEM number on failure.
-*/
-static INT allocate_tx_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata,
-									   UINT chInx)
-{
-	INT ret = 0;
-
-#if defined(NTN_DECLARE_MEM_FOR_DMAAPI) || defined(DESC_HOSTMEM_BUF_HOSTMEM)
-		/* TX descriptors */
-		GET_TX_DESC_PTR(chInx, 0) = dma_alloc_coherent(&pdata->pdev->dev,
-						(sizeof(struct s_TX_NORMAL_DESC) * pdata->tx_dma_ch[chInx].desc_cnt),
-						&(GET_TX_DESC_DMA_ADDR(chInx, 0)),
-						GFP_KERNEL);
-#else
-
-	if( (cur_sram_adr+DESC_MEM_ALLOC_SZ) < (NTN_DMAAPI_MEM_BASE + NTN_DMAAPI_MEM_OFFSET + NTN_DMAAPI_MEM_LENGTH) )
-	{
-		GET_TX_DESC_PTR(chInx, 0) = (struct s_TX_NORMAL_DESC *)cur_virt;
-		GET_TX_DESC_DMA_ADDR(chInx, 0) = cur_sram_adr;
-
-		cur_virt = cur_virt + DESC_MEM_ALLOC_SZ;
-	        cur_sram_adr = cur_sram_adr + DESC_MEM_ALLOC_SZ;
-	}
-	else
-		GET_TX_DESC_PTR(chInx, 0) = NULL;
-#endif
-	NDBGPR_L1("TX_DESC_PTR(%d, 0) = 0x%lx : TX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n"
-		, chInx, (long unsigned int)GET_TX_DESC_PTR(chInx, 0), chInx, (long unsigned int)GET_TX_DESC_DMA_ADDR(chInx, 0));
-	if (GET_TX_DESC_PTR(chInx, 0) == NULL) {
-		NMSGPR_ERR("unable to allocate tx desc for channel: %d", chInx);
-		ret = -ENOMEM;
-		return ret;
-	}
-
-			/* TX wrapper buffer */
-	GET_TX_BUF_PTR(chInx, 0) =
-		kzalloc((sizeof(struct DWC_ETH_QOS_tx_buffer) * pdata->tx_dma_ch[chInx].desc_cnt),
-		GFP_KERNEL);
-	if (GET_TX_BUF_PTR(chInx, 0) == NULL) {
-		NMSGPR_ERR("unable to allocate tx buffers for channel: %d", chInx);
-		ret = -ENOMEM;
-		goto err_out_tx_buf;
-	}
-
-	return ret;
-
-	err_out_tx_buf:
-#if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
-	return ret;
-#endif
-		if (GET_TX_DESC_PTR(chInx, 0)) {
-			dma_free_coherent(&pdata->pdev->dev,
-					  (sizeof(struct s_TX_NORMAL_DESC) * pdata->tx_dma_ch[chInx].desc_cnt),
-					  GET_TX_DESC_PTR(chInx, 0),
-					  GET_TX_DESC_DMA_ADDR(chInx, 0));
-			GET_TX_DESC_PTR(chInx, 0) = NULL;
-		}
-
-	return ret;
-}
-
-/*!
-* \brief API to allocate the memory for descriptor & buffers for rx channel.
-*
-* \details This function is used to allocate the memory for device
-* descriptors & buffers
-* which are used by device for data transmission & reception.
-*
-* \param[in] pdata - pointer to private data structure.
-*
-* \return integer
-*
-* \retval 0 on success & -ENOMEM number on failure.
-*/
-static INT allocate_rx_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata,
-									   UINT chInx)
-{
-	INT ret = 0;
 
 #if defined(NTN_DECLARE_MEM_FOR_DMAAPI) || defined(DESC_HOSTMEM_BUF_HOSTMEM)
 		/* RX descriptors */
@@ -651,35 +613,49 @@ static INT allocate_rx_buffer_and_desc(struct DWC_ETH_QOS_prv_data *pdata,
 		else
 			GET_RX_DESC_PTR(chInx, 0) = NULL;
 #endif
-
-	NDBGPR_L1("RX_DESC_PTR(%d, 0) = 0x%lx : RX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n"
-		, chInx, (long unsigned int)GET_RX_DESC_PTR(chInx, 0), chInx, (long unsigned int)GET_RX_DESC_DMA_ADDR(chInx, 0));
-	if (GET_RX_DESC_PTR(chInx, 0) == NULL) {
-		ret = -ENOMEM;
-		NMSGPR_ERR("unable to allocate rx desc for channel: %d", chInx);
-		return ret;
+		NDBGPR_L1("RX_DESC_PTR(%d, 0) = 0x%lx : RX_DESC_DMA_ADDR(%d, 0) = 0x%lx\n"
+			, chInx, (long unsigned int)GET_RX_DESC_PTR(chInx, 0), chInx, (long unsigned int)GET_RX_DESC_DMA_ADDR(chInx, 0));
+		if (GET_RX_DESC_PTR(chInx, 0) == NULL) {
+			ret = -ENOMEM;
+			NMSGPR_ERR("unable to allocate rx desc for channel: %d", chInx);
+			goto rx_alloc_failure;
+		}
 	}
 
-	/* RX wrapper buffer */
-	GET_RX_BUF_PTR(chInx, 0) =
-		kzalloc((sizeof(struct DWC_ETH_QOS_rx_buffer) * pdata->rx_dma_ch[chInx].desc_cnt),
-		GFP_KERNEL);
-	if (GET_RX_BUF_PTR(chInx, 0) == NULL) {
-		NMSGPR_ERR("unable to allocate rx buffers for channel: %d", chInx);
-		ret = -ENOMEM;
-		goto err_out_rx_buf;
+	for (chInx = 0; chInx < NTN_RX_DMA_CH_CNT; chInx++) {
+
+		if(!pdata->rx_dma_ch_for_host[chInx])
+			continue;
+
+		/* RX wrapper buffer */
+		GET_RX_BUF_PTR(chInx, 0) =
+			kzalloc((sizeof(struct DWC_ETH_QOS_rx_buffer) * pdata->rx_dma_ch[chInx].desc_cnt),
+			GFP_KERNEL);
+		if (GET_RX_BUF_PTR(chInx, 0) == NULL) {
+			NMSGPR_ERR("unable to allocate rx buffers for channel: %d", chInx);
+			ret = -ENOMEM;
+			goto err_out_rx_buf;
+		}
 	}
+
+	DBGPR("<--allocate_buffer_and_desc\n");
 
 	return ret;
 
-	err_out_rx_buf:
-		if (GET_RX_DESC_PTR(chInx, 0)) {
-			dma_free_coherent(&pdata->pdev->dev,
-					  (sizeof(struct s_RX_NORMAL_DESC) * pdata->rx_dma_ch[chInx].desc_cnt),
-					  GET_RX_DESC_PTR(chInx, 0),
-					  GET_RX_DESC_DMA_ADDR(chInx, 0));
-			GET_RX_DESC_PTR(chInx, 0) = NULL;
-		}
+ err_out_rx_buf:
+	DWC_ETH_QOS_rx_buf_free_mem(pdata, chInx);
+	chInx = NTN_RX_DMA_CH_CNT;
+
+ rx_alloc_failure:
+	DWC_ETH_QOS_rx_desc_free_mem(pdata, chInx);
+	chInx = NTN_TX_DMA_CH_CNT;
+
+ err_out_tx_buf:
+	DWC_ETH_QOS_tx_buf_free_mem(pdata, chInx);
+	chInx = NTN_TX_DMA_CH_CNT;
+
+ err_out_tx_desc:
+	DWC_ETH_QOS_tx_desc_free_mem(pdata, chInx);
 
 	return ret;
 }
@@ -710,14 +686,13 @@ static void DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q(
 	dma_addr_t desc_dma = GET_TX_DESC_DMA_ADDR(chInx, 0);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	struct sk_buff *skb = NULL;
+
 	DBGPR("-->DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q: "\
 		"chInx = %u\n", chInx);
 
 	if (pdata->ipa_enabled) {
 		/* Allocate TX Buffer Pool Structure */
 		if (chInx == NTN_TX_DMA_CH_2) {
-			pdata->tx_dma_ch[chInx].desc_cnt = IPA_TX_DESC_CNT;
-
 			GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) =
 				kzalloc(sizeof(dma_addr_t) * pdata->tx_dma_ch[chInx].desc_cnt, GFP_KERNEL);
 			if (GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) == NULL)
@@ -800,15 +775,10 @@ static void DWC_ETH_QOS_wrapper_rx_descriptor_init_single_q(
 	DBGPR("-->DWC_ETH_QOS_wrapper_rx_descriptor_init_single_q: "\
 		"chInx = %u\n", chInx);
 
-
-	if (buffer)
-		memset(buffer, 0, (sizeof(struct DWC_ETH_QOS_rx_buffer) *
-						   pdata->rx_dma_ch[chInx].desc_cnt));
+	memset(buffer, 0, (sizeof(struct DWC_ETH_QOS_rx_buffer) * pdata->rx_dma_ch[chInx].desc_cnt));
 
 	/* Allocate RX Buffer Pool Structure */
 	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
-		pdata->rx_dma_ch[chInx].desc_cnt = IPA_RX_DESC_CNT;
-
 		if (!GET_RX_BUFF_POOL_BASE_ADRR(chInx)) {
 			GET_RX_BUFF_POOL_BASE_ADRR(chInx) =
 				kzalloc(sizeof(dma_addr_t) * pdata->rx_dma_ch[chInx].desc_cnt, GFP_KERNEL);
@@ -961,80 +931,6 @@ static void DWC_ETH_QOS_tx_free_mem(struct DWC_ETH_QOS_prv_data *pdata)
 }
 
 /*!
-* \brief API to free the transmit descriptor & buffer memory for a secific channel.
-*
-* \details This function is used to free the transmit descriptor
-* & buffer memory of a specific channel.
-*
-* \param[in] pdata - pointer to private data structure.
-*
-* \retval void.
-*/
-
-static void DWC_ETH_QOS_tx_free_mem_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-											  UINT chInx)
-{
-	struct DWC_ETH_QOS_tx_wrapper_descriptor *desc_data = NULL;
-	UINT i = 0;
-
-	DBGPR("-->DWC_ETH_QOS_tx_free_mem\n");
-
-#if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
-	return;
-#endif
-
-	if(!pdata->tx_dma_ch_for_host[chInx])
-			return;
-
-	desc_data = GET_TX_WRAPPER_DESC(chInx);
-
-	if (GET_TX_DESC_PTR(chInx, 0)) {
-		dma_free_coherent(&pdata->pdev->dev,
-				  (sizeof(struct s_TX_NORMAL_DESC) * pdata->tx_dma_ch[chInx].desc_cnt),
-				  GET_TX_DESC_PTR(chInx, 0),
-				  GET_TX_DESC_DMA_ADDR(chInx, 0));
-		GET_TX_DESC_PTR(chInx, 0) = NULL;
-	}
-
-	/* free TX buffer */
-	if (GET_TX_BUF_PTR(chInx, 0)) {
-		kfree(GET_TX_BUF_PTR(chInx, 0));
-		GET_TX_BUF_PTR(chInx, 0) = NULL;
-	}
-
-	if (pdata->ipa_enabled) {
-		/* Free memory pool for TX offload path */
-		/* Currently only CH2 is supported */
-		if (chInx == NTN_TX_DMA_CH_2) {
-			for (i = 0; i < pdata->tx_dma_ch[chInx].desc_cnt; i++) {
-				dma_unmap_single((&pdata->pdev->dev),
-					GET_TX_BUFF_DMA_ADDR(chInx, i),
-					DWC_ETH_QOS_ETH_FRAME_LEN_IPA,
-					DMA_TO_DEVICE);
-				GET_TX_BUFF_DMA_ADDR(chInx, i) = 0;
-				if (GET_TX_BUFF_LOGICAL_ADDR(chInx, i)) {
-					dev_kfree_skb_any(GET_TX_BUFF_LOGICAL_ADDR(chInx, i));
-					GET_TX_BUFF_LOGICAL_ADDR(chInx, i) = NULL;
-				} else {
-					NMSGPR_ALERT("Failed to de-allocate skb \n");
-					return;
-				}
-			}
-			NMSGPR_INFO("Freed the memory allocated for TX CH 2 for IPA \n");
-			/* De-Allocate TX DMA Buffer Pool Structure */
-			if (GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx)) {
-				kfree(GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx));
-				GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) = NULL;
-				NMSGPR_INFO("Freed the TX Buffer Pool Structure for TX CH 2 for IPA \n");
-			} else {
-				NMSGPR_ALERT("Unable to DeAlloc TX Buff structure\n");
-			}
-		}
-	}
-	DBGPR("<--DWC_ETH_QOS_tx_free_mem\n");
-}
-
-/*!
  * \details This function is invoked by other function to free
  * the tx socket buffers.
  *
@@ -1138,65 +1034,6 @@ static void DWC_ETH_QOS_rx_skb_free_mem(struct DWC_ETH_QOS_prv_data *pdata,
 	}
 
 	DBGPR("<--DWC_ETH_QOS_rx_skb_free_mem\n");
-}
-/*!
-* \brief API to free the receive descriptor & buffer memory for single channel.
-*
-* \details This function is used to free the receive descriptor & buffer memory.
-*
-* \param[in] pdata - pointer to private data structure.
-*
-* \retval void.
-*/
-
-static void DWC_ETH_QOS_rx_free_mem_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-									UINT chInx)
-{
-	struct DWC_ETH_QOS_rx_wrapper_descriptor *desc_data = NULL;
-	DBGPR("-->DWC_ETH_QOS_rx_free_mem\n");
-
-	/* free RX descriptor */
-#if !defined(NTN_DECLARE_MEM_FOR_DMAAPI) && !defined(DESC_HOSTMEM_BUF_HOSTMEM)
-	return;
-#endif
-
-	DBGPR("-->DWC_ETH_QOS_rx_free_mem_single_ch: chInx = %d\n", chInx);
-
-	if(!pdata->rx_dma_ch_for_host[chInx])
-		return;;
-
-	desc_data = GET_RX_WRAPPER_DESC(chInx);
-
-	if (GET_RX_DESC_PTR(chInx, 0)) {
-		dma_free_coherent(&pdata->pdev->dev,
-				  (sizeof(struct s_RX_NORMAL_DESC) * pdata->rx_dma_ch[chInx].desc_cnt),
-				  GET_RX_DESC_PTR(chInx, 0),
-				  GET_RX_DESC_DMA_ADDR(chInx, 0));
-		GET_RX_DESC_PTR(chInx, 0) = NULL;
-	}
-
-
-	/* free RX skb's */
-	DWC_ETH_QOS_rx_skb_free_mem_single_q(pdata, chInx);
-
-	/* free RX wrapper buffer */
-	if (GET_RX_BUF_PTR(chInx, 0)) {
-		kfree(GET_RX_BUF_PTR(chInx, 0));
-		GET_RX_BUF_PTR(chInx, 0) = NULL;
-	}
-
-	/* Deallocate RX Buffer Pool Structure */
-	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0) {
-		if (GET_RX_BUFF_POOL_BASE_ADRR(chInx)) {
-			kfree(GET_RX_BUFF_POOL_BASE_ADRR(chInx));
-			GET_RX_BUFF_POOL_BASE_ADRR(chInx) = NULL;
-		} else {
-			NMSGPR_ALERT( "Unable to De-allocate "
-					" RX Buff structure\n");
-		}
-	}
-
-	DBGPR("<--DWC_ETH_QOS_rx_free_mem\n");
 }
 
 /*!
@@ -1677,7 +1514,7 @@ static unsigned int DWC_ETH_QOS_map_skb(struct net_device *dev,
 	    GET_TX_BUF_PTR(chInx, desc_data->cur_tx);
 	struct DWC_ETH_QOS_tx_buffer *prev_buffer = NULL;
 	struct s_tx_pkt_features *tx_pkt_features = GET_TX_PKT_FEATURES_PTR;
-	UINT varvlan_pkt;
+	UINT varvlan_pkt = 0;
 	int index = (int)desc_data->cur_tx;
 	unsigned int frag_cnt = skb_shinfo(skb)->nr_frags;
 	unsigned int hdr_len = 0;
@@ -1979,283 +1816,7 @@ static void DWC_ETH_QOS_re_alloc_skb(struct DWC_ETH_QOS_prv_data *pdata,
 
 	return;
 }
-/*!
-* \brief API to free rx queue structures of single channel.
-*
-* \details This function is used to free rx queue structures for the given
-*  single channel
-*
-* \param[in] pdata - pointer to private data structure.
-* 			 chInx - Channel index.
-*
-* \return void.
-*/
-static void DWC_ETH_QOS_free_rx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx)
-{
-	struct DWC_ETH_QOS_rx_wrapper_descriptor *rx_desc_data;
 
-	rx_desc_data = &pdata->rx_dma_ch[chInx].rx_desc_data;
-
-	if (rx_desc_data->rx_buf_ptrs) {
-		kfree(rx_desc_data->rx_buf_ptrs);
-		rx_desc_data->rx_buf_ptrs = NULL;
-	}
-
-	if (rx_desc_data->rx_desc_dma_addrs) {
-		kfree(rx_desc_data->rx_desc_dma_addrs);
-		rx_desc_data->rx_desc_dma_addrs = NULL;
-	}
-
-	if (rx_desc_data->rx_desc_ptrs) {
-		kfree(rx_desc_data->rx_desc_ptrs);
-		rx_desc_data->rx_desc_ptrs = NULL;
-	}
-}
-/*!
-* \brief API to free tx queue structures of single channel.
-*
-* \details This function is used to free tx queue structures for the given
-*  single channel
-*
-* \param[in] pdata - pointer to private data structure.
-* 			 chInx - Channel index.
-*
-* \return void.
-*/
-static void DWC_ETH_QOS_free_tx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx)
-{
-	struct DWC_ETH_QOS_tx_wrapper_descriptor *tx_desc_data;
-
-	tx_desc_data = &pdata->tx_dma_ch[chInx].tx_desc_data;
-
-	if (pdata->ipa_enabled) {
-		if (tx_desc_data->tx_ipa_buff_addrs) {
-			kfree(tx_desc_data->tx_ipa_buff_addrs);
-			tx_desc_data->tx_ipa_buff_addrs = NULL;
-		}
-	}
-
-	if (tx_desc_data->tx_buf_ptrs) {
-		kfree(tx_desc_data->tx_buf_ptrs);
-		tx_desc_data->tx_buf_ptrs = NULL;
-	}
-
-	if (tx_desc_data->tx_desc_dma_addrs) {
-		kfree(tx_desc_data->tx_desc_dma_addrs);
-		tx_desc_data->tx_desc_dma_addrs = NULL;
-	}
-
-	if (tx_desc_data->tx_desc_ptrs) {
-		kfree(tx_desc_data->tx_desc_ptrs);
-		tx_desc_data->tx_desc_ptrs = NULL;
-	}
-}
-/*!
-* \brief API to allocate tx queue structures of single channel.
-*
-* \details This function is used to allocate tx queue structures for the given
-*  single channel
-*
-* \param[in] pdata - pointer to private data structure.
-* 			 chInx - Channel index.
-*
-* \return void.
-*/
-static INT DWC_ETH_QOS_alloc_tx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx)
-{
-	int ret = 0, cnt;
-	struct DWC_ETH_QOS_tx_wrapper_descriptor *tx_desc_data;
-
-	pdata->tx_dma_ch[chInx].desc_cnt = TX_DESC_CNT;
-
-	if (pdata->ipa_enabled && chInx == NTN_TX_DMA_CH_2){
-		pdata->tx_dma_ch[chInx].desc_cnt = IPA_TX_DESC_CNT;
-	}
-
-	tx_desc_data = &pdata->tx_dma_ch[chInx].tx_desc_data;
-
-	/* Allocate tx_desc_ptrs */
-	tx_desc_data->tx_desc_ptrs =
-		kzalloc(sizeof(struct s_TX_NORMAL_DESC *) * pdata->tx_dma_ch[chInx].desc_cnt,
-				GFP_KERNEL);
-	if (tx_desc_data->tx_desc_ptrs == NULL) {
-		NMSGPR_ALERT( "ERROR: Unable to allocate Tx Desc ptrs\n");
-		ret = -ENOMEM;
-		goto err_out_tx_desc_ptrs_failed;
-	}
-	for (cnt = 0; cnt < pdata->tx_dma_ch[chInx].desc_cnt; cnt++) {
-		tx_desc_data->tx_desc_ptrs[cnt] = tx_desc_data->tx_desc_ptrs[0] +
-			(sizeof(struct s_TX_NORMAL_DESC *) * cnt);
-	}
-
-	/* Allocate tx_desc_dma_addrs */
-	tx_desc_data->tx_desc_dma_addrs =
-		kzalloc(sizeof(dma_addr_t) * pdata->tx_dma_ch[chInx].desc_cnt,
-				GFP_KERNEL);
-	if (tx_desc_data->tx_desc_dma_addrs == NULL) {
-		NMSGPR_ALERT( "ERROR: Unable to allocate Tx Desc dma addrs\n");
-		ret = -ENOMEM;
-		goto err_out_tx_desc_dma_addrs_failed;
-	}
-	for (cnt = 0; cnt < pdata->tx_dma_ch[chInx].desc_cnt; cnt++) {
-		tx_desc_data->tx_desc_dma_addrs[cnt] = tx_desc_data->tx_desc_dma_addrs[0] +
-			(sizeof(dma_addr_t) * cnt);
-	}
-
-	/* Allocate tx_buf_ptrs */
-	tx_desc_data->tx_buf_ptrs =
-		kzalloc(sizeof(struct DWC_ETH_QOS_tx_buffer *) * pdata->tx_dma_ch[chInx].desc_cnt,
-				GFP_KERNEL);
-	if (tx_desc_data->tx_buf_ptrs == NULL) {
-		NMSGPR_ALERT( "ERROR: Unable to allocate Tx buff ptrs\n");
-		ret = -ENOMEM;
-		goto err_out_tx_buf_ptrs_failed;
-	}
-	for (cnt = 0; cnt < pdata->tx_dma_ch[chInx].desc_cnt; cnt++) {
-		tx_desc_data->tx_buf_ptrs[cnt] = tx_desc_data->tx_buf_ptrs[0] +
-			(sizeof(struct DWC_ETH_QOS_tx_buffer *) * cnt);
-	}
-
-	if (pdata->ipa_enabled) {
-		/* Allocate tx_ipa_buff_addrs */
-		tx_desc_data->tx_ipa_buff_addrs =
-			kzalloc(sizeof(struct sk_buff *) * pdata->tx_dma_ch[chInx].desc_cnt,
-					GFP_KERNEL);
-		if (tx_desc_data->tx_ipa_buff_addrs == NULL) {
-			NMSGPR_ALERT( "ERROR: Unable to allocate Tx ipa buff addrs\n");
-			ret = -ENOMEM;
-			goto err_out_tx_ipa_buff_addrs_failed;
-		}
-		for (cnt = 0; cnt < pdata->tx_dma_ch[chInx].desc_cnt; cnt++) {
-			tx_desc_data->tx_ipa_buff_addrs[cnt] = tx_desc_data->tx_ipa_buff_addrs[0] +
-				(sizeof(struct sk_buff *) * cnt);
-		}
-	}
-
-	return ret;
-
-err_out_tx_ipa_buff_addrs_failed:
-	tx_desc_data = &pdata->tx_dma_ch[chInx].tx_desc_data;
-	if (tx_desc_data->tx_buf_ptrs) {
-		kfree(tx_desc_data->tx_buf_ptrs);
-		tx_desc_data->tx_buf_ptrs = NULL;
-	}
-
-err_out_tx_buf_ptrs_failed:
-	tx_desc_data = &pdata->tx_dma_ch[chInx].tx_desc_data;
-	if (tx_desc_data->tx_desc_dma_addrs) {
-		kfree(tx_desc_data->tx_desc_dma_addrs);
-		tx_desc_data->tx_desc_dma_addrs = NULL;
-	}
-
-err_out_tx_desc_dma_addrs_failed:
-	tx_desc_data = &pdata->tx_dma_ch[chInx].tx_desc_data;
-	if (tx_desc_data->tx_desc_ptrs) {
-		kfree(tx_desc_data->tx_desc_ptrs);
-		tx_desc_data->tx_desc_ptrs = NULL;
-	}
-
-err_out_tx_desc_ptrs_failed:
-	kfree(pdata->tx_dma_ch);
-	pdata->tx_dma_ch = NULL;
-
-	return ret;
-}
-/*!
-* \brief API to allocate rx queue structures of single channel.
-*
-* \details This function is used to allocate rx queue structures for the given
-*  single channel
-*
-* \param[in] pdata - pointer to private data structure.
-* 			 chInx - Channel index.
-*
-* \return void.
-*/
-static INT DWC_ETH_QOS_alloc_rx_queue_struct_single_ch(struct DWC_ETH_QOS_prv_data *pdata,
-													    UINT chInx)
-{
-	int ret = 0, cnt;
-	struct DWC_ETH_QOS_rx_wrapper_descriptor *rx_desc_data;
-
-	pdata->rx_dma_ch[chInx].desc_cnt = RX_DESC_CNT;
-
-	if (pdata->ipa_enabled && chInx == NTN_RX_DMA_CH_0){
-		pdata->rx_dma_ch[chInx].desc_cnt = IPA_RX_DESC_CNT;
-	}
-
-	rx_desc_data = &pdata->rx_dma_ch[chInx].rx_desc_data;
-
-	/* Alocate rx_desc_ptrs */
-	rx_desc_data->rx_desc_ptrs =
-		kzalloc(sizeof(struct s_RX_NORMAL_DESC *) * pdata->rx_dma_ch[chInx].desc_cnt,
-				GFP_KERNEL);
-	if (rx_desc_data->rx_desc_ptrs == NULL) {
-		NMSGPR_ALERT( "ERROR: Unable to allocate Rx Desc ptrs\n");
-		ret = -ENOMEM;
-		goto err_out_rx_desc_ptrs_failed;
-	}
-
-	for (cnt = 0; cnt < pdata->rx_dma_ch[chInx].desc_cnt; cnt++) {
-		rx_desc_data->rx_desc_ptrs[cnt] = rx_desc_data->rx_desc_ptrs[0] +
-			(sizeof(struct s_RX_NORMAL_DESC *) * cnt);
-	}
-
-	/* Alocate rx_desc_dma_addrs */
-	rx_desc_data->rx_desc_dma_addrs =
-		kzalloc(sizeof(dma_addr_t) * pdata->rx_dma_ch[chInx].desc_cnt,
-				GFP_KERNEL);
-	if (rx_desc_data->rx_desc_dma_addrs == NULL) {
-		NMSGPR_ALERT( "ERROR: Unable to allocate Rx Desc dma addr\n");
-		ret = -ENOMEM;
-		goto err_out_rx_desc_dma_addrs_failed;
-	}
-
-	for (cnt = 0; cnt < pdata->rx_dma_ch[chInx].desc_cnt; cnt++) {
-		rx_desc_data->rx_desc_dma_addrs[cnt] = rx_desc_data->rx_desc_dma_addrs[0] +
-			(sizeof(dma_addr_t) * cnt);
-	}
-
-	/* Alocate rx_buf_ptrs */
-	rx_desc_data->rx_buf_ptrs =
-		kzalloc(sizeof(struct DWC_ETH_QOS_rx_buffer *) * pdata->rx_dma_ch[chInx].desc_cnt,
-				GFP_KERNEL);
-	if (rx_desc_data->rx_buf_ptrs == NULL) {
-		NMSGPR_ALERT( "ERROR: Unable to allocate Rx Desc dma addr\n");
-		ret = -ENOMEM;
-		goto err_out_rx_buf_ptrs_failed;
-	}
-
-	for (cnt = 0; cnt < pdata->rx_dma_ch[chInx].desc_cnt; cnt++) {
-		rx_desc_data->rx_buf_ptrs[cnt] = rx_desc_data->rx_buf_ptrs[0] +
-			(sizeof(struct DWC_ETH_QOS_rx_buffer *) * cnt);
-	}
-
-	return ret;
-err_out_rx_buf_ptrs_failed:
-	rx_desc_data = &pdata->rx_dma_ch[chInx].rx_desc_data;
-	if (rx_desc_data->rx_desc_dma_addrs) {
-		kfree(rx_desc_data->rx_desc_dma_addrs);
-		rx_desc_data->rx_desc_dma_addrs = NULL;
-	}
-
-err_out_rx_desc_dma_addrs_failed:
-	rx_desc_data = &pdata->rx_dma_ch[chInx].rx_desc_data;
-	if (rx_desc_data->rx_desc_ptrs) {
-		kfree(rx_desc_data->rx_desc_ptrs);
-		rx_desc_data->rx_desc_ptrs = NULL;
-	}
-
-err_out_rx_desc_ptrs_failed:
-	kfree(pdata->rx_dma_ch);
-	pdata->rx_dma_ch = NULL;
-
-	return ret;
-
-}
 /*!
 * \brief API to initialize the function pointers.
 *
@@ -2275,20 +1836,12 @@ void DWC_ETH_QOS_init_function_ptrs_desc(struct desc_if_struct *desc_if)
 	desc_if->alloc_queue_struct = DWC_ETH_QOS_alloc_queue_struct;
 	desc_if->free_queue_struct = DWC_ETH_QOS_free_queue_struct;
 	desc_if->alloc_buff_and_desc = allocate_buffer_and_desc;
-	desc_if->alloc_rx_buff_and_desc = allocate_rx_buffer_and_desc;
-	desc_if->alloc_tx_buff_and_desc = allocate_tx_buffer_and_desc;
 	desc_if->realloc_skb = DWC_ETH_QOS_re_alloc_skb;
 	desc_if->unmap_rx_skb = DWC_ETH_QOS_unmap_rx_skb;
 	desc_if->unmap_tx_skb = DWC_ETH_QOS_unmap_tx_skb;
 	desc_if->map_tx_skb = DWC_ETH_QOS_map_skb;
 	desc_if->tx_free_mem = DWC_ETH_QOS_tx_free_mem;
 	desc_if->rx_free_mem = DWC_ETH_QOS_rx_free_mem;
-	desc_if->tx_free_mem_single_ch = DWC_ETH_QOS_tx_free_mem_single_ch;
-	desc_if->rx_free_mem_single_ch = DWC_ETH_QOS_rx_free_mem_single_ch;
-	desc_if->free_rx_queue_struct_single_ch = DWC_ETH_QOS_free_rx_queue_struct_single_ch;
-	desc_if->free_tx_queue_struct_single_ch = DWC_ETH_QOS_free_tx_queue_struct_single_ch;
-	desc_if->alloc_rx_queue_struct_single_ch = DWC_ETH_QOS_alloc_rx_queue_struct_single_ch;
-	desc_if->alloc_tx_queue_struct_single_ch = DWC_ETH_QOS_alloc_tx_queue_struct_single_ch;
 	desc_if->wrapper_tx_desc_init = DWC_ETH_QOS_wrapper_tx_descriptor_init;
 	desc_if->wrapper_tx_desc_init_single_q =
 	    DWC_ETH_QOS_wrapper_tx_descriptor_init_single_q;
