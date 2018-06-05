@@ -1413,6 +1413,7 @@ static const struct net_device_ops DWC_ETH_QOS_netdev_ops = {
 	.ndo_vlan_rx_add_vid = DWC_ETH_QOS_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = DWC_ETH_QOS_vlan_rx_kill_vid,
 	.ndo_change_mtu         = DWC_ETH_QOS_change_mtu,
+	.ndo_set_mac_address = eth_mac_addr,
 };
 
 struct net_device_ops *DWC_ETH_QOS_get_netdev_ops(void)
