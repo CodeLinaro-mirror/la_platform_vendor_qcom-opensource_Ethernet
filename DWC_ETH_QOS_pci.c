@@ -1215,7 +1215,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	ULONG phy_mem_adrs;
 #endif
 	struct ip_params *pparams;
-	unsigned char mac_addr[17] = {0};
+	char mac_addr[18] = {0};
 	int speed = 0;
 	unsigned int is_mac_addr_valid = 0;
 
@@ -1585,6 +1585,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		NDBGPR_L1("ipv4_addr = %s\n", pparams->ip_addr);
 		NDBGPR_L1("ipv6_addr = %s\n", pparams->ipv6_addr);
 		memcpy(&mac_addr,pparams->mac_addr,sizeof(mac_addr));
+		mac_addr[17] = '\0';
 		if(mac_addr[0] < 0xff){
 			is_mac_addr_valid = 1;
 			NMSGPR_ALERT( "default MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -1941,15 +1942,16 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	return;
 }
 
-static struct pci_device_id DWC_ETH_QOS_id = {
-	PCI_DEVICE(VENDOR_ID, DEVICE_ID)
+static struct pci_device_id DWC_ETH_QOS_id[] = {
+	{ PCI_DEVICE(VENDOR_ID, DEVICE_ID), },
+	{ },
 };
 
 struct pci_dev *DWC_ETH_QOS_pcidev;
 
 static struct pci_driver DWC_ETH_QOS_pci_driver = {
 	.name = "DWC_ETH_QOS",
-	.id_table = &DWC_ETH_QOS_id,
+	.id_table = DWC_ETH_QOS_id,
 	.probe = DWC_ETH_QOS_probe,
 	.remove = DWC_ETH_QOS_remove,
 	.shutdown = DWC_ETH_QOS_shutdown,
