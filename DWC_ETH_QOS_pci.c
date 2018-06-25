@@ -405,10 +405,14 @@ static void parse_phy_int_from_config_file(struct DWC_ETH_QOS_prv_data *pdata)
 		return;
 	} else {
 		/* Parse the file */
-		ret = file_read(filep, 0, data, 512);
+		ret = file_read(filep, 0, data, 511);
+		data[511] = '\0';
 		if (strstr((const char *)data, "PHY_INTERRUPT_ENABLE"))
 			pdata->enable_phy_interrupt = 1;
 	}
+
+	kfree(data);
+	filp_close(filep, NULL);
 
 	return;
 }
@@ -444,7 +448,8 @@ static void parse_config_file(USHORT mdio_bus_id)
 	}
 	else  {
 		/* Parse the file */
-		ret = file_read(filep, 0, data, 512);
+		ret = file_read(filep, 0, data, 511);
+		data[511] = '\0';
 		for (i = 0; i < CONFIG_PARAM_NUM; i++) {
 			if (strstr ((const char *)data, config_param_list[i].mdio_key)) {
 				NDBGPR_L1("Pattern Match\n");
