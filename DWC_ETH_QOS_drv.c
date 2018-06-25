@@ -102,6 +102,8 @@ static struct delayed_work task;
 /* SA(Source Address) operations on TX */
 unsigned char mac_addr0[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF8 };
 unsigned char mac_addr1[6] = { 0xE8, 0xE0, 0xB7, 0xB5, 0x7D, 0xF7 };
+static int tx_place_marker = 0;
+static int rx_place_marker = 0;
 
 /* module parameters for configuring the queue modes
  *
@@ -1890,6 +1892,8 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 				break;
 			}
 			netif_carrier_on(pdata->dev);
+			/*Print PHY status to track KPI value*/
+			phy_print_status(pdata->phydev);
 		} else {
 			NMSGPR_INFO("PHY link still is not up, resume it!!!!\r\n");
 			genphy_resume(pdata->phydev);
@@ -2434,6 +2438,10 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 tx_netdev_return:
 	spin_unlock_irqrestore(&pdata->tx_lock, flags);
 
+	if(tx_place_marker == 0){
+		tx_place_marker = 1;
+		NMSGPR_ALERT( "Tx: DWC_ETH_QOS_start_xmit");
+	}
 	DBGPR("<--DWC_ETH_QOS_start_xmit\n");
 
 	return retval;
@@ -2933,6 +2941,10 @@ static void DWC_ETH_QOS_receive_skb(struct DWC_ETH_QOS_prv_data *pdata,
 		rx_dma_ch->lro_flush_needed = 1;
 	} else {
 		netif_receive_skb(skb);
+	}
+	if(rx_place_marker == 0){
+		rx_place_marker = 1;
+		NMSGPR_ALERT( "Rx: DWC_ETH_QOS_receive_skb");
 	}
 }
 
