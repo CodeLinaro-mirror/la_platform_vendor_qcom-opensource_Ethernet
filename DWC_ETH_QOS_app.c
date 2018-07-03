@@ -59,5 +59,5 @@ static void __exit DWC_ETH_QOS_app_cleanup (void)
 }
 
 
-module_init(DWC_ETH_QOS_app_init);
+fs_initcall_sync(DWC_ETH_QOS_app_init);
 module_exit(DWC_ETH_QOS_app_cleanup);

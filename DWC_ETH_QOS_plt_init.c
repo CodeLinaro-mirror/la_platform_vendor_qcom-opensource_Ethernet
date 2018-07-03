@@ -402,7 +402,7 @@ static int __init DWC_ETH_QOS_pcie_init(void)
 	int ret = 0;
 
 	INIT_LIST_HEAD(&ntn_plt_data_list);
-	DBGPR( "Entry:%s.\n", __func__);
+	NMSGPR_INFO( "Entry:%s.\n", __func__);
 	place_marker("M - DRIVER Ethernet Init");
 	ret = platform_driver_register(&DWC_ETH_QOS_pcie_driver);
 
