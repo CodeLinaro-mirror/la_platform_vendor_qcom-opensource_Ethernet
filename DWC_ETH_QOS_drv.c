@@ -164,7 +164,7 @@ void DWC_ETH_QOS_stop_all_ch_tx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 	DBGPR("<--DWC_ETH_QOS_stop_all_ch_tx_dma\n");
 }
 
-static void DWC_ETH_QOS_stop_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata)
+void DWC_ETH_QOS_stop_all_ch_rx_dma(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	UINT chInx;
@@ -1823,7 +1823,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 
 	netif_tx_start_all_queues(dev);
 
-	if (pdata->ipa_enabled) {
+	if (pdata->ipa_capable) {
 		/* Configure IPA Related Stuff */
 		ret = DWC_ETH_QOS_ipa_ready(pdata);
 		if (pdata->prv_ipa.ipa_ready) {
@@ -1845,6 +1845,7 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 			if (ret) {
 				NMSGPR_ERR("%s:%d unable to enable ipa offload\n",
 					   __func__, __LINE__);
+				pdata->ipa_enabled = false;
 				goto err_out_desc_buf_alloc_failed;
 			}
 		}
@@ -5452,7 +5453,7 @@ u16	DWC_ETH_QOS_select_queue(struct net_device *dev, struct sk_buff *skb, void *
 	UINT avb_priority;
 	UINT eth_type;
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
-	UINT tx_ch_host = pdata->ipa_enabled ? NTN_TX_PKT_HOST_IPA : NTN_TX_PKT_HOST;
+	UINT tx_ch_host = pdata->ipa_capable ? NTN_TX_PKT_HOST_IPA : NTN_TX_PKT_HOST;
 
 	DBGPR("-->DWC_ETH_QOS_select_queue\n");
 
