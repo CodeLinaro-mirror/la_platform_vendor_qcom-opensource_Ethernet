@@ -1604,6 +1604,8 @@ struct DWC_ETH_QOS_prv_data {
 	UCHAR rx_dma_ch_for_host[NTN_DMA_RX_CH_CNT];
 
 	DWC_ETH_QOS_phy_speed_mode phy_speed_mode;
+	unsigned int phy_txc_skew_ps;
+	unsigned int phy_rxc_skew_ps;
 	struct mii_bus *mii;
 	struct phy_device *phydev;
 	struct delayed_work phy_dwork;
@@ -1917,6 +1919,10 @@ void DWC_ETH_QOS_enable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_parse_config_file(struct DWC_ETH_QOS_prv_data *pdata,
 					USHORT mdio_bus_id);
+int DWC_ETH_QOS_phy_read_mmd_indirect(struct mii_bus *bus,
+				      int regAddr, int devAddr, int phyAddr);
+void DWC_ETH_QOS_phy_write_mmd_indirect(struct mii_bus *bus,
+					int regAddr, int devAddr, int phyAddr, u32 data);
 
 /* For debug prints*/
 #define DRV_NAME "DWC_ETH_QOS_drv.c"

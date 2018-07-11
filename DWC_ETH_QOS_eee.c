@@ -79,17 +79,6 @@
  */
 #include "DWC_ETH_QOS_yheader.h"
 
-/* Clause 22 registers to access clause 45 register set */
-#define MMD_CTRL_REG		0x0D	/* MMD Access Control Register */
-#define MMD_ADDR_DATA_REG	0x0E	/* MMD Access Address Data Register */
-
-/* MMD Access Control register fields */
-#define MMD_CTRL_FUNC_ADDR		0x0000	/* address */
-#define MMD_CTRL_FUNC_DATA_NOINCR	0x4000	/* data, no post increment */
-#define MMD_CTRL_FUNC_DATA_INCR_ON_RDWT	0x8000	/* data, post increment on
-						   reads & writes */
-#define MMD_CTRL_FUNC_DATA_INCR_ON_WT	0xC000	/* data, post increment on
-						   writes only */
 /* Clause 45 expansion register */
 #define CL45_PCS_EEE_ABLE 0x14	/* EEE Capability register */
 #define CL45_ADV_EEE_REG 0x3C   /* EEE advertisement */
@@ -166,93 +155,6 @@ static void DWC_ETH_QOS_eee_ctrl_timer(unsigned long data)
 	DWC_ETH_QOS_enable_eee_mode(pdata);
 
 	DBGPR_EEE("<--DWC_ETH_QOS_eee_ctrl_timer\n");
-}
-
-
-static void DWC_ETH_QOS_mmd_phy_indirect(struct mii_bus *bus,
-					 int regAddr,
-					 int devAddr,
-					 int phyAddr)
-{
-	/* Write the desired MMD devAddr */
-	bus->write(bus, phyAddr, MMD_CTRL_REG, devAddr);
-
-	/* Write the desired MMD regAddr */
-	bus->write(bus, phyAddr, MMD_ADDR_DATA_REG, regAddr);
-
-	/* Select the Function : DATA with no post increment */
-	bus->write(bus, phyAddr, MMD_CTRL_REG,
-		(devAddr | MMD_CTRL_FUNC_DATA_NOINCR));
-}
-
-
-/*!
-* \brief API to read data from the MMD registers.
-*
-* \details This function will read data from the MMD(clause 45) registers
-* using clause 22 registers. The procedure to read MMD registers is,
-* 1. Write the desired MMD device addr into reg 13
-* 2. Write the desired MMD reg addr into reg 14
-* 3. Select the desired Function - MMD data command by writing in reg 13
-* 4. Read the content of the MMD's selected reg through reg 14
-*
-* \param[in] bus - the target MII bus
-* \param[in] regAddr - desired MMD reg addr to be read
-* \param[in] devAddr - desired MMD address
-* \param[in] phyAddr - PHY addr/id on the MII bus
-*
-* \return integer
-*/
-static int DWC_ETH_QOS_phy_read_mmd_indirect(struct mii_bus *bus,
-					     int regAddr,
-					     int devAddr,
-					     int phyAddr)
-{
-	u32 ret;
-
-	DBGPR_EEE("-->DWC_ETH_QOS_phy_read_mmd_indirect\n");
-
-	DWC_ETH_QOS_mmd_phy_indirect(bus, regAddr, devAddr, phyAddr);
-	/* read the content of the MMD's selected register */
-	ret = bus->read(bus, phyAddr, MMD_ADDR_DATA_REG);
-
-	DBGPR_EEE("<--DWC_ETH_QOS_phy_read_mmd_indirect\n");
-
-	return ret;
-}
-
-
-/*!
-* \brief API to write data into the MMD registers.
-*
-* \details This function will write data into MMD(clause 45) registers
-* using clause 22 registers. The procedure to write MMD registers is,
-* 1. Write the desired MMD device addr into reg 13
-* 2. Write the desired MMD reg addr into reg 14
-* 3. Select the desired Function - MMD data command by writing in reg 13
-* 4. Write the data into MMD's selected reg through reg 14
-*
-* \param[in] bus - the target MII bus
-* \param[in] regAddr - desired MMD reg addr to be written
-* \param[in] devAddr - desired MMD address
-* \param[in] phyAddr - PHY addr/id on the MII bus
-* \param[in] data - data to write into the MMD register
-*
-* \return void
-*/
-static void DWC_ETH_QOS_phy_write_mmd_indirect(struct mii_bus *bus,
-					     int regAddr,
-					     int devAddr,
-					     int phyAddr,
-					     u32 data)
-{
-	DBGPR_EEE("-->DWC_ETH_QOS_phy_write_mmd_indirect\n");
-
-	DWC_ETH_QOS_mmd_phy_indirect(bus, regAddr, devAddr, phyAddr);
-	/* Write the data into MMD's selected register */
-	bus->write(bus, phyAddr, MMD_ADDR_DATA_REG, data);
-
-	DBGPR_EEE("<--DWC_ETH_QOS_phy_write_mmd_indirect\n");
 }
 
 #if 0

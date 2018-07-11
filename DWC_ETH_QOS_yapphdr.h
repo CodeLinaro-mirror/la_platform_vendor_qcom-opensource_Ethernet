@@ -321,6 +321,26 @@ enum{
 
 #define DWC_ETH_QOS_MAX_INT_FRAME_SIZE (1600*8)
 
+/* Micrel KSZ9031 PHY specific defines */
+#define MICREL_KSZ9031_PHY_ID 0x00221620
+#define MICREL_KSZ9031_PHY_ID_MASK 0x00FFFFF0
+#define MICREL_KSZ9031_PHY_SKEW_BITS 0x5
+#define MICREL_PHY_SKEW_DEVADDR 0x02
+#define MICREL_PHY_SKEW_REGADDR 0x08
+#define MICREL_KSZ9031_PS_TO_REG 60
+
+/* Clause 22 registers to access clause 45 register set */
+#define MMD_CTRL_REG		0x0D	/* MMD Access Control Register */
+#define MMD_ADDR_DATA_REG	0x0E	/* MMD Access Address Data Register */
+
+/* MMD Access Control register fields */
+#define MMD_CTRL_FUNC_ADDR		0x0000	/* address */
+#define MMD_CTRL_FUNC_DATA_NOINCR	0x4000	/* data, no post increment */
+#define MMD_CTRL_FUNC_DATA_INCR_ON_RDWT	0x8000	/* data, post increment on
+						   reads & writes */
+#define MMD_CTRL_FUNC_DATA_INCR_ON_WT	0xC000	/* data, post increment on
+						   writes only */
+
 typedef enum {
 	eDWC_ETH_QOS_DMA_TX_FP = 0,
 	eDWC_ETH_QOS_DMA_TX_WSP = 1,

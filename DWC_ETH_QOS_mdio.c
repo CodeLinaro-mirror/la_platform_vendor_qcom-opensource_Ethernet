@@ -835,6 +835,92 @@ void DWC_ETH_QOS_adjust_link(struct work_struct *work)
 	DBGPR_MDIO("<--DWC_ETH_QOS_adjust_link\n");
 }
 
+static void DWC_ETH_QOS_micrel_ksz9031_phy_init(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int val[2] = {pdata->phy_rxc_skew_ps, pdata->phy_txc_skew_ps};
+	u16 mask;
+	u16 maxval;
+	u16 newval;
+	int i;
+
+	/* Apply clock skew settings */
+	DBGPR_MDIO("Detected the ksz9031 phy, applying specific settings\n");
+
+	if ((val[0] < 0) && (val[1] < 0)) {
+		DBGPR_MDIO("Micrel PHY properties not defined\n");
+		return;
+	}
+
+	/* Only read from PHY if either one of the phy settings is
+	 * not specified */
+	if ((val[0] < 0) || (val[1] < 0)) {
+		newval = DWC_ETH_QOS_phy_read_mmd_indirect(pdata->phydev->bus,
+							   MICREL_PHY_SKEW_REGADDR,
+							   MICREL_PHY_SKEW_DEVADDR,
+							   pdata->phyaddr);
+	}
+
+	maxval = (MICREL_KSZ9031_PHY_SKEW_BITS == 4) ? 0xf : 0x1f;
+	for (i = 0; i < 2; i++) {
+		if (val[i] != -(i + 1)) {
+			mask = 0xffff;
+			mask ^= maxval << (MICREL_KSZ9031_PHY_SKEW_BITS * i);
+			newval = (newval & mask) |
+				 (((val[i] / MICREL_KSZ9031_PS_TO_REG) & maxval)
+				 << (MICREL_KSZ9031_PHY_SKEW_BITS * i));
+		}
+	}
+
+	DWC_ETH_QOS_phy_write_mmd_indirect(pdata->phydev->bus,
+					   MICREL_PHY_SKEW_REGADDR,
+					   MICREL_PHY_SKEW_DEVADDR,
+					   pdata->phyaddr, newval);
+
+	DBGPR_MDIO("%s: Updated PHY clock skew: 0x%x\n", __func__, newval);
+}
+
+/*!
+* \brief API to set specific PHY registers.
+*
+* \details This function will identify the PHY and set specific phy registers
+* based on its specifications.
+*
+* \param[in] pdata - pointer to DWC_ETH_QOS_prv_data
+*
+* \return integer
+*
+* \retval 0 on success & negative number on failure.
+*/
+static int DWC_ETH_QOS_set_phy_config(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	int regval = 0;
+	int regval_ext = 0;
+
+	if ((pdata->phy_rxc_skew_ps < 0) && (pdata->phy_txc_skew_ps < 0)) {
+		DBGPR_MDIO("PHY properties not defined\n");
+		return 0;
+	}
+
+	/* Set specific PHY registers */
+	if (pdata->phydev != NULL) {
+		regval = phy_read(pdata->phydev, MII_PHYSID1);
+		if (regval < 0)
+			return regval;
+
+		regval_ext = phy_read(pdata->phydev, MII_PHYSID2);
+		if (regval_ext < 0)
+			return regval_ext;
+
+		regval = ((regval << 16) | regval_ext);
+		if ((regval & MICREL_KSZ9031_PHY_ID_MASK) == MICREL_KSZ9031_PHY_ID)
+			DWC_ETH_QOS_micrel_ksz9031_phy_init(pdata);
+		else
+			DBGPR_MDIO("No specific init settings for this phy\n");
+	}
+
+	return 0;
+}
+
 /*!
 * \brief API to initialize PHY.
 *
@@ -908,6 +994,11 @@ static int DWC_ETH_QOS_init_phy(struct net_device *dev)
 
 		DWC_ETH_QOS_mdio_write_direct(pdata, pdata->phyaddr, MII_BMCR, regval);
 	}
+
+	/* Set specific PHY registers */
+	regval = DWC_ETH_QOS_set_phy_config(pdata);
+	if (regval != 0)
+		DBGPR_MDIO("Unable to set PHY configuration\n");;
 
 	DBGPR_MDIO("<--DWC_ETH_QOS_init_phy\n");
 
@@ -1094,6 +1185,84 @@ void DWC_ETH_QOS_mdio_unregister(struct net_device *dev)
 	device_remove_file(&pdata->pdev->dev, &dev_attr_phy_inten);
 
 	DBGPR_MDIO("<--DWC_ETH_QOS_mdio_unregister\n");
+}
+
+static void DWC_ETH_QOS_mmd_phy_indirect(struct mii_bus *bus,
+					 int regAddr, int devAddr, int phyAddr)
+{
+	/* Write the desired MMD devAddr */
+	bus->write(bus, phyAddr, MMD_CTRL_REG, devAddr);
+
+	/* Write the desired MMD regAddr */
+	bus->write(bus, phyAddr, MMD_ADDR_DATA_REG, regAddr);
+
+	/* Select the Function : DATA with no post increment */
+	bus->write(bus, phyAddr, MMD_CTRL_REG,
+		   (devAddr | MMD_CTRL_FUNC_DATA_NOINCR));
+}
+
+/*!
+* \brief API to read data from the MMD registers.
+*
+* \details This function will read data from the MMD(clause 45) registers
+* using clause 22 registers. The procedure to read MMD registers is,
+* 1. Write the desired MMD device addr into reg 13
+* 2. Write the desired MMD reg addr into reg 14
+* 3. Select the desired Function - MMD data command by writing in reg 13
+* 4. Read the content of the MMD's selected reg through reg 14
+*
+* \param[in] bus - the target MII bus
+* \param[in] regAddr - desired MMD reg addr to be read
+* \param[in] devAddr - desired MMD address
+* \param[in] phyAddr - PHY addr/id on the MII bus
+*
+* \return integer
+*/
+int DWC_ETH_QOS_phy_read_mmd_indirect(struct mii_bus *bus,
+				      int regAddr, int devAddr, int phyAddr)
+{
+	u32 ret;
+
+	DBGPR_MDIO("-->DWC_ETH_QOS_phy_read_mmd_indirect\n");
+
+	DWC_ETH_QOS_mmd_phy_indirect(bus, regAddr, devAddr, phyAddr);
+	/* read the content of the MMD's selected register */
+	ret = bus->read(bus, phyAddr, MMD_ADDR_DATA_REG);
+
+	DBGPR_MDIO("<--DWC_ETH_QOS_phy_read_mmd_indirect\n");
+
+	return ret;
+}
+
+/*!
+* \brief API to write data into the MMD registers.
+*
+* \details This function will write data into MMD(clause 45) registers
+* using clause 22 registers. The procedure to write MMD registers is,
+* 1. Write the desired MMD device addr into reg 13
+* 2. Write the desired MMD reg addr into reg 14
+* 3. Select the desired Function - MMD data command by writing in reg 13
+* 4. Write the data into MMD's selected reg through reg 14
+*
+* \param[in] bus - the target MII bus
+* \param[in] regAddr - desired MMD reg addr to be written
+* \param[in] devAddr - desired MMD address
+* \param[in] phyAddr - PHY addr/id on the MII bus
+* \param[in] data - data to write into the MMD register
+*
+* \return void
+*/
+void DWC_ETH_QOS_phy_write_mmd_indirect(struct mii_bus *bus,
+					int regAddr, int devAddr,
+					int phyAddr, u32 data)
+{
+	DBGPR_MDIO("-->DWC_ETH_QOS_phy_write_mmd_indirect\n");
+
+	DWC_ETH_QOS_mmd_phy_indirect(bus, regAddr, devAddr, phyAddr);
+	/* Write the data into MMD's selected register */
+	bus->write(bus, phyAddr, MMD_ADDR_DATA_REG, data);
+
+	DBGPR_MDIO("<--DWC_ETH_QOS_phy_write_mmd_indirect\n");
 }
 
 void DWC_ETH_QOS_enable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata)
