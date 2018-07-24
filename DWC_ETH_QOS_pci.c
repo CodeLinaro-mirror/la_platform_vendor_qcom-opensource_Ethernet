@@ -986,10 +986,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 			NDBGPR_L1("%s: fw_load_delay = %d msec\n", __func__, pdata->fw_load_delay);
 		}
 
-		pdata->pcierst_resx = 0;
-#ifndef DWC_ETH_QOS_BUILTIN
 		pdata->pcierst_resx = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-pcierst-resx");
-#endif
 		NDBGPR_L1("%s: pcierst_resx = %d\n", __func__, pdata->pcierst_resx);
 
 		pdata->enable_phy = !of_property_read_bool(pldev->dev.of_node, "qcom,ntn-disable-phy");
@@ -1679,6 +1676,18 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 				DWC_ETH_QOS_load_fw(pdev);
 				if (pdata->ipa_enabled)
 					hw_if->enable_offload(pdata);
+			}
+			/*PHY needs to be reconfigured as PHY chip is reset*/
+			if (pdata->phy_speed_mode != DWC_ETH_QOS_PHY_SPEED_AUTO) {
+				int regval = 0;
+
+				if (pdata->phy_speed_mode == DWC_ETH_QOS_PHY_SPEED_1000M)
+					regval = BMCR_SPEED1000;
+				else if (pdata->phy_speed_mode == DWC_ETH_QOS_PHY_SPEED_100M)
+					regval = BMCR_SPEED100;
+
+				regval |= BMCR_FULLDPLX;
+				DWC_ETH_QOS_mdio_write_direct(pdata, pdata->phyaddr, MII_BMCR, regval);
 			}
 		}
 	}

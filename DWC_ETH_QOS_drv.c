@@ -1721,9 +1721,8 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 
 	DWC_ETH_QOS_set_rx_mode(dev);
 
-#ifndef DWC_ETH_QOS_BUILTIN
-	DWC_ETH_QOS_config_phy_aneg(pdata, 0, 0);
-#endif
+	if (pdata->phy_speed_mode == DWC_ETH_QOS_PHY_SPEED_AUTO)
+		DWC_ETH_QOS_config_phy_aneg(pdata, 0, 0);
 
 	desc_if->wrapper_tx_desc_init(pdata);
 	desc_if->wrapper_rx_desc_init(pdata);
@@ -1736,9 +1735,8 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 	/* initializes MAC and DMA */
 	hw_if->init(pdata);
 
-#ifndef DWC_ETH_QOS_BUILTIN
-	DWC_ETH_QOS_config_phy_aneg(pdata, 1, 0);
-#endif
+	if (pdata->phy_speed_mode == DWC_ETH_QOS_PHY_SPEED_AUTO)
+		DWC_ETH_QOS_config_phy_aneg(pdata, 1, 0);
 
 	pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
 
@@ -1895,6 +1893,9 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 			netif_carrier_on(pdata->dev);
 			/*Print PHY status to track KPI value*/
 			phy_print_status(pdata->phydev);
+			pdata->oldduplex = pdata->phydev->duplex;
+			pdata->speed = pdata->phydev->speed;
+			pdata->oldlink = 1;
 		} else {
 			NMSGPR_INFO("PHY link still is not up, resume it!!!!\r\n");
 			genphy_resume(pdata->phydev);
