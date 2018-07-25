@@ -1138,6 +1138,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
  err_load_fw_failed:
  err_out_q_alloc_failed:
+ if (pdata->ipa_enabled)
+	wakeup_source_trash(&pdata->prv_ipa.wlock);
     pci_disable_msi(pdev);
  err_out_msi_failed:
 
@@ -1259,6 +1261,8 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	if ((void __iomem*)pdata->dwc_eth_ntn_FLASH_pci_base_addr != NULL)
 		pci_iounmap(pdev, (void __iomem *)pdata->dwc_eth_ntn_FLASH_pci_base_addr);
 
+	if (pdata->ipa_enabled)
+		wakeup_source_trash(&pdata->prv_ipa.wlock);
 	free_netdev(dev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

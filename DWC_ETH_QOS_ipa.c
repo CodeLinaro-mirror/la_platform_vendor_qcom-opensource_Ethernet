@@ -259,13 +259,6 @@ int DWC_ETH_QOS_ipa_offload_suspend(struct DWC_ETH_QOS_prv_data *pdata)
 		return ret;
 	}
 
-	profile.max_supported_bandwidth_mbps = NTN_IPA_PIPE_MIN_BW;
-	ret = ipa_rm_set_perf_profile(IPA_RM_RESOURCE_ODU_ADAPT_CONS,
-					&profile);
-	if (ret)
-		NMSGPR_ERR("Err to set BW: IPA_RM_RESOURCE_ODU_ADAPT_CONS err:%d\n",
-				ret);
-
 	pdata->prv_ipa.ipa_offload_susp = true;
 	return ret;
 }
