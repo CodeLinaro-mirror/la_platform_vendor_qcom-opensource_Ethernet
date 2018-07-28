@@ -5645,6 +5645,7 @@ static int DWC_ETH_QOS_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 
 	case SIOCSMIIREG:
+		DWC_ETH_QOS_mdio_write_direct(pdata, pdata->phyaddr, (data->reg_num & 0x1F), data->val_in);
 		NMSGPR_ALERT( "PHY ID: SIOCSMIIPHY\n");
 		break;
 
