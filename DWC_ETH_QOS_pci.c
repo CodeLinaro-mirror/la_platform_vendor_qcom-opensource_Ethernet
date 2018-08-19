@@ -388,9 +388,13 @@ static bool lookfor_macid(char *file_buf, USHORT mdio_bus_id)
 static void parse_phy_int_from_config_file(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	struct file *filep = NULL;
-	char *data = kmalloc(512, GFP_KERNEL);
 	mm_segment_t oldfs;
 	int ret, flags = O_RDONLY;
+	char *data = kmalloc(512, GFP_KERNEL);
+	if (!data) {
+		NMSGPR_ALERT("Failed to allocate memory for config data\n");
+		return;
+	}
 
 	oldfs = get_fs();
 	set_fs(get_ds());
@@ -429,9 +433,13 @@ static void parse_phy_int_from_config_file(struct DWC_ETH_QOS_prv_data *pdata)
 static void parse_config_file(USHORT mdio_bus_id)
 {
 	struct file *filep = NULL;
-	char *data = kmalloc(512, GFP_KERNEL);
 	mm_segment_t oldfs;
 	int ret, flags = O_RDONLY, i = 0;
+	char *data = kmalloc(512, GFP_KERNEL);
+	if (!data) {
+		NMSGPR_ALERT("Failed to allocate memory for config data\n");
+		return;
+	}
 
 	oldfs = get_fs();
 	set_fs(get_ds());
