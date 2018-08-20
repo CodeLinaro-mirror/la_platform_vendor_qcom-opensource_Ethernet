@@ -838,10 +838,10 @@ void DWC_ETH_QOS_adjust_link(struct work_struct *work)
 static void DWC_ETH_QOS_micrel_ksz9031_phy_init(struct DWC_ETH_QOS_prv_data *pdata)
 {
 	int val[2] = {pdata->phy_rxc_skew_ps, pdata->phy_txc_skew_ps};
-	u16 mask;
-	u16 maxval;
-	u16 newval;
-	int i;
+	u16 mask = 0;
+	u16 maxval = 0;
+	u16 newval = 0;
+	int i = 0;
 
 	/* Apply clock skew settings */
 	DBGPR_MDIO("Detected the ksz9031 phy, applying specific settings\n");
