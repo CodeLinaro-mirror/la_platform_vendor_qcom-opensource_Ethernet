@@ -2381,6 +2381,18 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (ip_hdr(skb)->protocol == IPPROTO_TCP || ip_hdr(skb)->protocol == IPPROTO_ICMP)
 		skb_orphan(skb);
 
+	/* On some hardware, eAVB packet is possible to
+	 * result in out of order sometimes during padding
+	 * by HW for packet size less than ETH_ZLEN.
+	 * To WA this issue, pad eAVB packets manually.
+	 */
+	if (NTN_TX_PKT_AVB_CLASS_A == chInx || NTN_TX_PKT_AVB_CLASS_B == chInx) {
+		if (unlikely(skb->len <= ETH_ZLEN)) {
+			if (skb_put_padto(skb, ETH_ZLEN))
+				return NETDEV_TX_OK;
+		}
+	}
+
 	spin_lock_irqsave(&pdata->tx_lock, flags);
 	if(pdata->measureTx_enable)
 		NMSGPR_ALERT( "%s: Packet received in the driver from network stack\n",__func__);
