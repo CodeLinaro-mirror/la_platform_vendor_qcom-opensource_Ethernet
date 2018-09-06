@@ -452,6 +452,11 @@ void DWC_ETH_QOS_init_eee_handler(struct work_struct *work)
 	struct DWC_ETH_QOS_prv_data *pdata = container_of(work,
 					struct DWC_ETH_QOS_prv_data, eee_work);
 
+	if (!pdata->pcie_link_enable) {
+		NMSGPR_ALERT("%s: PCI link is disabled returning.\n", __func__);
+		return;
+	}
+
 	if (!pdata->eee_active)
 		pdata->eee_enabled = DWC_ETH_QOS_eee_init(pdata);
 
@@ -740,7 +745,12 @@ void DWC_ETH_QOS_adjust_link(struct work_struct *work)
 	/* Ignore adjust_link interrupts if PCI link is down. PCI
 	 * link down event will eventually stop the phy state machine */
 	if (pdata->pdev->error_state != pci_channel_io_normal) {
-		DBGPR_MDIO("%s: PCI link is down returning.\n");
+		NMSGPR_ALERT("%s: PCI link is down returning.\n", __func__);
+		return;
+	}
+
+	if (!pdata->pcie_link_enable) {
+		NMSGPR_ALERT("%s: PCI link is disabled returning.\n", __func__);
 		return;
 	}
 
