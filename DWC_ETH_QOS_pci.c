@@ -1005,6 +1005,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	NMSGPR_INFO("NTN IPA enabled: %d\n", pdata->ipa_enabled);
 	if (pdata->ipa_enabled) {
 		wakeup_source_init(&pdata->prv_ipa.wlock, "NTN_IPA_WS");
+		pdata->prv_ipa.ipa_offload_susp = false;
 		hw_if->enable_offload(pdata);
 	} else {
 		hw_if->disable_offload(pdata);
