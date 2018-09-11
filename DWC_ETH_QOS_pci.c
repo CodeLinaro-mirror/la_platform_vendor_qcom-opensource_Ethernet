@@ -1684,6 +1684,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		pdata->prv_ipa.ipa_ver = ipa_get_hw_type();
 		DWC_ETH_QOS_config_ipareg_map(pdev);
 		wakeup_source_init(&pdata->prv_ipa.wlock, "NTN_IPA_WS");
+		pdata->prv_ipa.ipa_offload_susp = false;
 		hw_if->enable_offload(pdata);
 	} else {
 		hw_if->disable_offload(pdata);
