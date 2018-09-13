@@ -1807,6 +1807,7 @@ struct DWC_ETH_QOS_prv_data {
 	unsigned long prev_rx_pkt_cnt;
 	unsigned long prev_tx_pkt_cnt;
 	struct pci_saved_state *saved_state;
+	bool pcie_link_enable;
 	int irq_affinity_cpu_id;
 	/*ptp clock frequency set by NTN_PTPCLK_Config ioctl
 	default value is 50MHz*/

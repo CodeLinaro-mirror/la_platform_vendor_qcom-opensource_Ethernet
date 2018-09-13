@@ -152,6 +152,10 @@ static void DWC_ETH_QOS_eee_ctrl_timer(unsigned long data)
 
 	DBGPR_EEE("-->DWC_ETH_QOS_eee_ctrl_timer\n");
 
+	if (!pdata->pcie_link_enable) {
+		NMSGPR_ALERT("%s: PCI link is disabled returning.\n", __func__);
+		return;
+	}
 	DWC_ETH_QOS_enable_eee_mode(pdata);
 
 	DBGPR_EEE("<--DWC_ETH_QOS_eee_ctrl_timer\n");

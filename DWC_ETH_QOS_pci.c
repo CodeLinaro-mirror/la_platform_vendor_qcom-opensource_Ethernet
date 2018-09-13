@@ -143,6 +143,18 @@ MODULE_PARM_DESC(rmii_mode, "Force RMII mode");
 
 #define ATTR_PERM 0644 // -rw-r--r--
 
+static void DWC_ETH_QOS_pci_enable_link_status(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	pdata->pcie_link_enable = true;
+	NMSGPR_ALERT( "%s: pcie_link_enable = %d\n", __func__, pdata->pcie_link_enable);
+}
+
+static void DWC_ETH_QOS_pci_disable_link_status(struct DWC_ETH_QOS_prv_data *pdata)
+{
+	pdata->pcie_link_enable = false;
+	NMSGPR_ALERT( "%s: pcie_link_enable = %d\n", __func__, pdata->pcie_link_enable);
+}
+
 static int DWC_ETH_QOS_request_bus_bandwidth(struct DWC_ETH_QOS_prv_data *pdata, int bandwidth)
 {
 	int ret = 0;
@@ -635,6 +647,7 @@ static void DWC_ETH_QOS_pci_event(struct msm_pcie_notify *notify)
 	switch (notify->event) {
 		case MSM_PCIE_EVENT_LINKDOWN:
 			NMSGPR_ALERT("%s: PCI link down\n", __func__);
+			DWC_ETH_QOS_pci_disable_link_status(pdata);
 			schedule_work(&pdata->pci_recovery_work);
 			break;
 	default:
@@ -1357,6 +1370,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	pdata->ip_traffic_shaping_enabled = 0;
 	pdata->ip_traffic_shaping_class_1_min_pcp = 0;
 	pdata->ip_traffic_shaping_class_2_min_pcp = 0;
+	pdata->pcie_link_enable = false;
 
 	/* 	Host: TX DMA CH : 0,2,3,4,
 		Host: RX DMA CH : 0,2,3,4,5 */
@@ -1808,6 +1822,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 #ifdef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_add_ipaddr(pparams, dev);
 #endif
+	DWC_ETH_QOS_pci_enable_link_status(pdata);
 	return 0;
 
  err_out_netdev_failed:
@@ -1888,6 +1903,7 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	int i;
 	DBGPR("--> DWC_ETH_QOS_remove\n");
 
+	DWC_ETH_QOS_pci_disable_link_status(pdata);
 	DWC_ETH_QOS_ip_traffic_shaping_sysfs_remove(pdata);
 	DWC_ETH_QOS_debugfs_remove(pdata);
 
@@ -2096,6 +2112,7 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 		pmt_flags |= DWC_ETH_QOS_MAGIC_WAKEUP;
 
 	ret = DWC_ETH_QOS_powerdown(dev, pmt_flags, DWC_ETH_QOS_DRIVER_CONTEXT);
+	DWC_ETH_QOS_pci_disable_link_status(pdata);
 	pci_disable_msi(pdev);
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, false);
@@ -2215,6 +2232,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 
 	/* Hold the wake lock for 5sec to ensure any traffic*/
 	pm_wakeup_event(&pdev->dev, 5000);
+	DWC_ETH_QOS_pci_enable_link_status(pdata);
 
 	DBGPR("<--DWC_ETH_QOS_resume\n");
 
