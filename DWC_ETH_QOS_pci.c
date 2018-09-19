@@ -771,6 +771,8 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	ULONG dwc_eth_ntn_reg_len;
 	ULONG dwc_eth_ntn_SRAM_len;
 	ULONG dwc_eth_ntn_FLASH_len;
+	ULONG ntn_curr_opmode = 0;
+	unsigned int host_boot_init = 0;
 	static USHORT mdio_bus_id = 0;
 	struct msm_bus_scale_pdata *ntn_bus_pdata = NULL;
 #ifdef NTN_DECLARE_MEM_FOR_DMAAPI
@@ -852,21 +854,25 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		ret = -EIO;
 		goto err_out_map_failed;
 	}
-#ifndef DWC_ETH_QOS_BUILTIN
+
+	ntn_curr_opmode = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x0004);
+	host_boot_init = !(ntn_curr_opmode & NTN_NMODESTS_SECURE_BOOT_MASK) &&
+				(ntn_curr_opmode & NTN_NMODESTS_HOST_BOOT_MASK);
+	/*Enable MAC clock to access MAC registers for flashless mode*/
+	if(host_boot_init)
 	{
-	unsigned int rd_val;
+		unsigned int rd_val;
+		rd_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1004);
+		*(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1004) = (rd_val | 0x80); //Enable MAC Clock
 
-	rd_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1004);
-	*(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1004) = (rd_val | 0x80); //Enable MAC Clock
+		rd_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008);
+		*(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008) = (rd_val & ~0x80); //Deassert MAC Reset
 
-	rd_val = *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008);
-	*(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0x1008) = (rd_val & ~0x80); //Deassert MAC Reset
-
-	NDBGPR_L1( "HFR0 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA11C));
-	NDBGPR_L1( "HFR1 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA120));
-	NDBGPR_L1( "HFR2 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA124));
+		NDBGPR_L1( "HFR0 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA11C));
+		NDBGPR_L1( "HFR1 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA120));
+		NDBGPR_L1( "HFR2 Val = 0x%08x \n", *(unsigned int*)(dwc_eth_ntn_reg_pci_base_addr + 0xA124));
 	}
-#endif
+
 	/* queue count */
 	tx_q_count = get_tx_queue_count(dwc_eth_ntn_reg_pci_base_addr);
 	rx_q_count = get_rx_queue_count(dwc_eth_ntn_reg_pci_base_addr);
@@ -1322,9 +1328,10 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 	} else
 		pr_err("msm_bus_cl_get_pdata() failed\n");
 	device_disable_async_suspend(&pdev->dev);
-#ifdef DWC_ETH_QOS_BUILTIN
-	DWC_ETH_QOS_add_ipaddr(pparams, dev);
-#endif
+
+	if (!hw_if->ntn_boot_host_initiated(pdata)) {
+		DWC_ETH_QOS_add_ipaddr(pparams, dev);
+	}
 	return 0;
 
  err_out_netdev_failed:
