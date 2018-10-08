@@ -1894,6 +1894,12 @@ void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata);
 void DWC_ETH_QOS_parse_config_file(struct DWC_ETH_QOS_prv_data *pdata,
 					USHORT mdio_bus_id);
 
+#ifdef CONFIG_PPS_OUTPUT
+extern struct NTN_PPS_Config ntn_ch2_pps_cfg, ntn_ch3_pps_cfg;
+int NTN_PPSOUT_Config_real(struct DWC_ETH_QOS_prv_data *pdata,
+                           struct NTN_PPS_Config *ntn_pps_cfg);
+#endif
+
 /* For debug prints*/
 #define DRV_NAME "DWC_ETH_QOS_drv.c"
 #define dev_name_ipa_rx "IPA_RX"

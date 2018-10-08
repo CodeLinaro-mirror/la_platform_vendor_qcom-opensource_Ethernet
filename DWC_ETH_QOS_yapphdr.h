@@ -85,6 +85,8 @@
 #define DWC_ETH_QOS_MAX_RX_DMA_CH_CNT 	(DWC_ETH_QOS_MAX_RX_QUEUE_CNT + 2)
 
 #define CONFIG_PPS_OUTPUT   // for PPS Output
+/* TAEC for 1HZ PPS Output aligned with second boundary */
+#define CONFIG_1HZ_PPO_SECOND_ALIGN
 
 /* Private IOCTL for handling device specific task */
 #define DWC_ETH_QOS_PRV_IOCTL	SIOCDEVPRIVATE
@@ -248,6 +250,7 @@ enum{
 #define DWC_ETH_QOS_PBL_8	8
 #define DWC_ETH_QOS_PBL_16	16
 #define DWC_ETH_QOS_PBL_32	32
+#define DWC_ETH_QOS_PBL_48	48
 #define DWC_ETH_QOS_PBL_64	64	/* 8 x 8 */
 #define DWC_ETH_QOS_PBL_128	128	/* 8 x 16 */
 #define DWC_ETH_QOS_PBL_256	256	/* 8 x 32 */
@@ -377,6 +380,36 @@ struct ifr_data_struct_ipa {
 #define NTN_TDM_IN  0
 #define NTN_TDM_OUT 1
 
+#define PPS_Control_Reg_Offset			0xAB70
+#define PPSC_ENABLE                 0x10    // bit 4
+#define PPSC_PPO_BIT_OFFSET					0
+#define PPSC_PP1_BIT_OFFSET					8
+#define PPSC_PP2_BIT_OFFSET					16
+#define PPSC_PP3_BIT_OFFSET					24
+#define PPSC_CMD_START_SINGLE				1   // start Single Pulse
+#define PPSC_CMD_START_PULSE_TRAIN	2   // start Pulse train
+#define PPSC_CMD_CANCEL_PULSE       3   // cancel Pulse
+#define PPSC_CMD_STOP_PULSE_IMM     5   // stop Pulse train	immediately
+
+#define PPSC_MODSEL2_BIT_OFFSET			21  // PPS2 ModSel
+#define PPSC_MODSEL3_BIT_OFFSET			29  // PPS3 ModSel
+#define PPSC_MODSEL_INT_ONLY	      0   // interrupt only
+#define PPSC_MODSEL_INT_SIG         2   // Interrupt and PPO singal
+#define PPSC_MODSEL_SIG_ONLY	      3   // PPO singal only
+
+#ifdef CONFIG_PPS_OUTPUT
+struct NTN_PPS_Config
+{
+	unsigned int ptpclk_freq;
+	unsigned int ppsout_freq;
+	unsigned int ppsout_duty;
+	unsigned int ppsout_align_ns; // first output align to ppsout_align_ns in ns
+	unsigned short ppsout_ch;
+	bool ppsout_align;  	// first output align
+};
+#endif
+
+#if 0
 #ifdef CONFIG_PPS_OUTPUT
 struct NTN_PPS_Config
 {
@@ -385,6 +418,7 @@ struct NTN_PPS_Config
 	unsigned int ppsout_ch;
 	unsigned int ppsout_duty;
 };
+#endif
 #endif
 
 struct NTN_TDM_Config

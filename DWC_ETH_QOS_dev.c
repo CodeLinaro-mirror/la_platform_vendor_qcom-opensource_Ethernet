@@ -1022,10 +1022,29 @@ static INT config_sub_second_increment(ULONG ptp_clock, struct DWC_ETH_QOS_prv_d
 
 static ULONG_LONG get_systime(struct DWC_ETH_QOS_prv_data *pdata)
 {
-  ULONG ns;
-  ULONG varmac_stnsr;
-  ULONG varmac_stsr1, varmac_stsr2;
+  ULONG ns = 0;
+  ULONG varmac_stnsr = 0;
+  ULONG varmac_stsr = 0;
+  //ULONG varmac_stsr1, varmac_stsr2;
+  UINT evbctl = 0;
 
+  evbctl = ioread32((void *)ETH_AVB_WRAPPER_TS_CTRL_RgOffAddr);
+  evbctl |= (1 << 31);
+  iowrite32(evbctl, (void *)ETH_AVB_WRAPPER_TS_CTRL_RgOffAddr);
+
+  varmac_stsr     = ioread32((void *)(NTN_REG_BASE_ADRS + PTP_LOCALTIME_SNAPSHOT_SEC_OFFSET));
+  varmac_stnsr  = ioread32((void *)(NTN_REG_BASE_ADRS + PTP_LOCALTIME_SNAPSHOT_nSEC_OFFSET));
+
+  /* Extract 30-bit value for Nano second register */
+
+  ns = GET_VALUE(varmac_stnsr, MAC_STNSR_TSSS_LPOS, MAC_STNSR_TSSS_HPOS);
+  DBGPR("ns Value %lld \n", ns);
+
+  /* convert sec/high time value to nanosecond */
+  /* Convert Total value in Nano second */
+  ns = ns + (varmac_stsr * 1000000000ull);
+
+#if 0
   /* Read the seconds once */
   MAC_STSR_RgRd(varmac_stsr1);
 
@@ -1048,6 +1067,8 @@ static ULONG_LONG get_systime(struct DWC_ETH_QOS_prv_data *pdata)
 
   /* convert sec/high time value to nanosecond */
   return ((ULONG_LONG) ns) + (varmac_stsr1 * 1000000000ull);
+#endif
+  return ns;
 }
 
 
@@ -1089,7 +1110,7 @@ static INT adjust_systime(UINT sec,
       break;
     }
     vy_count++;
-		mdelay(1);
+    udelay(20);
   }
 
   if (add_sub) {
@@ -1105,9 +1126,9 @@ static INT adjust_systime(UINT sec,
      * (10^9 - <new_nsec_value>) if MAC_TCR.TSCTRLSSR is set or
      * (2^31 - <new_nsec_value> if MAC_TCR.TSCTRLSSR is reset)
      * */
-  	if (one_nsec_accuracy)
+    if (one_nsec_accuracy)
       nsec = (0x3B9ACA00 - nsec);
-   	else
+    else
       nsec = (0x80000000 - nsec);
   }
 
@@ -1137,7 +1158,7 @@ static INT adjust_systime(UINT sec,
       break;
     }
     vy_count++;
-		mdelay(1);
+    udelay(20);
   }
 
   return Y_SUCCESS;
@@ -1154,7 +1175,8 @@ static INT adjust_systime(UINT sec,
 
 static INT config_addend(UINT data, struct DWC_ETH_QOS_prv_data *pdata)
 {
-  ULONG retryCount = 100000;
+  //ULONG retryCount = 100000;
+  ULONG retryCount = 100;
   ULONG vy_count;
   volatile ULONG varMAC_TCR;
 
@@ -1172,7 +1194,7 @@ static INT config_addend(UINT data, struct DWC_ETH_QOS_prv_data *pdata)
       break;
     }
     vy_count++;
-    mdelay(1);
+    udelay(20);
   }
 
   MAC_TAR_RgWr(data);
@@ -1191,7 +1213,7 @@ static INT config_addend(UINT data, struct DWC_ETH_QOS_prv_data *pdata)
       break;
     }
     vy_count++;
-    mdelay(1);
+    udelay(20);
   }
 
   return Y_SUCCESS;
@@ -1232,7 +1254,7 @@ static INT init_systime(UINT sec,
       break;
     }
     vy_count++;
-    mdelay(1);
+    udelay(20);
   }
   MAC_STSUR_RgWr(sec);
   MAC_STNSUR_RgWr(nsec);
@@ -1258,7 +1280,7 @@ static INT init_systime(UINT sec,
       break;
     }
     vy_count++;
-    mdelay(1);
+    udelay(20);
   }
 
   return Y_SUCCESS;
@@ -4011,15 +4033,20 @@ static int enable_mac_interrupts(struct DWC_ETH_QOS_prv_data *pdata)
   unsigned long reg_val;
 
   /* Enable following interrupts */
+  /* RGSMIIIM - RGMII/SMII interrupt Disable: Use PHY  */
   /* RGSMIIIM - RGMII/SMII interrupt Enable */
   /* PCSLCHGIM -  PCS Link Status Interrupt Enable */
   /* PCSANCIM - PCS AN Completion Interrupt Enable */
   /* PMTIM - PMT Interrupt Enable */
   /* LPIIM - LPI Interrupt Enable */
+  /* LPIIM - LPI Interrupt Disable */
   MAC_IMR_RgRd(varmac_imr);
   varmac_imr = varmac_imr & (unsigned long)(0x1008);
-  varmac_imr = varmac_imr | ((0x1) << 0) | ((0x1) << 1) | ((0x1) << 2) |
-                ((0x1) << 4) | ((0x1) << 5);
+  //varmac_imr = varmac_imr | ((0x1) << 0) | ((0x1) << 1) | ((0x1) << 2) |
+  //              ((0x1) << 4) | ((0x1) << 5);
+  varmac_imr = varmac_imr | ((0x1) << 1) | ((0x1) << 2) |
+                ((0x1) << 4);
+  varmac_imr &=  ~( ( 0x1 << 0) | (0x1 << 5) ); // Disable RGSMII and LPI
   MAC_IMR_RgWr(varmac_imr);
 
   NTN_INTC_INTMCUMASK1_RgRd(reg_val);
