@@ -91,6 +91,13 @@
 #define AVB_QUEUE_CLASS_A 1
 #define AVB_QUEUE_CLASS_B 2
 
+#ifdef CONFIG_PPS_OUTPUT
+//#define VERIFY_PPO_USING_AUX    // using HW setup to verif
+#define PPS_START_DELAY			100000000   /* 100 ms, in unit of ns */
+
+struct NTN_PPS_Config ntn_ch2_pps_cfg, ntn_ch3_pps_cfg;
+#endif
+
 static INT DWC_ETH_QOS_GStatus;
 
 #ifdef NTN_POLLING_METHOD
@@ -859,9 +866,23 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 	}
 
 	/* Handle MAC interrupts */
-	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_LPOS, NTN_INTC_INTSTATUS_MAC_HPOS)) {
+	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_EVT_LPOS, NTN_INTC_INTSTATUS_MAC_EVT_HPOS)) {
 		MAC_ISR_RgRd(varMAC_ISR);
 		NDBGPR_L2("MAC_ISR = %#lx\n", varMAC_ISR);
+
+#ifdef VERIFY_PPO_USING_AUX
+		{
+			#define TS_STATUS_AUXTSTRIG_BIT			2
+
+			if ( varMAC_ISR & ( 0x1 << 12) ) {// bit 12 is set
+				MAC_TSR_RgRd(temp);			// clear on read (bit 2)
+				if ( temp & ( 1 << TS_STATUS_AUXTSTRIG_BIT) ) { // Aux
+					NDBGPR_L1("subsec: %x\n", hw_if->ntn_reg_rd(0xAB48, 0, pdata));
+					NDBGPR_L1("second: %x\n", hw_if->ntn_reg_rd(0xAB4C, 0, pdata));
+				}
+			}
+		}
+#endif
 
 		/* handle only those MAC interrupts which are enabled */
 		MAC_IMR_RgRd(varMAC_IMR);
@@ -4290,60 +4311,69 @@ static int DWC_ETH_QOS_config_svlan(struct DWC_ETH_QOS_prv_data *pdata,
 static VOID DWC_ETH_QOS_config_timer_registers(
 				struct DWC_ETH_QOS_prv_data *pdata)
 {
-		struct timespec now;
-		struct hw_if_struct *hw_if = &(pdata->hw_if);
-		u64 temp;
+	struct timespec now;
+	struct hw_if_struct *hw_if = &(pdata->hw_if);
+	u64 temp;
 
-		DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
+	DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
 
-		/* program Sub Second Increment Reg */
+	/* program Sub Second Increment Reg */
 #ifdef CONFIG_PPS_OUTPUT
-		/* If default_addend is already programmed, then we expect that
-      * sub_second_increment is also programmed already */
-    if(pdata->default_addend == 0){
-			hw_if->config_sub_second_increment(50000000, pdata); // Using default 50MHz
-		}
-		else {
-			u64 pclk;
-			pclk = (u64) (pdata->default_addend) *  DWC_ETH_QOS_SYSCLOCK;
-			pclk += 0x8000000;
-			pclk >>= 32;
-			hw_if->config_sub_second_increment((u32)pclk, pdata);
-		}
+	/* If default_addend is already programmed, then we expect that
+	 * sub_second_increment is also programmed already */
+	if(pdata->default_addend == 0){
+		hw_if->config_sub_second_increment(50000000, pdata); // Using default 50MHz
+	}
+	else {
+		u64 pclk;
+		pclk = (u64) (pdata->default_addend) *  DWC_ETH_QOS_SYSCLOCK;
+		pclk += 0x8000000;
+		pclk >>= 32;
+		hw_if->config_sub_second_increment((u32)pclk, pdata);
+	}
 #else
-		hw_if->config_sub_second_increment(DWC_ETH_QOS_SYSCLOCK, pdata);
+	hw_if->config_sub_second_increment(DWC_ETH_QOS_SYSCLOCK, pdata);
 #endif
-		/* formula is :
-		 * addend = 2^32/freq_div_ratio;
-		 *
-		 * where, freq_div_ratio = DWC_ETH_QOS_SYSCLOCK/50MHz
-		 *
-		 * hence, addend = ((2^32) * 50MHz)/DWC_ETH_QOS_SYSCLOCK;
-		 *
-		 * NOTE: DWC_ETH_QOS_SYSCLOCK should be >= 50MHz to
-		 *       achive 20ns accuracy.
-		 *
-		 * 2^x * y == (y << x), hence
-		 * 2^32 * 50000000 ==> (50000000 << 32)
-		 * */
+	/* formula is :
+	 * addend = 2^32/freq_div_ratio;
+	 *
+	 * where, freq_div_ratio = DWC_ETH_QOS_SYSCLOCK/50MHz
+	 *
+	 * hence, addend = ((2^32) * 50MHz)/DWC_ETH_QOS_SYSCLOCK;
+	 *
+	 * NOTE: DWC_ETH_QOS_SYSCLOCK should be >= 50MHz to
+	 *       achive 20ns accuracy.
+	 *
+	 * 2^x * y == (y << x), hence
+	 * 2^32 * 50000000 ==> (50000000 << 32)
+	 * */
 #ifdef CONFIG_PPS_OUTPUT
-		if(pdata->default_addend == 0){
-			temp = (u64)(50000000ULL << 32);
-			pdata->default_addend = div_u64(temp, DWC_ETH_QOS_SYSCLOCK);
-			NDBGPR_L1("Using default PTP clock = 50MHz\n");
-		}
-#else
+	if(pdata->default_addend == 0){
 		temp = (u64)(50000000ULL << 32);
 		pdata->default_addend = div_u64(temp, DWC_ETH_QOS_SYSCLOCK);
+		NDBGPR_L1("Using default PTP clock = 50MHz\n");
+	}
+#else
+	temp = (u64)(50000000ULL << 32);
+	pdata->default_addend = div_u64(temp, DWC_ETH_QOS_SYSCLOCK);
 #endif
 
-		hw_if->config_addend(pdata->default_addend, pdata);
+	hw_if->config_addend(pdata->default_addend, pdata);
 
-		/* initialize system time */
-		getnstimeofday(&now);
-		hw_if->init_systime(now.tv_sec, now.tv_nsec, pdata);
+	/* initialize system time */
+	getnstimeofday(&now);
+	hw_if->init_systime(now.tv_sec, now.tv_nsec, pdata);
 
-		DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
+	if ( ntn_ch2_pps_cfg.ppsout_align ) {// PPO Ch2 is configured for alignment
+		NDBGPR_L1("DWC_ETH_QOS_config_timer_registers: re-configure ch2 PPO\n");
+		NTN_PPSOUT_Config_real(pdata, &ntn_ch2_pps_cfg);
+	}
+	if ( ntn_ch3_pps_cfg.ppsout_align ) {// PPO Ch3 is configured for alignment
+		NDBGPR_L1("DWC_ETH_QOS_config_timer_registers: re-configure ch3 PPO\n");
+		NTN_PPSOUT_Config_real(pdata, &ntn_ch3_pps_cfg);
+	}
+
+	DBGPR("-->DWC_ETH_QOS_config_timer_registers\n");
 }
 
 /*!
@@ -4501,23 +4531,33 @@ static int DWC_ETH_QOS_RD_WR_REG(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_
 {
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	unsigned int ret = -1;
+	unsigned int data_req_var = 0;
 
-	switch(req->flags)
-	{
+	if (copy_from_user(&data_req_var, req->ptr, sizeof(unsigned int)))
+		NMSGPR_ERR("copy_from_user error : ifr data structure\n");
+
+	switch(req->flags) {
 		case NTN_REG_RD: /* Neutrino Register Read */
-			*(unsigned int*)(req->ptr) = hw_if->ntn_reg_rd(req->adrs, req->bar_num, pdata);
+			data_req_var = hw_if->ntn_reg_rd(req->adrs, req->bar_num, pdata);
+			if (copy_to_user(req->ptr, &data_req_var, sizeof(unsigned int))) {
+				NMSGPR_ERR("copy_to_user error: ifr data structure\n");
+			}
+			//*(unsigned int*)(req->ptr) = hw_if->ntn_reg_rd(req->adrs, req->bar_num, pdata);
 			ret = 0;
 			break;
 		case NTN_REG_WR: /* Neutrino Register Write */
-			hw_if->ntn_reg_wr(req->adrs, *(UINT*)req->ptr, req->bar_num, pdata);
+			hw_if->ntn_reg_wr(req->adrs, data_req_var, req->bar_num, pdata);
 			ret = 0;
 			break;
 		case NTN_PCIE_CONFIG_REG_RD: /* PCIe config Register Read */
-			pci_read_config_dword(pdata->pdev, req->adrs, (unsigned int*)(req->ptr));
+			pci_read_config_dword(pdata->pdev, req->adrs, &data_req_var);
+			if (copy_to_user(req->ptr, &data_req_var, sizeof(unsigned int))) {
+				NMSGPR_ERR("copy_to_user error: ifr data structure\n");
+			}
 			ret = 0;
 			break;
 		case NTN_PCIE_CONFIG_REG_WR: /* PCIe config Register Write */
-			pci_write_config_dword(pdata->pdev, req->adrs, *(unsigned int*)(req->ptr));
+			pci_write_config_dword(pdata->pdev, req->adrs, data_req_var);
 			ret = 0;
 			break;
 		default:
@@ -4537,22 +4577,27 @@ static int DWC_ETH_QOS_RD_WR_REG(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_
  **/
 static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct *req)
 {
-        struct NTN_TDM_Config *ntn_tdm_cfg = (struct NTN_TDM_Config *)req->ptr;
-        struct hw_if_struct *hw_if = &pdata->hw_if;
-        unsigned int ret = -1;
+	struct NTN_TDM_Config *ntn_tdm_cfg, ntn_tdm_cnfg_data;
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	unsigned int ret = -1;
 	long unsigned int reg_val;
 	unsigned char* ptr;
 	unsigned int int_mask_val;
 	int i;
 
-		//Assert TDM reset
-		reg_val = hw_if->ntn_reg_rd(0x1008, 0, pdata);
-		reg_val |= 0x1<<6;
-		hw_if->ntn_reg_wr(0x1008, reg_val, 0, pdata);
+	if (copy_from_user(&ntn_tdm_cnfg_data, req->ptr, sizeof(struct NTN_TDM_Config)))
+		NMSGPR_ERR("copy_from_user error: ifr data structure\n");
+
+	ntn_tdm_cfg = (struct NTN_TDM_Config *)(&ntn_tdm_cnfg_data);
+
+	//Assert TDM reset
+	reg_val = hw_if->ntn_reg_rd(0x1008, 0, pdata);
+	reg_val |= 0x1<<6;
+	hw_if->ntn_reg_wr(0x1008, reg_val, 0, pdata);
 
 	/* Stop TDM */
 	if(ntn_tdm_cfg->tdm_start == 0){
-     	NMSGPR_INFO("Disabled TDM path\n");
+		NMSGPR_INFO("Disabled TDM path\n");
 
 		//Disable TDM clock
 		reg_val = hw_if->ntn_reg_rd(0x1004, 0, pdata);
@@ -4592,36 +4637,36 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 	NMSGPR_INFO("    Class vid = %d\n", ntn_tdm_cfg->a_vid);
 
 	switch(ntn_tdm_cfg->sample_rate){
-	case 48000:
-		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
-		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0, pdata);   	//T0EVB_DDANRatio (N value)
+		case 48000:
+			hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
+			hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0, pdata);   	//T0EVB_DDANRatio (N value)
 #ifdef NTN_DRV_TEST_LOOPBACK
-		hw_if->ntn_reg_wr(0x44e0, 0x0000760C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
+			hw_if->ntn_reg_wr(0x44e0, 0x0000760C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
 #else
-		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
+			hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
 #endif
-		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0, pdata);	//DDA_PLL_Ctrl1
-		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
-		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0, pdata);	//DDA_PLL_UPDT
-		ntn_tdm_cfg->fdf = 2;
-       	break;
-	case 44100:
-		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
-		hw_if->ntn_reg_wr(0x44a0, 0x00006E40, 0, pdata);   	//T0EVB_DDANRatio (N value)
-		hw_if->ntn_reg_wr(0x44e0, 0x0001060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
-		hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0, pdata);	//DDA_PLL_Ctrl1
-		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
-		hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0, pdata);	//DDA_PLL_UPDT
-		ntn_tdm_cfg->fdf = 1;
-	break;
-//	case 96000:
-//		hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
-//		hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0, pdata);   	//T0EVB_DDANRatio (N value)
-//		hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
-//		hw_if->ntn_reg_wr(0x44e4, 0x00FFB700, 0, pdata);	//DDA_PLL_Ctrl1
-//		hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  ( BCLK and MCLK divider )
-//	break;
-	default: break;
+			hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0, pdata);	//DDA_PLL_Ctrl1
+			hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
+			hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0, pdata);	//DDA_PLL_UPDT
+			ntn_tdm_cfg->fdf = 2;
+			break;
+		case 44100:
+			hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
+			hw_if->ntn_reg_wr(0x44a0, 0x00006E40, 0, pdata);   	//T0EVB_DDANRatio (N value)
+			hw_if->ntn_reg_wr(0x44e0, 0x0001060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
+			hw_if->ntn_reg_wr(0x44e4, 0x01fff700, 0, pdata);	//DDA_PLL_Ctrl1
+			hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  (BCLK and MCLK divider)
+			hw_if->ntn_reg_wr(0x44ec, 0x00000000, 0, pdata);	//DDA_PLL_UPDT
+			ntn_tdm_cfg->fdf = 1;
+			break;
+//		case 96000:
+//			hw_if->ntn_reg_wr(0x449c, 0x02dc6c08, 0, pdata);	//TDM DDA Control (M value)
+//			hw_if->ntn_reg_wr(0x44a0, 0x00000C00, 0, pdata);   	//T0EVB_DDANRatio (N value)
+//			hw_if->ntn_reg_wr(0x44e0, 0x0000060C, 0, pdata);	//T0EVB_DDACtrl2  (PLL output divider)
+//			hw_if->ntn_reg_wr(0x44e4, 0x00FFB700, 0, pdata);	//DDA_PLL_Ctrl1
+//			hw_if->ntn_reg_wr(0x44e8, 0x0000f300, 0, pdata);	//DDA_PLL_Ctrl2  ( BCLK and MCLK divider )
+//			break;
+		default: break;
 	}
 
 	/*Clock & Reset*/
@@ -4629,14 +4674,14 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 
 	/*EMAC RX*/
 	/* TDM Source MAC ID */
-        ptr = ntn_tdm_cfg->TDM_SRC_ID;
-//        NMSGPR_INFO("SRC: \n");
-//        for(i=0;i<sizeof(ntn_tdm_cfg->TDM_SRC_ID); i++)
-//                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_SRC_ID[i]);
+	ptr = ntn_tdm_cfg->TDM_SRC_ID;
+//	NMSGPR_INFO("SRC: \n");
+//	for(i=0;i<sizeof(ntn_tdm_cfg->TDM_SRC_ID); i++)
+//		NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_SRC_ID[i]);
 
-        reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
+	reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
 	hw_if->ntn_reg_wr(0x3010, reg_val, 0, pdata);		//TDM Header Ethernet MAC Source Low Address Register
-        reg_val = (ptr[5] << 8) | (ptr[4] << 0);
+	reg_val = (ptr[5] << 8) | (ptr[4] << 0);
 	hw_if->ntn_reg_wr(0x3014, reg_val, 0, pdata);		//TDM Header Ethernet MAC Source High Address Register
 
 #ifdef NTN_DRV_TEST_LOOPBACK
@@ -4648,63 +4693,60 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 
 
 	/*TDM*/
-	if(ntn_tdm_cfg->direction == NTN_TDM_IN)
-	{
-	hw_if->ntn_reg_wr(0x4414, 0x08100058, 0, pdata);		//TDM conf0
+	if(ntn_tdm_cfg->direction == NTN_TDM_IN) {
+		hw_if->ntn_reg_wr(0x4414, 0x08100058, 0, pdata);		//TDM conf0
 
-	reg_val = hw_if->ntn_reg_rd(0x3000, 0, pdata);
-	reg_val |= (ntn_tdm_cfg->a_priority&0x7)<<2;
-	reg_val |= (ntn_tdm_cfg->fdf&0xFF)<<8;
-	hw_if->ntn_reg_wr(0x3000, reg_val, 0, pdata);			//TDM Control Register
+		reg_val = hw_if->ntn_reg_rd(0x3000, 0, pdata);
+		reg_val |= (ntn_tdm_cfg->a_priority&0x7)<<2;
+		reg_val |= (ntn_tdm_cfg->fdf&0xFF)<<8;
+		hw_if->ntn_reg_wr(0x3000, reg_val, 0, pdata);			//TDM Control Register
 
-   	/* config stream id */
-        ptr = ntn_tdm_cfg->TDM_STREAM_ID;
-		        NMSGPR_INFO("Stream: \n");
-		        for(i=0;i<sizeof(ntn_tdm_cfg->TDM_STREAM_ID); i++)
-		                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_STREAM_ID[i]);
+		/* config stream id */
+		ptr = ntn_tdm_cfg->TDM_STREAM_ID;
+		NMSGPR_INFO("Stream: \n");
+		for(i=0;i<sizeof(ntn_tdm_cfg->TDM_STREAM_ID); i++)
+			NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_STREAM_ID[i]);
 
-        reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
-	hw_if->ntn_reg_wr(0x4418, reg_val, 0, pdata);		//TDM Stream ID low
-        reg_val = (ptr[7] << 24) | (ptr[6] << 16) | (ptr[5] << 8) | ptr[4];
-	hw_if->ntn_reg_wr(0x441c, reg_val, 0, pdata);		//TDM Stream ID hi
+		reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
+		hw_if->ntn_reg_wr(0x4418, reg_val, 0, pdata);		//TDM Stream ID low
+		reg_val = (ptr[7] << 24) | (ptr[6] << 16) | (ptr[5] << 8) | ptr[4];
+		hw_if->ntn_reg_wr(0x441c, reg_val, 0, pdata);		//TDM Stream ID hi
 
-	/* TDM Destination MAC ID */
-        ptr = ntn_tdm_cfg->TDM_DST_ID;
-//        NMSGPR_INFO("DST: \n");
-//        for(i=0;i<sizeof(ntn_tdm_cfg->TDM_DST_ID); i++)
-//                NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_DST_ID[i]);
+		/* TDM Destination MAC ID */
+		ptr = ntn_tdm_cfg->TDM_DST_ID;
+//		NMSGPR_INFO("DST: \n");
+//		for(i=0;i<sizeof(ntn_tdm_cfg->TDM_DST_ID); i++)
+//			NMSGPR_INFO("%x : %x \n",ptr[i], ntn_tdm_cfg->TDM_DST_ID[i]);
 
-        reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
-	hw_if->ntn_reg_wr(0x4420, reg_val, 0, pdata);		//TDM MAC low
-        reg_val = (ptr[5] << 8) | (ptr[4] << 0);
-	hw_if->ntn_reg_wr(0x4424, reg_val, 0, pdata);		//TDM MAC hi
+		reg_val = (ptr[3] << 24) | (ptr[2] << 16) | (ptr[1] << 8) | ptr[0];
+		hw_if->ntn_reg_wr(0x4420, reg_val, 0, pdata);		//TDM MAC low
+		reg_val = (ptr[5] << 8) | (ptr[4] << 0);
+		hw_if->ntn_reg_wr(0x4424, reg_val, 0, pdata);		//TDM MAC hi
 
-	reg_val = 0x40005800;
-	reg_val |= (ntn_tdm_cfg->channels & 0xF)<<16;
-	reg_val |= (ntn_tdm_cfg->protocol & 0x1)<<15;
-	hw_if->ntn_reg_wr(0x4410, reg_val, 0, pdata);			//TDM Control Register
+		reg_val = 0x40005800;
+		reg_val |= (ntn_tdm_cfg->channels & 0xF)<<16;
+		reg_val |= (ntn_tdm_cfg->protocol & 0x1)<<15;
+		hw_if->ntn_reg_wr(0x4410, reg_val, 0, pdata);			//TDM Control Register
 
-	//reg_val = hw_if->ntn_reg_rd(0x4400, 0, pdata);			//TDM Stream 0 Control register
-	reg_val = 0x2003072C;
-	reg_val |= (ntn_tdm_cfg->mode_sel & 0x1)<<31;
-	hw_if->ntn_reg_wr(0x4400, reg_val, 0, pdata);			//TDM Control Register
+		//reg_val = hw_if->ntn_reg_rd(0x4400, 0, pdata);			//TDM Stream 0 Control register
+		reg_val = 0x2003072C;
+		reg_val |= (ntn_tdm_cfg->mode_sel & 0x1)<<31;
+		hw_if->ntn_reg_wr(0x4400, reg_val, 0, pdata);			//TDM Control Register
 
 #ifdef NTN_DRV_TEST_LOOPBACK
-	hw_if->ntn_reg_wr(0x100C, 0x00002600, 0, pdata);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x100C, 0x00002600, 0, pdata);	//Pin Mux control
 #else
-	hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0, pdata);	//Pin Mux control
+		hw_if->ntn_reg_wr(0x100C, 0x00002A00, 0, pdata);	//Pin Mux control
 #endif
 		NMSGPR_INFO("TDM Out configured\n");
 
 #ifndef NTN_DRV_TEST_LOOPBACK
-	}
-	else
-	{
+	} else {
 #endif
 
 		/* Disable VLAN striping */
-                pdata->dev_state &= ~NETIF_F_HW_VLAN_CTAG_RX;
-                hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
+		pdata->dev_state &= ~NETIF_F_HW_VLAN_CTAG_RX;
+		hw_if->config_rx_outer_vlan_stripping(DWC_ETH_QOS_RX_NO_VLAN_STRIP, pdata);
 #ifdef NTN_DRV_TEST_LOOPBACK
 		hw_if->ntn_reg_wr(0x100C, 0x00002600, 0, pdata);	//Pin Mux control
 		hw_if->ntn_reg_wr(0x4490, 0x01F00213, 0, pdata);	//Pin Mux control
@@ -4739,11 +4781,247 @@ static int NTN_TDM_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_st
 		NMSGPR_INFO("TDM In configured\n");
 	}
 
+	if (copy_to_user(req->ptr, &ntn_tdm_cnfg_data, sizeof(struct NTN_TDM_Config)))
+		NMSGPR_ERR("copy_to_user error: ifr data structure\n");
+
 	ret = 0;
-        return ret;
+	return ret;
 }
 
 #ifdef CONFIG_PPS_OUTPUT
+/*
+ * \brief This function confiures the PTP clock frequency.
+ * \param[in] pdata : pointer to private data structure.
+ * \param[in] req : pointer to ioctl structure.
+ *
+ * \retval 0: Success, -1 : Failure
+ * */
+static int NTN_PTPCLK_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct *req)
+{
+	struct NTN_PPS_Config *ntn_pps_cfg, ntn_pps_cfg_data;
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	int ret = 0;
+	u64 val;
+
+	if (copy_from_user(&ntn_pps_cfg_data, req->ptr, sizeof(struct NTN_PPS_Config)))
+		NMSGPR_ERR("copy_from_user error: ifr data structure\n");
+
+	ntn_pps_cfg = (struct NTN_PPS_Config *)(&ntn_pps_cfg_data);
+
+	if (ntn_pps_cfg->ptpclk_freq > 125000000){
+	NDBGPR_L1("PPS: PTPCLK_Config: freq=%dHz is too high. Cannot config it\n",
+			ntn_pps_cfg->ptpclk_freq );
+		return -1;
+	}
+
+	val = (u64)(1ULL << 32);
+	val = val * (ntn_pps_cfg->ptpclk_freq);
+	val += (DWC_ETH_QOS_SYSCLOCK/2);
+	val = div_u64(val, DWC_ETH_QOS_SYSCLOCK);
+	if ( val > 0xFFFFFFFF) val = 0xFFFFFFFF;
+	NDBGPR_L1("PPS: PTPCLK_Config: freq=%dHz, addend_reg=0x%x\n",
+			ntn_pps_cfg->ptpclk_freq, (unsigned int)val);
+
+	pdata->default_addend = val;
+	ret  = hw_if->config_addend((unsigned int)val, pdata);
+	ret |= hw_if->config_sub_second_increment( (ULONG)ntn_pps_cfg->ptpclk_freq, pdata);
+
+	return ret;
+}
+
+/*!
+ * \brief This function confiures the PPS output.
+ * \param[in] pdata : pointer to private data structure.
+ * \param[in] req : pointer to ioctl structure.
+ *
+ * \retval 0: Success, -1 : Failure
+ * */
+static int NTN_PPSOUT_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data_struct *req)
+{
+	struct NTN_PPS_Config *ntn_pps_cfg, ntn_pps_cfg_data;
+
+	if (copy_from_user(&ntn_pps_cfg_data, req->ptr, sizeof(struct NTN_PPS_Config)))
+		NMSGPR_ERR("copy_from_user error: ifr data structure\n");
+
+	ntn_pps_cfg = (struct NTN_PPS_Config *)(&ntn_pps_cfg_data);
+
+	if(ntn_pps_cfg->ppsout_duty <= 0) {
+		NDBGPR_L1("PPS: PPSOut_Config: duty cycle is invalid. Using duty=1\n");
+		ntn_pps_cfg->ppsout_duty = 1;
+	}
+	else if(ntn_pps_cfg->ppsout_duty >= 100) {
+		NDBGPR_L1("PPS: PPSOut_Config: duty cycle is invalid. Using duty=99\n");
+		ntn_pps_cfg->ppsout_duty = 99;
+	}
+
+	if (ntn_pps_cfg->ppsout_ch == 2) {
+		memcpy(&ntn_ch2_pps_cfg, ntn_pps_cfg, sizeof(struct NTN_PPS_Config));
+	}
+	else if (ntn_pps_cfg->ppsout_ch == 3) {
+		memcpy(&ntn_ch3_pps_cfg, ntn_pps_cfg, sizeof(struct NTN_PPS_Config));
+	}
+
+	return (NTN_PPSOUT_Config_real(pdata, ntn_pps_cfg));
+}
+
+int NTN_PPSOUT_Config_real(struct DWC_ETH_QOS_prv_data *pdata,
+                           struct NTN_PPS_Config *ntn_pps_cfg)
+{
+	struct hw_if_struct *hw_if = &pdata->hw_if;
+	unsigned int s, ss, val, align_ns = 0;
+	int interval, width;
+
+	interval = (ntn_pps_cfg->ptpclk_freq + ntn_pps_cfg->ppsout_freq/2) / ntn_pps_cfg->ppsout_freq;
+	width = ((interval * ntn_pps_cfg->ppsout_duty) + 50)/100 - 1;
+	if (width >= interval) width = interval - 1;
+	if (width < 0) width = 0;
+
+	if (ntn_pps_cfg->ppsout_align == 1) {
+		NDBGPR_L1("PPS: PPSOut_Config: freq=%dHz, ch=%d, duty=%d, align=%d\n",
+		ntn_pps_cfg->ppsout_freq,
+		ntn_pps_cfg->ppsout_ch,
+		ntn_pps_cfg->ppsout_duty,
+		ntn_pps_cfg->ppsout_align_ns);
+	} else {
+		NDBGPR_L1("PPS: PPSOut_Config: freq=%dHz, ch=%d, duty=%d, No alignment\n",
+					ntn_pps_cfg->ppsout_freq,
+					ntn_pps_cfg->ppsout_ch,
+					ntn_pps_cfg->ppsout_duty);
+	}
+
+	NDBGPR_L1("   : with PTP Clock freq=%dHz\n", ntn_pps_cfg->ptpclk_freq);
+
+	if (ntn_pps_cfg->ppsout_align == 1) {
+		align_ns = ntn_pps_cfg->ppsout_align_ns;
+		if (align_ns < 32) {// adjust 32ns sync
+			align_ns += ( 1000000000 -32 );
+		} else {
+			align_ns -= 32;
+		}
+	}
+
+	switch (ntn_pps_cfg->ppsout_ch) {
+		case 2:
+			hw_if->ntn_reg_wr(0xABA8, interval, 0, pdata);  // interval
+			hw_if->ntn_reg_wr(0xABAC, width, 0, pdata);
+			val = hw_if->ntn_reg_rd(0x100C, 0, pdata);
+			val |= 0x4;
+			hw_if->ntn_reg_wr(0x100C, val, 0, pdata);
+
+			val = hw_if->ntn_reg_rd(PPS_Control_Reg_Offset, 0, pdata);
+			val |= (PPSC_CMD_CANCEL_PULSE << PPSC_PP2_BIT_OFFSET) ; // cancel it
+			hw_if->ntn_reg_wr(PPS_Control_Reg_Offset, val, 0, pdata);
+			val &= ~(0x7 << PPSC_PP2_BIT_OFFSET  );
+			val |= (PPSC_CMD_STOP_PULSE_IMM << PPSC_PP2_BIT_OFFSET) ; // stop it
+			hw_if->ntn_reg_wr(PPS_Control_Reg_Offset, val, 0, pdata);
+
+			s  = hw_if->ntn_reg_rd(0xAB08, 0, pdata); // PTP seconds
+			ss = hw_if->ntn_reg_rd(0xAB0C, 0, pdata); // PTP subseconds
+			if ( hw_if->ntn_reg_rd(0xAB08, 0, pdata) != s ) { // second roll over
+				s  = hw_if->ntn_reg_rd(0xAB08, 0, pdata); // PTP seconds
+				ss = hw_if->ntn_reg_rd(0xAB0C, 0, pdata); // PTP subseconds
+			}
+
+			if (ntn_pps_cfg->ppsout_align == 1) {
+				ss += PPS_START_DELAY;
+				if (ss >= align_ns) {
+					s  += 1;
+				}
+				hw_if->ntn_reg_wr(0xABA0, s, 0, pdata);  // PPS2 seconds
+				hw_if->ntn_reg_wr(0xABA4, align_ns, 0, pdata);	// set subsecond
+			} else {
+				ss += PPS_START_DELAY;
+				if (ss >= 1000000000) {
+					ss -= 1000000000;
+					s  += 1;
+				}
+				hw_if->ntn_reg_wr(0xABA0, s, 0, pdata);  // PPS2 seconds
+				hw_if->ntn_reg_wr(0xABA4, ss, 0, pdata); // set subsecond
+			}
+
+			val = hw_if->ntn_reg_rd(PPS_Control_Reg_Offset, 0, pdata);
+			val &= ~(0xFF << PPSC_PP2_BIT_OFFSET);   // clear bits 16-23
+			val |= (PPSC_CMD_START_PULSE_TRAIN << PPSC_PP2_BIT_OFFSET) | PPSC_ENABLE;
+			val |= (PPSC_MODSEL_SIG_ONLY << PPSC_MODSEL2_BIT_OFFSET);  // output signal only
+
+			hw_if->ntn_reg_wr(PPS_Control_Reg_Offset, val, 0, pdata);
+			break;
+
+		case 3:
+			hw_if->ntn_reg_wr(0xABB8, interval, 0, pdata);
+			hw_if->ntn_reg_wr(0xABBC, width, 0, pdata);
+
+			val = hw_if->ntn_reg_rd(0x100C, 0, pdata);
+			val |= 0x8;
+			hw_if->ntn_reg_wr(0x100C, val, 0, pdata);
+
+			val = hw_if->ntn_reg_rd(PPS_Control_Reg_Offset, 0, pdata);
+			val |= (PPSC_CMD_CANCEL_PULSE << PPSC_PP3_BIT_OFFSET) ; // cancel it
+			hw_if->ntn_reg_wr(PPS_Control_Reg_Offset, val, 0, pdata);
+			val &= ~(0x7 << PPSC_PP3_BIT_OFFSET  );
+			val |= (PPSC_CMD_STOP_PULSE_IMM << PPSC_PP3_BIT_OFFSET) ; // stop it
+			hw_if->ntn_reg_wr(PPS_Control_Reg_Offset, val, 0, pdata);
+
+			s  = hw_if->ntn_reg_rd(0xAB08, 0, pdata); // PTP seconds
+			ss = hw_if->ntn_reg_rd(0xAB0C, 0, pdata); // PTP subseconds
+			if ( hw_if->ntn_reg_rd(0xAB08, 0, pdata) != s ) { // second roll over
+				s  = hw_if->ntn_reg_rd(0xAB08, 0, pdata); // PTP seconds
+				ss = hw_if->ntn_reg_rd(0xAB0C, 0, pdata); // PTP subseconds
+			}
+
+			if (ntn_pps_cfg->ppsout_align == 1) {
+				ss += PPS_START_DELAY;
+				if (ss >= align_ns) {
+					s  += 1;
+				}
+				hw_if->ntn_reg_wr(0xABA0, s, 0, pdata);  // PPS3 seconds
+				hw_if->ntn_reg_wr(0xABA4, align_ns, 0, pdata);	// set subsecond
+			} else {
+				ss += PPS_START_DELAY;
+				if (ss >= 1000000000) {
+					ss -= 1000000000;
+					s  += 1;
+				}
+				hw_if->ntn_reg_wr(0xABB0, s, 0, pdata);  // PPS3 seconds
+				hw_if->ntn_reg_wr(0xABB4, ss, 0, pdata); // set subsecond
+			}
+
+			val = hw_if->ntn_reg_rd(PPS_Control_Reg_Offset, 0, pdata);
+			val &= ~(0xFF << PPSC_PP3_BIT_OFFSET);   // clear bits 24-31
+			val |= (PPSC_CMD_START_PULSE_TRAIN << PPSC_PP3_BIT_OFFSET) | PPSC_ENABLE;
+			val |= (PPSC_MODSEL_SIG_ONLY << PPSC_MODSEL3_BIT_OFFSET);  // output signal only
+
+			hw_if->ntn_reg_wr(PPS_Control_Reg_Offset, val, 0, pdata);
+			break;
+
+		default:
+			NDBGPR_L1("PPS: PPS output channel is invalid (only CH 2 and 3 are supported).\n");
+			return -1;
+	}
+
+#ifdef VERIFY_PPO_USING_AUX
+	// Enable Aux_control (bit 4)
+	MAC_AC_RgRd(val);
+	val |= (0x1 << 4);   //set bit 4
+	val |= (0x1 << 0);   //set bit 0
+	MAC_AC_RgWr(val);
+
+	val = hw_if->ntn_reg_rd(0x100C, 0, pdata);
+	val |= (0x1 << 0);   //set bit 0
+	hw_if->ntn_reg_wr(0x100C, val, 0, pdata);
+
+	// enable the trig interrupt
+	MAC_IMR_RgRd(val);
+	val &= ~(0x1 << 5);   // clear bit 5 to disable LPI interrupt
+	val |= (0x1 << 12);   //set bit 12
+	MAC_IMR_RgWr(val);
+#endif
+
+	return 0;
+}
+#endif
+
+#if 0
 /*!
  * \brief This function confiures the PTP clock frequency.
  * \param[in] pdata : pointer to private data structure.
@@ -4823,44 +5101,44 @@ static int NTN_PPSOUT_Config(struct DWC_ETH_QOS_prv_data *pdata, struct ifr_data
 	NDBGPR_L1("PPS: PPSOut_Config: interval=%d, width=%d\n", interval, width);
 
 	switch (ntn_pps_cfg->ppsout_ch) {
-	case 2:
-		hw_if->ntn_reg_wr(0xABA8, interval, 0, pdata);  // interval
-		hw_if->ntn_reg_wr(0xABAC, width, 0, pdata);
-		val = hw_if->ntn_reg_rd(0x100C, 0, pdata);
-		val |= 0x4;
-		hw_if->ntn_reg_wr(0x100C, val, 0, pdata);
+		case 2:
+			hw_if->ntn_reg_wr(0xABA8, interval, 0, pdata);  // interval
+			hw_if->ntn_reg_wr(0xABAC, width, 0, pdata);
+			val = hw_if->ntn_reg_rd(0x100C, 0, pdata);
+			val |= 0x4;
+			hw_if->ntn_reg_wr(0x100C, val, 0, pdata);
 
-		val = hw_if->ntn_reg_rd(0xAB08, 0, pdata);     //PTP seconds
-		hw_if->ntn_reg_wr(0xABA0, val+1, 0, pdata);
+			val = hw_if->ntn_reg_rd(0xAB08, 0, pdata);     //PTP seconds
+			hw_if->ntn_reg_wr(0xABA0, val+1, 0, pdata);
 
-		val = hw_if->ntn_reg_rd(0xAB70, 0, pdata);
-		val &= ~(0xFF << 16);   // clear bits 16-23
-		val |= (0x02 << 16) | 0x10;
-		NDBGPR_L1("PPS: PPSOut_Config: val=0x%08x\n", val);
-		hw_if->ntn_reg_wr(0xAB70, val, 0, pdata);
-		break;
+			val = hw_if->ntn_reg_rd(0xAB70, 0, pdata);
+			val &= ~(0xFF << 16);   // clear bits 16-23
+			val |= (0x02 << 16) | 0x10;
+			NDBGPR_L1("PPS: PPSOut_Config: val=0x%08x\n", val);
+			hw_if->ntn_reg_wr(0xAB70, val, 0, pdata);
+			break;
 
-	case 3:
-		hw_if->ntn_reg_wr(0xABB8, interval, 0, pdata);
-		hw_if->ntn_reg_wr(0xABBC, width, 0, pdata);
+		case 3:
+			hw_if->ntn_reg_wr(0xABB8, interval, 0, pdata);
+			hw_if->ntn_reg_wr(0xABBC, width, 0, pdata);
 
-		val = hw_if->ntn_reg_rd(0x100C, 0, pdata);
-		val |= 0x8;
-		hw_if->ntn_reg_wr(0x100C, val, 0, pdata);
+			val = hw_if->ntn_reg_rd(0x100C, 0, pdata);
+			val |= 0x8;
+			hw_if->ntn_reg_wr(0x100C, val, 0, pdata);
 
-		val = hw_if->ntn_reg_rd(0xAB08, 0, pdata);  //PTP seconds
-		hw_if->ntn_reg_wr(0xABB0, val+1, 0, pdata);
+			val = hw_if->ntn_reg_rd(0xAB08, 0, pdata);  //PTP seconds
+			hw_if->ntn_reg_wr(0xABB0, val+1, 0, pdata);
 
-		val = hw_if->ntn_reg_rd(0xAB70, 0, pdata);
-		val &= ~(0xFF << 24);   // clear bits 24-31
-		val |= (0x02 << 24) | 0x10;
-		NDBGPR_L1("PPS: PPSOut_Config: val=0x%08x\n", val);
-		hw_if->ntn_reg_wr(0xAB70, val, 0, pdata);
-		break;
+			val = hw_if->ntn_reg_rd(0xAB70, 0, pdata);
+			val &= ~(0xFF << 24);   // clear bits 24-31
+			val |= (0x02 << 24) | 0x10;
+			NDBGPR_L1("PPS: PPSOut_Config: val=0x%08x\n", val);
+			hw_if->ntn_reg_wr(0xAB70, val, 0, pdata);
+			break;
 
-	default:
-		NDBGPR_L1("PPS: PPS output channel is invalid (only CH 2 and 3 are supported).\n");
-		return -1;
+		default:
+			NDBGPR_L1("PPS: PPS output channel is invalid (only CH 2 and 3 are supported).\n");
+			return -1;
 	}
 
 	return 0;
@@ -4950,6 +5228,7 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 					struct ifr_data_struct *req)
 {
 	unsigned int chInx = req->chInx;
+	unsigned int desc_count = 0;
 	struct DWC_ETH_QOS_tx_wrapper_descriptor *tx_desc_data =
 	    GET_TX_WRAPPER_DESC(chInx);
 	struct DWC_ETH_QOS_rx_wrapper_descriptor *rx_desc_data =
@@ -5316,7 +5595,10 @@ static int DWC_ETH_QOS_handle_prv_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
         NMSGPR_ALERT( "Neutrino Wrapper TS Feature Value: %d\n", req->flags);
         break;
 	case NTN_DWC_GET_FREE_TX_DESC_CNT_CMD:
-                *(unsigned int*)(req->ptr) = tx_desc_data->free_desc_cnt;
+		desc_count = tx_desc_data->free_desc_cnt;
+		if (copy_to_user(req->ptr, &desc_count, sizeof(unsigned int))) {
+			NMSGPR_ERR("copy_to_user inside DWC_ETH_QOS_ioctl failed\n");
+		}
 		ret = DWC_ETH_QOS_CONFIG_SUCCESS;
 		break;
 	case NTN_DWC_TDM_CONFIG_CMD:
@@ -5589,6 +5871,13 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		/* initialize system time */
 		getnstimeofday(&now);
 		hw_if->init_systime(now.tv_sec, now.tv_nsec, pdata);
+		if ( ntn_ch2_pps_cfg.ppsout_align == 1 ) {// PPO ch2 is configured for alignment
+			NDBGPR_L1("%s: re-configure Ch2 PPO\n", __func__);
+			NTN_PPSOUT_Config_real(pdata, &ntn_ch2_pps_cfg);
+		} else if ( ntn_ch3_pps_cfg.ppsout_align == 1 ) {// PPO ch2 is configured for alignment
+			NDBGPR_L1("%s: re-configure Ch3 PPO\n", __func__);
+			NTN_PPSOUT_Config_real(pdata, &ntn_ch3_pps_cfg);
+		}
 	}
 
 	DBGPR_PTP("config.flags = %#x, tx_type = %#x, rx_filter = %#x\n",
