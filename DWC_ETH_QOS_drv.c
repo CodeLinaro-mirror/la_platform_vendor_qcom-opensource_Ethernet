@@ -93,6 +93,9 @@
 
 static INT DWC_ETH_QOS_GStatus;
 
+volatile int ntn_open_cnt = 0;
+volatile int ntn_close_cnt = 0;
+
 #ifdef NTN_POLLING_METHOD
 static void* polling_task_data = NULL;
 static struct delayed_work task;
@@ -1833,8 +1836,9 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	struct desc_if_struct *desc_if = &pdata->desc_if;
 	struct hw_if_struct *hw_if = &pdata->hw_if;
 
-	DBGPR("-->DWC_ETH_QOS_open\n");
+	NMSGPR_ALERT("-->DWC_ETH_QOS_open\n");
 
+	dump_stack();
 	/* Read mac address from mac.ini file */
 #ifdef DWC_ETH_QOS_BUILTIN
 	DWC_ETH_QOS_parse_config_file(pdata, pdata->mdio_bus_id);
@@ -1967,7 +1971,8 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	else
 		schedule_delayed_work(&pdata->phy_dwork, usecs_to_jiffies(1000000));
 
-	DBGPR("<--DWC_ETH_QOS_open, %d\n", ret);
+	ntn_open_cnt++;
+	NMSGPR_ALERT("<--DWC_ETH_QOS_open, %d ntn_open_cnt = 0x%x\n", ret, ntn_open_cnt);
 
 	return ret;
 
@@ -1999,8 +2004,9 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	struct desc_if_struct *desc_if = &pdata->desc_if;
 	int ret = 0;
 
-	DBGPR("-->DWC_ETH_QOS_close\n");
+	NMSGPR_ALERT("-->DWC_ETH_QOS_close\n");
 
+	dump_stack();
 	/* clearing phy int_mask */
 	if (pdata->enable_phy_interrupt) {
 		DWC_ETH_QOS_mdio_config_intr(pdata, PHY_INTR_DISABLED);
@@ -2043,7 +2049,8 @@ static int DWC_ETH_QOS_close(struct net_device *dev)
 	if (pdata->enable_phy && pdata->phydev)
 		pdata->phydev->state = PHY_DOWN;
 
-	DBGPR("<--DWC_ETH_QOS_close\n");
+	ntn_close_cnt++;
+	NMSGPR_ALERT("<--DWC_ETH_QOS_close ntn_close_cnt=0x%x\n", ntn_close_cnt);
 
 	return Y_SUCCESS;
 }

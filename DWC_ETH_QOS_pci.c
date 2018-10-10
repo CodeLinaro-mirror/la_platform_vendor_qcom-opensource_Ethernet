@@ -104,6 +104,9 @@
 #include "DWC_ETH_QOS_ipa.h"
 #include <linux/regulator/consumer.h>
 
+volatile int pcie_suspend_fail_cnt = 0;
+extern volatile int ntn_open_cnt;
+extern volatile int ntn_close_cnt;
 static __ref int bw_kthread(void *arg);
 
 struct DWC_ETH_QOS_prv_data *gDWC_ETH_QOS_prv_data;
@@ -2095,11 +2098,14 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 		0x9b8a5506,
 	};
 
-	DBGPR("-->DWC_ETH_QOS_suspend\n");
+	NMSGPR_ALERT("-->DWC_ETH_QOS_suspend\n");
 
 	if (!dev || !netif_running(dev) || (!pdata->hw_feat.mgk_sel &&
 			!pdata->hw_feat.rwk_sel)) {
-		DBGPR("<--DWC_ETH_QOS_dev_suspend\n");
+		NMSGPR_ALERT("<--DWC_ETH_QOS_dev_suspend: mgk_sel=0x%x rwk_sel=0x%x\n", 
+					pdata->hw_feat.mgk_sel, pdata->hw_feat.rwk_sel);
+		NMSGPR_ALERT("<--DWC_ETH_QOS_dev_suspend: dev->state=0x%lx\n", dev->state);	
+		pcie_suspend_fail_cnt++;		
 		return -EINVAL;
 	}
 
@@ -2138,8 +2144,9 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 			NMSGPR_ALERT("%s: NTN phy supply regulator disabled \n", __func__);
 	}
 
-	DBGPR("<--DWC_ETH_QOS_suspend\n");
-
+	NMSGPR_ALERT("ntn_open_cnt = 0x%x ntn_close_cnt = 0x%x\n", ntn_open_cnt, ntn_close_cnt);
+	NMSGPR_ALERT("<--DWC_ETH_QOS_suspend: pcie_suspend_fail_cnt = 0x%x\n", pcie_suspend_fail_cnt);
+	
 	return ret;
 }
 
@@ -2173,7 +2180,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
 	UINT rd_val;
 
-	DBGPR("-->DWC_ETH_QOS_resume\n");
+	NMSGPR_ALERT("-->DWC_ETH_QOS_resume\n");
 
 	if(pdata->ntn_reg_core) {
 		ret = regulator_enable(pdata->ntn_reg_core);
@@ -2234,7 +2241,7 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 	pm_wakeup_event(&pdev->dev, 5000);
 	DWC_ETH_QOS_pci_enable_link_status(pdata);
 
-	DBGPR("<--DWC_ETH_QOS_resume\n");
+	NMSGPR_ALERT("<--DWC_ETH_QOS_resume\n");
 
 	return ret;
 }
