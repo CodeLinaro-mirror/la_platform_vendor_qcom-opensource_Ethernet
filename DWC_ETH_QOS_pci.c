@@ -524,7 +524,6 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct DWC_ETH_QOS_prv_data *pdata = netdev_priv(dev);
-	const struct firmware *fw_entry = NULL;
 	unsigned int reg_val;
 	unsigned int timeout = 0;
 
@@ -533,12 +532,14 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
                 return -EINVAL;
         }
 
-	if (request_firmware(&fw_entry, fw_filename, &pdev->dev) != 0 ||
-	    fw_entry == NULL)
-	{
-		NMSGPR_ALERT("Failed to get %s.\n",
-			fw_filename);
-		return -EINVAL;
+	/* Only fetch firmware on the first time */
+	if (!pdata->fw_entry) {
+		if (request_firmware(&pdata->fw_entry, fw_filename, &pdev->dev) != 0 ||
+		    pdata->fw_entry == NULL) {
+			NMSGPR_ALERT("Failed to get %s.\n",
+				     fw_filename);
+			return -EINVAL;
+		}
 	}
 
 	/* Set the reset bit */
@@ -547,15 +548,13 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 		(reg_val | 1);
 	msleep(1);
 	/* Write the FW to SRAM */
-	memcpy((char*)pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt, fw_entry->data,
-	       fw_entry->size);
+	memcpy((char*)pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt, pdata->fw_entry->data,
+	       pdata->fw_entry->size);
 	msleep(1);
 	/* Clear the reset bit to restart the Neutrino */
 	*(unsigned int*)(pdata->dev->base_addr + 0x1008) =
 		(reg_val & ~0x3);
 	reg_val = *(unsigned int*)(pdata->dev->base_addr + 0x1008);
-
-	release_firmware(fw_entry);
 
 	while(1 != ioread32( (void*)(pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt +
 				NTN_BOOT_COMPLETE_OFFSET))) {
@@ -1837,6 +1836,9 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
  err_out_mdio_reg:
 	desc_if->free_queue_struct(pdata);
 
+	if (hw_if->ntn_boot_host_initiated(pdata)) {
+		release_firmware(pdata->fw_entry);
+	}
  err_load_fw_failed:
  err_out_q_alloc_failed:
     pci_disable_msi(pdev);
@@ -1907,6 +1909,10 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	DWC_ETH_QOS_pci_disable_link_status(pdata);
 	DWC_ETH_QOS_ip_traffic_shaping_sysfs_remove(pdata);
 	DWC_ETH_QOS_debugfs_remove(pdata);
+
+	if (hw_if->ntn_boot_host_initiated(pdata)) {
+		release_firmware(pdata->fw_entry);
+	}
 
 	kthread_stop(pdata->ddr_bw_task);
 	del_timer(&pdata->ddr_bw_timer);

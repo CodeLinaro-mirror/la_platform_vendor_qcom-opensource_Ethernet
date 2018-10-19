@@ -1825,6 +1825,9 @@ struct DWC_ETH_QOS_prv_data {
 	UINT regular_ip_traffic_tx_intr_moderation;
 	struct regulator *ntn_reg_core;
 	struct regulator *ntn_reg_phy;
+
+	/* firmware cache */
+	const struct firmware *fw_entry;
 };
 
 struct DWC_ETH_QOS_plt_data {
