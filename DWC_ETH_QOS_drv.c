@@ -504,21 +504,26 @@ static void DWC_ETH_QOS_restart_dev(struct DWC_ETH_QOS_prv_data *pdata,
 {
 	struct desc_if_struct *desc_if = &(pdata->desc_if);
 	struct hw_if_struct *hw_if = &(pdata->hw_if);
-	struct DWC_ETH_QOS_rx_dma_ch *rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
+	struct DWC_ETH_QOS_rx_dma_ch *rx_dma_ch = NULL;
 
 	DBGPR("-->DWC_ETH_QOS_restart_dev\n");
 
-	netif_stop_subqueue(pdata->dev, chInx);
-	napi_disable(&rx_dma_ch->napi);
+	if(chInx < NTN_TX_DMA_CH_CNT){
+		netif_stop_subqueue(pdata->dev, chInx);
+		/* stop DMA TX */
+		hw_if->stop_dma_tx(chInx, pdata);
+		/* free tx skb's */
+		desc_if->tx_skb_free_mem_single_q(pdata, chInx);
+	}
 
-	/* stop DMA TX/RX */
-	hw_if->stop_dma_tx(chInx, pdata);
-	hw_if->stop_dma_rx(chInx, pdata);
-
-	/* free tx skb's */
-	desc_if->tx_skb_free_mem_single_q(pdata, chInx);
-	/* free rx skb's */
-	desc_if->rx_skb_free_mem_single_q(pdata, chInx);
+	if(chInx < NTN_RX_DMA_CH_CNT){
+		rx_dma_ch = GET_RX_DMA_CH_PTR(chInx);
+		napi_disable(&rx_dma_ch->napi);
+		/* stop DMA RX */
+		hw_if->stop_dma_rx(chInx, pdata);
+		/* free rx skb's */
+		desc_if->rx_skb_free_mem_single_q(pdata, chInx);
+	}
 
 	if ((NTN_TX_QUEUE_CNT == 0) &&
 		(NTN_RX_QUEUE_CNT == 0)) {
@@ -528,15 +533,19 @@ static void DWC_ETH_QOS_restart_dev(struct DWC_ETH_QOS_prv_data *pdata,
 		DWC_ETH_QOS_configure_rx_fun_ptr(pdata);
 		DWC_ETH_QOS_default_common_confs(pdata);
 	}
-	/* reset all variables */
-	DWC_ETH_QOS_default_tx_confs_single_q(pdata, chInx);
-	DWC_ETH_QOS_default_rx_confs_single_q(pdata, chInx);
 
-	/* reinit descriptor */
-	desc_if->wrapper_tx_desc_init_single_q(pdata, chInx);
-	desc_if->wrapper_rx_desc_init_single_q(pdata, chInx);
+	if(chInx < NTN_TX_DMA_CH_CNT){
+		/* reset all variables */
+		DWC_ETH_QOS_default_tx_confs_single_q(pdata, chInx);
+		/* reinit descriptor */
+		desc_if->wrapper_tx_desc_init_single_q(pdata, chInx);
+	}
 
-	napi_enable(&rx_dma_ch->napi);
+	if(chInx < NTN_RX_DMA_CH_CNT){
+		DWC_ETH_QOS_default_rx_confs_single_q(pdata, chInx);
+		desc_if->wrapper_rx_desc_init_single_q(pdata, chInx);
+		napi_enable(&rx_dma_ch->napi);
+	}
 
 	/* initializes MAC and DMA
 	 * NOTE : Do we need to init only one channel
@@ -545,7 +554,9 @@ static void DWC_ETH_QOS_restart_dev(struct DWC_ETH_QOS_prv_data *pdata,
 
 	DWC_ETH_QOS_restart_phy(pdata);
 
-	netif_wake_subqueue(pdata->dev, chInx);
+	if(chInx < NTN_TX_DMA_CH_CNT){
+		netif_wake_subqueue(pdata->dev, chInx);
+	}
 
 	DBGPR("<--DWC_ETH_QOS_restart_dev\n");
 }
