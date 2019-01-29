@@ -2399,8 +2399,12 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	UINT varvlan_pkt;
 #endif
 	int tso;
+	UINT eth_type = 0;
+
+#if 0
 	if (ip_hdr(skb)->protocol == IPPROTO_TCP || ip_hdr(skb)->protocol == IPPROTO_ICMP)
 		skb_orphan(skb);
+#endif
 
 	/* On some hardware, eAVB packet is possible to
 	 * result in out of order sometimes during padding
@@ -2556,6 +2560,10 @@ if( (chInx == NTN_TX_PKT_AVB_CLASS_A) || (chInx == NTN_TX_PKT_AVB_CLASS_B) )
 		tx_pkt_features->launch_time = (tx_pkt_features->launch_time<<8) | skb->data[32];
 		tx_pkt_features->launch_time = (tx_pkt_features->launch_time<<8) | skb->data[33];
 	}
+
+	eth_type = GET_ETH_TYPE(skb->data);
+	if (eth_type == ETH_P_IP || eth_type == ETH_P_IPV6)
+		skb_orphan(skb);
 
 	/* configure required descriptor fields for transmission */
 	hw_if->pre_xmit(pdata, chInx, ETHERTYPE_FROM_PACKET(skb->data));

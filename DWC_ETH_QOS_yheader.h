@@ -1973,6 +1973,17 @@ do {\
 #undef NTN_DEBUG_TS2
 #endif
 
+#define QTAG_VLAN_ETH_TYPE_OFFSET 16
+#define QTAG_ETH_TYPE_OFFSET 12
+
+#define GET_ETH_TYPE(buf) \
+               ((((u16)buf[QTAG_ETH_TYPE_OFFSET]<<8) | \
+			   buf[QTAG_ETH_TYPE_OFFSET+1]) == ETH_P_8021Q)?\
+		(((u16)buf[QTAG_VLAN_ETH_TYPE_OFFSET]<<8) | \
+			   buf[QTAG_VLAN_ETH_TYPE_OFFSET+1]): \
+		(((u16)buf[QTAG_ETH_TYPE_OFFSET]<<8) | \
+			   buf[QTAG_ETH_TYPE_OFFSET+1]);
+
 #define NMSGPR_INFO(x...)  printk(KERN_INFO x)
 #define NMSGPR_ALERT(x...) printk(KERN_ALERT x)
 #define NMSGPR_ERR(x...)   printk(KERN_ERR x)
