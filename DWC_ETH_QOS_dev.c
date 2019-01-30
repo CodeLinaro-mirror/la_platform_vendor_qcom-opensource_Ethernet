@@ -4060,11 +4060,8 @@ static int enable_mac_interrupts(struct DWC_ETH_QOS_prv_data *pdata)
   /* LPIIM - LPI Interrupt Disable */
   MAC_IMR_RgRd(varmac_imr);
   varmac_imr = varmac_imr & (unsigned long)(0x1008);
-  //varmac_imr = varmac_imr | ((0x1) << 0) | ((0x1) << 1) | ((0x1) << 2) |
-  //              ((0x1) << 4) | ((0x1) << 5);
-  varmac_imr = varmac_imr | ((0x1) << 1) | ((0x1) << 2) |
-                ((0x1) << 4);
-  varmac_imr &=  ~( ( 0x1 << 0) | (0x1 << 5) ); // Disable RGSMII and LPI
+  varmac_imr = varmac_imr | ((0x1) << 0) | ((0x1) << 1) | ((0x1) << 2) |
+                ((0x1) << 4) | ((0x1) << 5);
   MAC_IMR_RgWr(varmac_imr);
 
   NTN_INTC_INTMCUMASK1_RgRd(reg_val);
