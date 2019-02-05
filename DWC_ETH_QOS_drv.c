@@ -1829,11 +1829,6 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 		ret = DWC_ETH_QOS_ipa_ready(pdata);
 		if (pdata->prv_ipa.ipa_ready) {
 			NDBGPR_L1("%s:%d ipa ready\n", __func__, __LINE__);
-			ret = DWC_ETH_QOS_ipa_offload_init(pdata);
-			if (!ret) {
-				NDBGPR_L1("IPA Offload Initialized Successfully \n");
-				pdata->prv_ipa.ipa_offload_init = true;
-			}
 		}
 		else {
 			NMSGPR_INFO("%s:%d ipa not ready\n", __func__, __LINE__);

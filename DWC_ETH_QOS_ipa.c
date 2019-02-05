@@ -367,11 +367,6 @@ static void DWC_ETH_QOS_ipa_ready_wq(struct work_struct *work)
 	int ret;
 
 	pdata->prv_ipa.ipa_ready = true;
-	ret = DWC_ETH_QOS_ipa_offload_init(pdata);
-	if (!ret) {
-		NMSGPR_INFO("IPA Offload Initialized Successfully \n");
-		pdata->prv_ipa.ipa_offload_init = true;
-	}
 
 	ret = DWC_ETH_QOS_ipa_uc_ready(pdata);
 	if (ret == 0 && pdata->prv_ipa.ipa_uc_ready)
