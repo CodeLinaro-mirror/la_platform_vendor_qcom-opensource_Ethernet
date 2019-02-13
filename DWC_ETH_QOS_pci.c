@@ -688,7 +688,7 @@ static void DWC_ETH_QOS_config_ipareg_map(struct pci_dev *pdev)
 #ifdef DWC_ETH_QOS_BUILTIN
 static int DWC_ETH_QOS_add_ipaddr(struct ip_params *ip_info, struct net_device *dev)
 {
-	int res;
+	int res = 0;
 	struct ifreq ir;
 	/*struct in6_ifreq ir6;*/
 	struct sockaddr_in *sin = (void *) &ir.ifr_ifru.ifru_addr;
