@@ -2291,9 +2291,8 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	UINT varvlan_pkt;
 #endif
 	int tso;
+	UINT eth_type = 0;
 
-	if (ip_hdr(skb)->protocol == IPPROTO_ICMP)
-		skb_orphan(skb);
 	spin_lock_irqsave(&pdata->tx_lock, flags);
 	/* Fetch TX Channel no */
 	desc_data = GET_TX_WRAPPER_DESC(chInx);
@@ -2320,6 +2319,10 @@ static int DWC_ETH_QOS_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->stats.tx_dropped++;
 		goto tx_netdev_return;
 	}
+
+	eth_type = GET_ETH_TYPE(skb->data);
+	if (eth_type == ETH_P_IP || eth_type == ETH_P_IPV6)
+		skb_orphan(skb);
 
 	if ((pdata->eee_enabled) && (pdata->tx_path_in_lpi_mode) &&
 		(!pdata->use_lpi_tx_automate)){
