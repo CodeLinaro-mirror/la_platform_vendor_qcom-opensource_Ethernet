@@ -286,6 +286,11 @@ static void parse_config_file(USHORT mdio_bus_id)
 	mm_segment_t oldfs;
 	int ret, flags = O_RDONLY, i = 0;
 
+        if (NULL == data) {
+                printk("Using Default MAC Address\n");
+                return;
+        }
+
 	oldfs = get_fs();
 	set_fs(get_ds());
 	filep = filp_open("/etc/ntn_config.ini", flags, 0600);
