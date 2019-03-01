@@ -1530,24 +1530,22 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 		} else {
 			NDBGPR_L1("%s: ntn-phy-speed-mode = %d \n", __func__, pdata->phy_speed_mode);
 		}
+		pdata->phy_wol_enable = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-phy-wol-enable");
+		NDBGPR_L1("%s: phy_wol_enable = %d\n", __func__, pdata->phy_wol_enable);
+		ret = of_property_read_u32(pldev->dev.of_node, "qcom,rxc-skew-ps",
+				   &pdata->phy_rxc_skew_ps);
+		if (ret) {
+			NDBGPR_L1("%s: Failed to find rxc-skew-ps value\n", __func__);
+				pdata->phy_rxc_skew_ps = -1;
+		}
+		ret = of_property_read_u32(pldev->dev.of_node, "qcom,txc-skew-ps",
+					   &pdata->phy_txc_skew_ps);
+		if (ret) {
+			NDBGPR_L1("%s: Failed to find txc-skew-ps value\n", __func__);
+			pdata->phy_txc_skew_ps = -2;
+		}
 	} else {
 		NMSGPR_ALERT( "%s: Failed to get platform data for the device\n",__func__);
-	}
-
-	pdata->phy_wol_enable = of_property_read_bool(pldev->dev.of_node, "qcom,ntn-phy-wol-enable");
-	NDBGPR_L1("%s: phy_wol_enable = %d\n", __func__, pdata->phy_wol_enable);
-
-	ret = of_property_read_u32(pldev->dev.of_node, "qcom,rxc-skew-ps",
-				   &pdata->phy_rxc_skew_ps);
-	if (ret) {
-		NDBGPR_L1("%s: Failed to find rxc-skew-ps value\n", __func__);
-		pdata->phy_rxc_skew_ps = -1;
-	}
-	ret = of_property_read_u32(pldev->dev.of_node, "qcom,txc-skew-ps",
-				   &pdata->phy_txc_skew_ps);
-	if (ret) {
-		NDBGPR_L1("%s: Failed to find txc-skew-ps value\n", __func__);
-		pdata->phy_txc_skew_ps = -2;
 	}
 
 #ifdef NTN_ENABLE_PCIE_MEM_ACCESS
