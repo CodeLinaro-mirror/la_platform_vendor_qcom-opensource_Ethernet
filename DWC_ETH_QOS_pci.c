@@ -407,6 +407,10 @@ static int DWC_ETH_QOS_load_fw(struct pci_dev *pdev)
 		(reg_val & ~0x3);
 	reg_val = *(unsigned int*)(pdata->dev->base_addr + 0x1008);
 
+	/* Clear boot complete flag in SRAM */
+	iowrite32(0, (void*)(pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt +
+				NTN_BOOT_COMPLETE_OFFSET));
+
 	release_firmware(fw_entry);
 
 	while(1 != ioread32( (void*)(pdata->dwc_eth_ntn_SRAM_pci_base_addr_virt +
