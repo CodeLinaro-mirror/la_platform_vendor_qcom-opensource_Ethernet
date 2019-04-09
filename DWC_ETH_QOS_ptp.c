@@ -180,7 +180,8 @@ static int DWC_ETH_QOS_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	if ( ntn_ch2_pps_cfg.ppsout_align == 1 ) {// PPO Ch2 is configured for alignment
 		NDBGPR_L1("DWC_ETH_QOS_adjust_time: re-configure Ch2 PPO\n");
 		NTN_PPSOUT_Config_real(pdata, &ntn_ch2_pps_cfg);
-	} else if ( ntn_ch3_pps_cfg.ppsout_align == 1 ) {// PPO Ch3 is configured for alignment
+	}
+	if ( ntn_ch3_pps_cfg.ppsout_align == 1 ) {// PPO Ch3 is configured for alignment
 		NDBGPR_L1("DWC_ETH_QOS_adjust_time: re-configure Ch3 PPO\n");
 		NTN_PPSOUT_Config_real(pdata, &ntn_ch3_pps_cfg);
 	}
