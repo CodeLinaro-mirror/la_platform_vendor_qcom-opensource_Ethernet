@@ -4982,8 +4982,8 @@ int NTN_PPSOUT_Config_real(struct DWC_ETH_QOS_prv_data *pdata,
 				if (ss >= align_ns) {
 					s  += 1;
 				}
-				hw_if->ntn_reg_wr(0xABA0, s, 0, pdata);  // PPS3 seconds
-				hw_if->ntn_reg_wr(0xABA4, align_ns, 0, pdata);	// set subsecond
+				hw_if->ntn_reg_wr(0xABB0, s, 0, pdata);  // PPS3 seconds
+				hw_if->ntn_reg_wr(0xABB4, align_ns, 0, pdata);	// set subsecond
 			} else {
 				ss += PPS_START_DELAY;
 				if (ss >= 1000000000) {
@@ -5882,7 +5882,8 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		if ( ntn_ch2_pps_cfg.ppsout_align == 1 ) {// PPO ch2 is configured for alignment
 			NDBGPR_L1("%s: re-configure Ch2 PPO\n", __func__);
 			NTN_PPSOUT_Config_real(pdata, &ntn_ch2_pps_cfg);
-		} else if ( ntn_ch3_pps_cfg.ppsout_align == 1 ) {// PPO ch2 is configured for alignment
+		}
+		if ( ntn_ch3_pps_cfg.ppsout_align == 1 ) {// PPO ch2 is configured for alignment
 			NDBGPR_L1("%s: re-configure Ch3 PPO\n", __func__);
 			NTN_PPSOUT_Config_real(pdata, &ntn_ch3_pps_cfg);
 		}
