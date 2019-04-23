@@ -1784,6 +1784,7 @@ static int DWC_ETH_QOS_probe(struct pci_dev *pdev,
 
 	INIT_WORK(&pdata->powerup_work, DWC_ETH_QOS_powerup_handler);
 	INIT_WORK(&pdata->restartdev_work, DWC_ETH_QOS_restart_dev_handler);
+	INIT_WORK(&pdata->mac_phy_work, DWC_ETH_QOS_mdio_mac_phy_work_handler);
 	INIT_DELAYED_WORK(&pdata->phy_dwork, (void *)DWC_ETH_QOS_adjust_link);
 
 	ret = register_netdev(dev);
@@ -1931,6 +1932,7 @@ static void DWC_ETH_QOS_remove(struct pci_dev *pdev)
 	flush_work(&pdata->restartdev_work);
 	flush_work(&pdata->pci_recovery_work);
 	flush_work(&pdata->powerup_work);
+	flush_work(&pdata->mac_phy_work);
 
 	if (1 == pdata->hw_feat.sma_sel)
 		DWC_ETH_QOS_mdio_unregister(dev);

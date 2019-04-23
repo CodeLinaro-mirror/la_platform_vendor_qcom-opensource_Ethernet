@@ -1320,3 +1320,16 @@ void DWC_ETH_QOS_disable_phy_wol(struct DWC_ETH_QOS_prv_data *pdata)
 	bmcr_val |= BMCR_ANRESTART;
 	phy_write(pdata->phydev, MII_BMCR, bmcr_val);
 }
+
+void DWC_ETH_QOS_mdio_mac_phy_work_handler(struct work_struct *work)
+{
+	struct DWC_ETH_QOS_prv_data *pdata = container_of(work,
+		struct DWC_ETH_QOS_prv_data, mac_phy_work);
+	DBGPR_MDIO("<--DWC_ETH_QOS_mdio_mac_phy_work_handler\n");
+
+	if (pdata->enable_phy_interrupt){
+		DWC_ETH_QOS_mdio_ack_intr(pdata);
+		DWC_ETH_QOS_adjust_link_isr(pdata);
+	}
+	DBGPR_MDIO("-->DWC_ETH_QOS_mdio_mac_phy_work_handler\n");
+}
