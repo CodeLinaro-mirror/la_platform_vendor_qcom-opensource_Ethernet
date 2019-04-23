@@ -891,9 +891,8 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 		/* MAC interrupts */
 		if (GET_VALUE(varMAC_ISR, MAC_ISR_PHY_INT_LPOS, MAC_ISR_PHY_INT_HPOS) & 1) {
 			NDBGPR_L2("%s: MAC interrupt received!\n", __func__);
-			DWC_ETH_QOS_mdio_ack_intr(pdata);
 			if (pdata->enable_phy_interrupt)
-				DWC_ETH_QOS_adjust_link_isr(pdata);
+				schedule_work(&pdata->mac_phy_work);
 		}
 
 		/* PMT interrupt */

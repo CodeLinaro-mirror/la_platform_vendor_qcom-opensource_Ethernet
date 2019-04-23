@@ -1796,6 +1796,9 @@ struct DWC_ETH_QOS_prv_data {
 	struct work_struct restartdev_work;
 	unsigned int restart_channel_idx;
 
+	/* Workqueue used to MAC PHY interrupt handler */
+	struct work_struct mac_phy_work;
+
 	/* mdio bus id */
 	USHORT mdio_bus_id;
 
@@ -1875,6 +1878,7 @@ INT DWC_ETH_QOS_mdio_read_direct(struct DWC_ETH_QOS_prv_data *pdata,
 				 int phyaddr, int phyreg, int *phydata);
 INT DWC_ETH_QOS_mdio_write_direct(struct DWC_ETH_QOS_prv_data *pdata,
 				  int phyaddr, int phyreg, int phydata);
+void DWC_ETH_QOS_mdio_mac_phy_work_handler(struct work_struct *work);
 void dbgpr_regs(void);
 void dump_phy_registers(struct DWC_ETH_QOS_prv_data *);
 void dump_tx_desc(struct DWC_ETH_QOS_prv_data *pdata, int first_desc_idx,
