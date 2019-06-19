@@ -1717,6 +1717,7 @@ static void DWC_ETH_QOS_init_common(struct net_device *dev)
 	DWC_ETH_QOS_default_rx_confs(pdata);
 	DWC_ETH_QOS_configure_rx_fun_ptr(pdata);
 
+	DWC_ETH_QOS_napi_enable_mq(pdata);
 	DWC_ETH_QOS_set_rx_mode(dev);
 
 #ifndef DWC_ETH_QOS_BUILTIN
@@ -1819,8 +1820,6 @@ static int DWC_ETH_QOS_open(struct net_device *dev)
 	}
 
 	DWC_ETH_QOS_init_common(dev);
-
-	DWC_ETH_QOS_napi_enable_mq(pdata);
 
 	netif_tx_start_all_queues(dev);
 
@@ -5856,8 +5855,6 @@ INT DWC_ETH_QOS_powerup(struct net_device *dev, UINT caller)
 
 	if (caller == DWC_ETH_QOS_DRIVER_CONTEXT)
 		netif_device_attach(dev);
-
-	DWC_ETH_QOS_napi_enable_mq(pdata);
 
 	netif_tx_start_all_queues(dev);
 
