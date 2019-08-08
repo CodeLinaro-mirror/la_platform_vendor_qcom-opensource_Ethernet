@@ -518,6 +518,7 @@ int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
 	struct ethhdr ntn_l2_hdr_v6;
 	struct vlan_ethhdr ntn_vlan_hdr_v4;
 	struct vlan_ethhdr ntn_vlan_hdr_v6;
+	bool ipa_vlan_mode;
 	int ret;
 
 	if(!pdata) {
@@ -525,11 +526,20 @@ int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
 		return -1;
 	}
 
+	ret = ipa_is_vlan_mode(IPA_VLAN_IF_ETH, &ipa_vlan_mode);
+	if (ret) {
+		NMSGPR_ERR("Could not read ipa_vlan_mode\n");
+		/* In case of failure fallback to non vlan mode */
+		ipa_vlan_mode = 0;
+	}
+
+	NMSGPR_ERR("IPA VLAN MODE = %d\n", ipa_vlan_mode);
+
 	memset(&in, 0, sizeof(in));
 	memset(&out, 0, sizeof(out));
 
 	/* Building ETH Header */
-	if ( !pdata->prv_ipa.vlan_id ) {
+	if ( !pdata->prv_ipa.vlan_id || !ipa_vlan_mode) {
 		memset(&ntn_l2_hdr_v4, 0, sizeof(ntn_l2_hdr_v4));
 		memset(&ntn_l2_hdr_v6, 0, sizeof(ntn_l2_hdr_v6));
 		memcpy(&ntn_l2_hdr_v4.h_source, pdata->dev->dev_addr, ETH_ALEN);
@@ -541,7 +551,7 @@ int DWC_ETH_QOS_ipa_offload_init(struct DWC_ETH_QOS_prv_data *pdata)
 		in.hdr_info[1].hdr = (u8 *)&ntn_l2_hdr_v6;
 		in.hdr_info[1].hdr_len = ETH_HLEN;
 	}
-	if ( pdata->prv_ipa.vlan_id > MIN_VLAN_ID && pdata->prv_ipa.vlan_id <= MAX_VLAN_ID ) {
+	if ( (pdata->prv_ipa.vlan_id > MIN_VLAN_ID && pdata->prv_ipa.vlan_id <= MAX_VLAN_ID) || ipa_vlan_mode) {
 		memset(&ntn_vlan_hdr_v4, 0, sizeof(ntn_vlan_hdr_v4));
 		memset(&ntn_vlan_hdr_v6, 0, sizeof(ntn_vlan_hdr_v6));
 		memcpy(&ntn_vlan_hdr_v4.h_source, pdata->dev->dev_addr, ETH_ALEN);
