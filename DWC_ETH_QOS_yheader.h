@@ -516,6 +516,8 @@
 #define GET_TX_BUFF_DMA_ADDR(chInx, dInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_ipa_dma_buff_addrs[(dInx)])
 #define GET_TX_BUFF_LOGICAL_ADDR(chInx, dInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_ipa_buff_addrs[(dInx)])
 #define GET_TX_BUFF_DMA_POOL_BASE_ADRR(chInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_ipa_dma_buff_addrs)
+#define GET_TX_BUFF_DMA_POOL_BASE_PADRR(chInx) (pdata->tx_dma_ch[(chInx)].tx_desc_data.tx_ipa_buff_addrs_dma_handle)
+
 
 #define GET_TX_WRAPPER_DESC(chInx) (&(pdata->tx_dma_ch[(chInx)].tx_desc_data))
 
@@ -563,6 +565,7 @@
 /* Add IPA specific Macros to access the DMA address to be provided to IPA uC*/
 #define GET_RX_BUFF_DMA_ADDR(chInx, dInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.ipa_rx_buff_addrs[(dInx)])
 #define GET_RX_BUFF_POOL_BASE_ADRR(chInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.ipa_rx_buff_addrs)
+#define GET_RX_BUFF_DMA_POOL_BASE_PADRR(chInx) (pdata->rx_dma_ch[(chInx)].rx_desc_data.rx_ipa_buff_addrs_dma_handle)
 
 #define GET_RX_WRAPPER_DESC(chInx) (&(pdata->rx_dma_ch[(chInx)].rx_desc_data))
 
@@ -1090,6 +1093,7 @@ struct DWC_ETH_QOS_tx_wrapper_descriptor {
 
 	dma_addr_t *tx_ipa_dma_buff_addrs;
 	struct sk_buff **tx_ipa_buff_addrs;
+	dma_addr_t tx_ipa_buff_addrs_dma_handle;
 
 	unsigned char contigous_mem;
 
@@ -1159,6 +1163,8 @@ struct DWC_ETH_QOS_rx_wrapper_descriptor {
 	dma_addr_t *rx_desc_dma_addrs;
 
 	dma_addr_t *ipa_rx_buff_addrs;
+
+	dma_addr_t rx_ipa_buff_addrs_dma_handle;
 
 	struct DWC_ETH_QOS_rx_buffer **rx_buf_ptrs;
 
