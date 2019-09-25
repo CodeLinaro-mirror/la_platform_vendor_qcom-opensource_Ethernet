@@ -5086,6 +5086,12 @@ static int DWC_ETH_QOS_handle_hwtstamp_ioctl(struct DWC_ETH_QOS_prv_data *pdata,
 		sizeof(struct hwtstamp_config)))
 		return -EFAULT;
 
+	 if((pdata->ipa_enabled) && (config.rx_filter == HWTSTAMP_FILTER_ALL)) {
+		NMSGPR_ALERT( "HW timestamping is not available for HWTSTAMP_FILTER_ALL
+				with IPA enabled \n");
+		return -EOPNOTSUPP;
+	}
+
 	DBGPR_PTP("config.flags = %#x, tx_type = %#x, rx_filter = %#x\n",
 		config.flags, config.tx_type, config.rx_filter);
 
