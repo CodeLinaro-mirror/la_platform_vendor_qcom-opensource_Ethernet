@@ -1719,6 +1719,7 @@ struct DWC_ETH_QOS_prv_data {
 
 	/* mdio bus id */
 	USHORT mdio_bus_id;
+	struct pci_saved_state *saved_state;
 };
 
 struct DWC_ETH_QOS_plt_data {

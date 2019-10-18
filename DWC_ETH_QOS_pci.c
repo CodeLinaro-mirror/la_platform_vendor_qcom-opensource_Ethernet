@@ -1409,8 +1409,11 @@ static INT DWC_ETH_QOS_suspend(struct pci_dev *pdev, pm_message_t state)
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, false);
 #endif
+	pci_disable_device(pdev);
 	pci_save_state(pdev);
+	pdata->saved_state = pci_store_saved_state(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	DWC_ETH_QOS_pci_suspend(pdev);
 
 	DBGPR("<--DWC_ETH_QOS_suspend\n");
 
@@ -1452,12 +1455,23 @@ static INT DWC_ETH_QOS_resume(struct pci_dev *pdev)
 		DBGPR("<--DWC_ETH_QOS_dev_resume\n");
 		return -EINVAL;
 	}
+	DWC_ETH_QOS_pci_resume(pdev);
 
 	pci_set_power_state(pdev, PCI_D0);
+	pci_load_and_free_saved_state(pdev,&pdata->saved_state);
 	pci_restore_state(pdev);
+	ret = pci_enable_device(pdev);
+	if (ret)
+	{
+		NMSGPR_ALERT( "%s:Unable to enable device\n", DEV_NAME);
+		return -EPERM;
+	}
+
 #ifdef CONFIG_PCI_MSM
 	msm_pcie_shadow_control(pdev, true);
 #endif
+	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
+	pci_set_master(pdev);
 
 	/* Recover NTN in case whole chip was in reset */
 	if (pdata->pcierst_resx) {
