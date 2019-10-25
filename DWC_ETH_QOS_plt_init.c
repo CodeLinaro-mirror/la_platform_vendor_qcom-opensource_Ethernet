@@ -243,12 +243,6 @@ static void DWC_ETH_QOS_free_regs_and_gpios(struct DWC_ETH_QOS_plt_data *plt_dat
 	if (gpio_is_valid(plt_data->resx_gpio_num))
 		gpio_free(plt_data->resx_gpio_num);
 
-	if (gpio_is_valid(plt_data->supply_gpio_num)) {
-		/* Power off Neutrino when it is not in use */
-		gpio_set_value(plt_data->supply_gpio_num, 0x0);
-		gpio_free(plt_data->supply_gpio_num);
-	}
-
 	if (plt_data->ntn_reg_phy)
 		regulator_put(plt_data->ntn_reg_phy);
 
