@@ -871,12 +871,7 @@ irqreturn_t DWC_ETH_QOS_ISR_SW_DWC_ETH_QOS(int irq, void *device_id)
 	}
 
 	/* Handle MAC interrupts */
-<<<<<<< HEAD
-
-
-=======
 	if (GET_VALUE(varNTN_INTC_INTSTATUS, NTN_INTC_INTSTATUS_MAC_EVT_LPOS, NTN_INTC_INTSTATUS_MAC_EVT_HPOS)) {
->>>>>>> 4288b1f... Ethernet: Merge PPS patch
 		MAC_ISR_RgRd(varMAC_ISR);
 		NDBGPR_L2("MAC_ISR = %#lx\n", varMAC_ISR);
 
