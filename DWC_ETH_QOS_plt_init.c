@@ -35,6 +35,7 @@
 #else
 #include <mach/msm_pcie.h>
 #endif
+#include <linux/delay.h>
 
 #define NTN_VREG_CORE_NAME 	"vdd-ntn-core"
 #define NTN_VREG_PHY_NAME 	"vdd-ntn-phy"
@@ -278,6 +279,21 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	struct DWC_ETH_QOS_plt_data *plt_data;
 
 	DBGPR("Entry: %s\n", __func__);
+        
+        char *n_delay=NULL;
+        
+        n_delay = strstr(saved_command_line, "off_disp_ser");
+
+        if(n_delay != NULL)
+        {
+        NMSGPR_ALERT("%s: Recovery mode boot - wait for rootfs mounted\n", __func__);
+        msleep(1500);
+        }
+        else
+        {
+        NMSGPR_ALERT("%s: Normal mode boot \n", __func__);
+        }
+
 
 	plt_data = devm_kzalloc(&pdev->dev, sizeof(*plt_data), GFP_KERNEL);
 	if (!plt_data)
