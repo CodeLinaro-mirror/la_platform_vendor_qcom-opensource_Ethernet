@@ -276,8 +276,25 @@ static int DWC_ETH_QOS_pcie_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct device *dev = &pdev->dev;
 	struct DWC_ETH_QOS_plt_data *plt_data;
+#ifdef DWC_ETH_QOS_BUILTIN
+        char *n_delay=NULL;
+#endif
 
 	DBGPR("Entry: %s\n", __func__);
+
+#ifdef DWC_ETH_QOS_BUILTIN
+        n_delay = strstr(saved_command_line, "ntn_wait_rootfs");
+
+        if(n_delay != NULL)
+        {
+        NMSGPR_ALERT("%s: Recovery mode: ntn waiting for rootfs\n", __func__);
+        msleep(1500);
+        }
+        else
+        {
+        NMSGPR_ALERT("%s: Normal mode\n", __func__);
+        }
+#endif
 
 	plt_data = devm_kzalloc(&pdev->dev, sizeof(*plt_data), GFP_KERNEL);
 	if (!plt_data)
