@@ -6046,8 +6046,15 @@ static void DWC_ETH_QOS_program_dcb_algorithm(struct DWC_ETH_QOS_prv_data *pdata
 	DBGPR("-->DWC_ETH_QOS_program_dcb_algorithm\n");
 
 	if(copy_from_user(&l_dcb_struct, u_dcb_struct,
-				sizeof(struct DWC_ETH_QOS_dcb_algorithm)))
+				sizeof(struct DWC_ETH_QOS_dcb_algorithm))){
 		NMSGPR_ALERT( "Failed to fetch DCB Struct info from user\n");
+        return;
+	}
+
+        if (l_dcb_struct.chInx >= NTN_TX_QUEUE_CNT){
+                NMSGPR_ALERT("Invalid queue number[%u] in DCB Struct from user\n",l_dcb_struct.chInx);
+                return;
+        }
 
 	hw_if->set_tx_queue_operating_mode(l_dcb_struct.chInx,
 		(UINT)l_dcb_struct.op_mode, pdata);
@@ -6136,19 +6143,32 @@ static void DWC_ETH_QOS_program_avb_algorithm(struct DWC_ETH_QOS_prv_data *pdata
 	DBGPR("-->DWC_ETH_QOS_program_avb_algorithm\n");
 
 	if(copy_from_user(&l_avb_struct, u_avb_struct,
-				sizeof(struct DWC_ETH_QOS_avb_algorithm)))
+				sizeof(struct DWC_ETH_QOS_avb_algorithm))){
 		NMSGPR_ALERT( "Failed to fetch AVB Struct info from user\n");
+                return;
+        }
 
 	pdata->cbsSpeed100Cfg[l_avb_struct.chInx - 1] = l_avb_struct.speed100params;
 	pdata->cbsSpeed1000Cfg[l_avb_struct.chInx - 1] = l_avb_struct.speed1000params;
-
+   
 	if (pdata->speed == SPEED_1000)
 		avb_params = &(pdata->cbsSpeed1000Cfg[l_avb_struct.chInx - 1]);
 	else
 		avb_params = &(pdata->cbsSpeed100Cfg[l_avb_struct.chInx - 1]);
 
+        /*Application uses 1 for CLASS A traffic and 2 for CLASS B traffic
+	  Configure right channel accordingly*/
 	NDBGPR_L1("---------------------------------------------\n");
-	NDBGPR_L1("Setting CBS for speed %d, class %s\n", pdata->speed, l_avb_struct.chInx == 1 ? "A" : "B");
+        if (l_avb_struct.chInx == 1){
+                 l_avb_struct.chInx = NTN_AVB_PRIORITY_CLASS_A;
+        } else if(l_avb_struct.chInx == 2){
+	         l_avb_struct.chInx = NTN_AVB_PRIORITY_CLASS_B;
+        } else {
+                NMSGPR_ALERT("Invalid queue number[%u] in AVB Struct from user\n",l_avb_struct.chInx);
+                return;
+        }
+
+        NDBGPR_L1("Setting CBS for speed %d, class %s\n", pdata->speed, l_avb_struct.chInx == 1 ? "A" : "B");
 
 	hw_if->set_tx_queue_operating_mode(l_avb_struct.chInx,
 		(UINT)l_avb_struct.op_mode, pdata);
